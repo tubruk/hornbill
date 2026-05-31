@@ -3,8 +3,10 @@
 accounts:
   - id: "a0000000-0000-4000-8000-000000000001"
     name: "Acme Corp Design Studio 🎨"
+    upcoming_threshold_days: 7
   - id: "a0000000-0000-4000-8000-000000000002"
     name: "Personal Sandbox ☕"
+    upcoming_threshold_days: 7
 
 bills:
   # Monthly edge case (day 31)
@@ -20,6 +22,7 @@ bills:
         day: 31
     start_date: "2026-01-31"
     active: true
+    upcoming_threshold_days: 14
     notes: "Clamps to 28/29/30 depending on target month"
 
   # Yearly leap day edge case (Feb 29)
@@ -36,6 +39,7 @@ bills:
         day: 29
     start_date: "2024-02-29"
     active: true
+    upcoming_threshold_days: 30
     notes: "Leap year boundary checker"
 
   # Daily/Weekly interval case
@@ -87,6 +91,7 @@ bills:
         from: "paid_at"
     start_date: "2026-05-01"
     active: true
+    upcoming_threshold_days: 10
     notes: "Next due date moves relative to last payment execution"
 
   # Spotify subscription (USD) under Personal Sandbox
@@ -102,6 +107,7 @@ bills:
         day: 15
     start_date: "2026-05-15"
     active: true
+    upcoming_threshold_days: 2
     notes: "Personal music subscription"
 
   # Internet Fiber (IDR) under Personal Sandbox
@@ -169,16 +175,16 @@ payments:
     notes: "Paid 2 days late (clamped Feb 28 due date)"
 
   # Premium Typography (Monthly day 31):
-  # Unpaid overdue payment
+  # Unpaid pending payment (due 2026-05-31, threshold 14 days, today is 2026-05-31)
   - id: "c0000000-0000-4000-8000-000000000003"
     bill_id: "b0000000-0000-4000-8000-000000000001"
     due_date: "2026-05-31"
     amount_cents: 9900
     paid_at: null
-    notes: "Unpaid overdue billing cycle"
+    notes: "Unpaid pending billing cycle"
 
   # Domain Registration (Yearly leap day):
-  # Rollover check
+  # Paid rollover check
   - id: "c0000000-0000-4000-8000-000000000004"
     bill_id: "b0000000-0000-4000-8000-000000000002"
     due_date: "2025-02-28"
@@ -186,8 +192,44 @@ payments:
     paid_at: "2025-02-28"
     notes: "Leap year rollover to non-leap year (clamps to Feb 28)"
 
+  # Domain Registration (Yearly leap day):
+  # Paid 2026 check
+  - id: "c0000000-0000-4000-8000-000000000011"
+    bill_id: "b0000000-0000-4000-8000-000000000002"
+    due_date: "2026-02-28"
+    amount_cents: 12000
+    paid_at: "2026-02-28"
+    notes: "Paid 2026 domain registration"
+
+  # Domain Registration (Yearly leap day):
+  # Unpaid upcoming payment (due 2027-02-28)
+  - id: "c0000000-0000-4000-8000-000000000012"
+    bill_id: "b0000000-0000-4000-8000-000000000002"
+    due_date: "2027-02-28"
+    amount_cents: 12000
+    paid_at: null
+    notes: "Unpaid upcoming domain registration"
+
+  # Co-working Space Fee (Bi-weekly):
+  # Unpaid overdue payment (due 2026-05-29)
+  - id: "c0000000-0000-4000-8000-000000000013"
+    bill_id: "b0000000-0000-4000-8000-000000000003"
+    due_date: "2026-05-29"
+    amount_cents: 45000
+    paid_at: null
+    notes: "Overdue co-working payment"
+
+  # Design Sprint Consultation (retiree every 3 weeks):
+  # Unpaid overdue payment (due 2026-05-22)
+  - id: "c0000000-0000-4000-8000-000000000014"
+    bill_id: "b0000000-0000-4000-8000-000000000004"
+    due_date: "2026-05-22"
+    amount_cents: 150000
+    paid_at: null
+    notes: "Overdue design sprint payment"
+
   # AWS Cloud Infrastructure (from paid_at monthly):
-  # Paid on-time
+  # Paid late
   - id: "c0000000-0000-4000-8000-000000000005"
     bill_id: "b0000000-0000-4000-8000-000000000005"
     due_date: "2026-05-01"
@@ -196,15 +238,52 @@ payments:
     notes: "Paid late (on May 5th, shifting next due date to June 5th)"
 
   # AWS Cloud Infrastructure (from paid_at monthly):
-  # Unpaid upcoming
+  # Unpaid pending payment (due 2026-06-05, threshold 10 days, today is 2026-05-31)
   - id: "c0000000-0000-4000-8000-000000000006"
     bill_id: "b0000000-0000-4000-8000-000000000005"
     due_date: "2026-06-05"
     amount_cents: 14900000
     paid_at: null
-    notes: "Generated next payment (due date calculated from paid_at + 1 month)"
+    notes: "Generated next payment"
 
-  # Payments for b0000000-0000-4000-8000-000000000008 (Relative)
+  # Spotify Premium (Monthly day 15):
+  # Paid on-time
+  - id: "c0000000-0000-4000-8000-000000000015"
+    bill_id: "b0000000-0000-4000-8000-000000000006"
+    due_date: "2026-05-15"
+    amount_cents: 1499
+    paid_at: "2026-05-15"
+    notes: "Paid on time"
+
+  # Spotify Premium (Monthly day 15):
+  # Unpaid upcoming payment (due 2026-06-15, threshold 2 days, today is 2026-05-31)
+  - id: "c0000000-0000-4000-8000-000000000016"
+    bill_id: "b0000000-0000-4000-8000-000000000006"
+    due_date: "2026-06-15"
+    amount_cents: 1499
+    paid_at: null
+    notes: "Unpaid upcoming billing cycle"
+
+  # Home Fiber Internet (Monthly day 10):
+  # Paid on-time
+  - id: "c0000000-0000-4000-8000-000000000017"
+    bill_id: "b0000000-0000-4000-8000-000000000007"
+    due_date: "2026-05-10"
+    amount_cents: 450000
+    paid_at: "2026-05-10"
+    notes: "Paid on time"
+
+  # Home Fiber Internet (Monthly day 10):
+  # Unpaid upcoming payment (due 2026-06-10, threshold 7 days, today is 2026-05-31)
+  - id: "c0000000-0000-4000-8000-000000000018"
+    bill_id: "b0000000-0000-4000-8000-000000000007"
+    due_date: "2026-06-10"
+    amount_cents: 450000
+    paid_at: null
+    notes: "Unpaid upcoming billing cycle"
+
+  # Shared Server Hosting (Monthly day 1):
+  # Paid payment 1
   - id: "c0000000-0000-4000-8000-000000000007"
     bill_id: "b0000000-0000-4000-8000-000000000008"
     due_date: "-30d"
@@ -212,13 +291,17 @@ payments:
     paid_at: "-28d"
     notes: "Paid relative payment"
 
+  # Shared Server Hosting (Monthly day 1):
+  # Paid payment 2 (was unpaid overdue, now paid to ensure only 1 unpaid payment)
   - id: "c0000000-0000-4000-8000-000000000008"
     bill_id: "b0000000-0000-4000-8000-000000000008"
     due_date: "-5d"
     amount_cents: 2500
-    paid_at: null
-    notes: "Overdue relative payment"
+    paid_at: "-4d"
+    notes: "Paid relative payment"
 
+  # Shared Server Hosting (Monthly day 1):
+  # Unpaid upcoming payment
   - id: "c0000000-0000-4000-8000-000000000009"
     bill_id: "b0000000-0000-4000-8000-000000000008"
     due_date: "+25d"
@@ -226,7 +309,8 @@ payments:
     paid_at: null
     notes: "Upcoming relative payment"
 
-  # Payments for b0000000-0000-4000-8000-000000000009 (Relative)
+  # Streaming Service Bundle (Monthly day 1):
+  # Unpaid overdue payment
   - id: "c0000000-0000-4000-8000-000000000010"
     bill_id: "b0000000-0000-4000-8000-000000000009"
     due_date: "-10d"

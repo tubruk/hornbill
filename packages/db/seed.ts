@@ -137,6 +137,7 @@ async function runSeeder() {
       body: JSON.stringify({
         id: account.id,
         name: account.name,
+        upcoming_threshold_days: account.upcoming_threshold_days ?? 7,
         created_at: now,
         updated_at: now,
       }),
@@ -160,6 +161,7 @@ async function runSeeder() {
         recurrence: JSON.stringify(bill.recurrence),
         start_date: bill.start_date,
         active: bill.active ? 1 : 0,
+        upcoming_threshold_days: bill.upcoming_threshold_days ?? null,
         notes: bill.notes || null,
         created_at: now,
         updated_at: now,

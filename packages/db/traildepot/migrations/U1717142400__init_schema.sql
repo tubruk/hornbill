@@ -2,6 +2,7 @@
 CREATE TABLE IF NOT EXISTS accounts (
     id BLOB PRIMARY KEY DEFAULT (uuid_v4()) CHECK (is_uuid_v4(id)) NOT NULL,
     name TEXT NOT NULL,
+    upcoming_threshold_days INTEGER NOT NULL DEFAULT 7,
     created_at INTEGER NOT NULL DEFAULT (UNIXEPOCH()),
     updated_at INTEGER NOT NULL DEFAULT (UNIXEPOCH())
 ) STRICT;
@@ -17,6 +18,7 @@ CREATE TABLE IF NOT EXISTS bills (
     recurrence TEXT NOT NULL,  -- JSON string containing Recurrence config
     start_date TEXT NOT NULL,  -- YYYY-MM-DD
     active INTEGER NOT NULL DEFAULT 1, -- Boolean (0 = false, 1 = true)
+    upcoming_threshold_days INTEGER, -- Nullable (null = fallback to account default)
     notes TEXT,
     created_at INTEGER NOT NULL DEFAULT (UNIXEPOCH()),
     updated_at INTEGER NOT NULL DEFAULT (UNIXEPOCH())
