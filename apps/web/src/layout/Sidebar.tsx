@@ -230,7 +230,7 @@ export function Sidebar({
       {/* ── Desktop sidebar footer ────────────────────────── */}
       <div className="p-5 border-t border-border-warm hidden md:block bg-surface-warm/40">
         <div className="flex items-center gap-3 mb-4">
-          <Avatar fallback={email ? email.substring(0, 2).toUpperCase() : "HB"} size={32} />
+          <Avatar email={email} fallback={email ? email.substring(0, 2).toUpperCase() : "HB"} size={32} />
           <div className="min-w-0 flex-1">
             <div className="text-[14px] font-semibold text-text-primary truncate">{email || "Hornbill"}</div>
             {onLogout && (
