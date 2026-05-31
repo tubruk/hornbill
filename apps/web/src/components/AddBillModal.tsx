@@ -55,6 +55,9 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
   const [intervalUnit, setIntervalUnit] = useState<"days" | "weeks" | "months">(
     bill?.recurrence.type === "interval" ? bill.recurrence.interval.unit : "months"
   );
+  const [intervalFrom, setIntervalFrom] = useState<"due_date" | "paid_at">(
+    bill?.recurrence.type === "interval" ? bill.recurrence.interval.from : "paid_at"
+  );
   const [hasThresholdOverride, setHasThresholdOverride] = useState(
     bill?.upcoming_threshold_days !== null && bill?.upcoming_threshold_days !== undefined
   );
@@ -80,7 +83,7 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
     } else if (recurrenceType === "yearly") {
       recurrence = { type: "yearly", yearly: { month: yearlyMonth, day: yearlyDay } };
     } else {
-      recurrence = { type: "interval", interval: { every: intervalEvery, unit: intervalUnit, from: "paid_at" } };
+      recurrence = { type: "interval", interval: { every: intervalEvery, unit: intervalUnit, from: intervalFrom } };
     }
 
     await onSubmit({
@@ -243,23 +246,39 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
           )}
 
           {recurrenceType === "interval" && (
-            <div className="p-3 bg-surface-warm rounded-sm border border-border-warm flex gap-4 items-end animate-fadeIn">
-              <div className="flex-1">
-                <Input label="Every…" type="number" min="1"
-                  value={intervalEvery}
-                  onChange={(e) => setIntervalEvery(Math.max(1, Number(e.target.value)))}
-                />
+            <div className="p-3 bg-surface-warm rounded-sm border border-border-warm space-y-4 animate-fadeIn">
+              <div className="flex gap-4 items-end">
+                <div className="flex-1">
+                  <Input label="Every…" type="number" min="1"
+                    value={intervalEvery}
+                    onChange={(e) => setIntervalEvery(Math.max(1, Number(e.target.value)))}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="font-body text-[14px] font-semibold text-text-primary mb-1.5 block">Unit</label>
+                  <select
+                    value={intervalUnit}
+                    onChange={(e) => setIntervalUnit(e.target.value as any)}
+                    className="w-full bg-surface-warm rounded-sm p-3 text-[16px] font-body border border-border-warm hover:border-primary/60 focus:border-primary focus:ring-3 focus:ring-primary/12 text-text-primary h-[46px] outline-none"
+                  >
+                    <option value="days">Days</option>
+                    <option value="weeks">Weeks</option>
+                    <option value="months">Months</option>
+                  </select>
+                </div>
               </div>
-              <div className="flex-1">
-                <label className="font-body text-[14px] font-semibold text-text-primary mb-1.5 block">Unit</label>
+
+              <div>
+                <label className="font-body text-[14px] font-semibold text-text-primary mb-1.5 block">
+                  Calculate Next Due Date From
+                </label>
                 <select
-                  value={intervalUnit}
-                  onChange={(e) => setIntervalUnit(e.target.value as any)}
+                  value={intervalFrom}
+                  onChange={(e) => setIntervalFrom(e.target.value as any)}
                   className="w-full bg-surface-warm rounded-sm p-3 text-[16px] font-body border border-border-warm hover:border-primary/60 focus:border-primary focus:ring-3 focus:ring-primary/12 text-text-primary h-[46px] outline-none"
                 >
-                  <option value="days">Days</option>
-                  <option value="weeks">Weeks</option>
-                  <option value="months">Months</option>
+                  <option value="paid_at">Actual payment date (when paid)</option>
+                  <option value="due_date">Scheduled due date (original due date)</option>
                 </select>
               </div>
             </div>
