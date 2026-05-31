@@ -111,10 +111,7 @@ export function useUpdateBill() {
       updateBill(id, updates),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: qk.bills(vars.accountId) });
-      // Toggling active=true triggers server-side payment generation
-      if (vars.updates.active === true) {
-        qc.invalidateQueries({ queryKey: qk.payments(vars.accountId) });
-      }
+      qc.invalidateQueries({ queryKey: qk.payments(vars.accountId) });
     },
   });
 }

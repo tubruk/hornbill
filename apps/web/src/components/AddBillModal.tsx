@@ -149,7 +149,12 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="w-full bg-surface-warm rounded-sm p-3 text-[16px] font-body border border-border-warm hover:border-primary/60 focus:border-primary focus:ring-3 focus:ring-primary/12 text-text-primary h-[46px] outline-none"
+                disabled={!!bill}
+                className={`w-full rounded-sm p-3 text-[16px] font-body border border-border-warm h-[46px] outline-none ${
+                  bill
+                    ? "bg-surface-raised opacity-50 cursor-not-allowed"
+                    : "bg-surface-warm hover:border-primary/60 focus:border-primary focus:ring-3 focus:ring-primary/12 text-text-primary"
+                }`}
               >
                 {SUPPORTED_CURRENCIES.map((c) => (
                   <option key={c} value={c}>
@@ -177,6 +182,7 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
+                disabled={!!bill}
               />
             </div>
           </div>

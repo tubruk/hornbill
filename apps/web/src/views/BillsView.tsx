@@ -1,4 +1,5 @@
-import { Loader2, Plus, Trash2, ToggleLeft, ToggleRight, RefreshCw, History } from "lucide-react";
+import { useState } from "react";
+import { Loader2, Plus, Trash2, ToggleLeft, ToggleRight, RefreshCw, History, Edit2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useAppCtx } from "../context/AppContext";
 import { useBills, useUpdateBill, useDeleteBill } from "../api/queries";
@@ -6,6 +7,7 @@ import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { Chip } from "../components/Chip";
 import { Tooltip } from "../components/Tooltip";
+import { AddBillModal } from "../components/AddBillModal";
 import type { Bill } from "@hornbill/core";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -26,6 +28,7 @@ function recurrenceLabel(bill: Bill): string {
 
 export function BillsView() {
   const { currentAccount, openAddModal, notify } = useAppCtx();
+  const [editingBill, setEditingBill] = useState<Bill | null>(null);
 
   // ── Queries & mutations ────────────────────────────────────────────────
 
@@ -198,6 +201,18 @@ export function BillsView() {
                       </Link>
                     </Tooltip>
 
+                    {/* Edit bill */}
+                    <Tooltip content="Edit bill">
+                      <button
+                        onClick={() => setEditingBill(bill)}
+                        disabled={isBusy}
+                        aria-label={`Edit ${bill.name}`}
+                        className="p-1.5 rounded-sm text-text-secondary hover:text-primary hover:bg-surface-raised transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <Edit2 className="w-5 h-5" />
+                      </button>
+                    </Tooltip>
+
                     {/* Toggle active */}
                     <Tooltip content={bill.active ? "Deactivate bill" : "Activate bill"}>
                       <button
@@ -240,6 +255,35 @@ export function BillsView() {
           </div>
         )}
       </Card>
+
+      {editingBill && (
+        <AddBillModal
+          accountId={currentAccount.id}
+          accountThreshold={currentAccount.upcoming_threshold_days}
+          bill={editingBill}
+          onSubmit={async (payload) => {
+            try {
+              await updateBillMut.mutateAsync({
+                id: editingBill.id,
+                accountId: currentAccount.id,
+                updates: {
+                  name: payload.name,
+                  amount_cents: payload.amount_cents,
+                  recurrence: payload.recurrence,
+                  upcoming_threshold_days: payload.upcoming_threshold_days,
+                  notes: payload.notes,
+                },
+              });
+              setEditingBill(null);
+              notify(`"${payload.name}" updated.`, "success");
+            } catch (err: any) {
+              notify(err.message ?? "Failed to update bill.", "error");
+            }
+          }}
+          onClose={() => setEditingBill(null)}
+          isSubmitting={updateBillMut.isPending}
+        />
+      )}
 
     </div>
   );
