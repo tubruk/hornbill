@@ -20,7 +20,7 @@ function formatDate(iso: string): string {
 
 export function PaymentsView() {
   const { currentAccount, notify } = useAppCtx();
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>("pending");
   const todayStr = new Date().toISOString().split("T")[0];
 
   const billsQuery = useBills(currentAccount?.id);
