@@ -63,9 +63,8 @@ export function DashboardView() {
     defaultCurrency,
     overduePayments,
     pendingPayments,
-    settledPayments,
-    settleRate,
-    upcomingPayments,
+    paymentProgressRate,
+    doneBillsCount,
   } = useMemo(() => {
     const activeBills = bills.filter((b) => b.active);
 
@@ -78,12 +77,33 @@ export function DashboardView() {
 
     const defaultCurrency = bills[0]?.currency ?? "USD";
 
-    const settledPayments = payments.filter((p) => !!p.paid_at);
+    // Group payments by bill_id to find the latest payment for each active bill
+    const paymentsByBill = new Map<string, EnrichedPayment[]>();
+    payments.forEach((p) => {
+      const list = paymentsByBill.get(p.bill_id) || [];
+      list.push(p);
+      paymentsByBill.set(p.bill_id, list);
+    });
 
-    const settleRate =
-      payments.length > 0
-        ? Math.round((settledPayments.length / payments.length) * 100)
-        : 0;
+    let doneBillsCount = 0;
+    activeBills.forEach((b) => {
+      const billPayments = paymentsByBill.get(b.id) || [];
+      if (billPayments.length === 0) {
+        return; // Treated as not done/pending
+      }
+      const latestPayment = billPayments.reduce((latest, current) => {
+        return current.due_date > latest.due_date ? current : latest;
+      });
+      const threshold = b.upcoming_threshold_days ?? currentAccount?.upcoming_threshold_days ?? DEFAULT_UPCOMING_THRESHOLD_DAYS;
+      const { status } = getPaymentState(latestPayment, todayStr, threshold);
+      if (status === "paid" || status === "paid_late" || status === "upcoming") {
+        doneBillsCount++;
+      }
+    });
+
+    const paymentProgressRate = activeBills.length > 0
+      ? Math.round((doneBillsCount / activeBills.length) * 100)
+      : 0;
 
     const unpaid = payments.filter((p) => !p.paid_at);
     const overduePayments: EnrichedPayment[] = [];
@@ -112,9 +132,8 @@ export function DashboardView() {
       defaultCurrency,
       overduePayments,
       pendingPayments,
-      settledPayments,
-      settleRate,
-      upcomingPayments,
+      paymentProgressRate,
+      doneBillsCount,
     };
   }, [bills, payments, todayStr]);
 
@@ -127,7 +146,7 @@ export function DashboardView() {
       {
         onSuccess: () => notify(`"${billName}" marked as paid.`, "success"),
         onError: (err: any) =>
-          notify(err.message ?? "Could not settle payment.", "error"),
+          notify(err.message ?? "Could not pay payment.", "error"),
       }
     );
   }
@@ -242,7 +261,7 @@ export function DashboardView() {
                 Attention Required
               </h3>
               <p className="text-[14px] text-text-secondary font-semibold mt-0.5">
-                {overduePayments.length} bill{overduePayments.length > 1 ? "s are" : " is"} overdue. Review and settle to stay on track.
+                {overduePayments.length} bill{overduePayments.length > 1 ? "s are" : " is"} overdue. Review and pay to stay on track.
               </p>
             </div>
           </div>
@@ -254,33 +273,23 @@ export function DashboardView() {
         </Card>
       )}
 
-      {/* ── Settlement progress ──────────────────────────────── */}
-      {!isLoading && payments.length > 0 && (
+      {/* ── Payment progress ──────────────────────────────── */}
+      {!isLoading && activeBills.length > 0 && (
         <Card hoverable={false} className="p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-display font-bold text-[18px] text-text-primary">
               Payment Progress
             </h3>
             <span className="text-[13px] font-semibold text-text-secondary">
-              {settledPayments.length} of {payments.length} settled
+              {doneBillsCount} of {activeBills.length} bills paid
             </span>
           </div>
-          <Progress value={settleRate} label="Overall settlement rate" />
+          <Progress value={paymentProgressRate} label="Overall payment progress" />
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-4 text-[13px] font-semibold">
-            <span className="flex items-center gap-1.5 text-success">
-              <CheckCircle2 className="w-4 h-4" />
-              {settledPayments.length} Paid
-            </span>
             <span className="flex items-center gap-1.5 text-warning">
               <Clock className="w-4 h-4" />
               {pendingPayments.length} Due Soon
             </span>
-            {upcomingPayments.length > 0 && (
-              <span className="flex items-center gap-1.5 text-[#1E40AF]">
-                <Clock className="w-4 h-4" />
-                {upcomingPayments.length} Upcoming
-              </span>
-            )}
             {overduePayments.length > 0 && (
               <span className="flex items-center gap-1.5 text-error">
                 <AlertTriangle className="w-4 h-4" />
