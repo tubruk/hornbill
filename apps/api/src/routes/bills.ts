@@ -44,6 +44,7 @@ app.post("/", async (c) => {
       recurrence: body.recurrence,
       start_date: body.start_date,
       active: body.active !== false,
+      upcoming_threshold_days: body.upcoming_threshold_days !== undefined ? (body.upcoming_threshold_days === null ? null : Number(body.upcoming_threshold_days)) : null,
       notes: body.notes || null,
     });
 
