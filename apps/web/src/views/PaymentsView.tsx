@@ -55,8 +55,8 @@ export function PaymentsView() {
     payMut.mutate(
       { paymentId, accountId: currentAccount.id },
       {
-        onSuccess: () => notify(`"${billName}" settled.`, "success"),
-        onError: (err: any) => notify(err.message ?? "Failed to settle.", "error"),
+        onSuccess: () => notify(`"${billName}" marked as paid.`, "success"),
+        onError: (err: any) => notify(err.message ?? "Failed to mark as paid.", "error"),
       }
     );
   }
@@ -70,8 +70,8 @@ export function PaymentsView() {
   }
 
   const FILTERS: { key: Filter; label: string }[] = [
-    { key: "unpaid", label: "Unpaid" },
-    { key: "settled", label: "Paid" },
+    { key: "unpaid", label: "Active" },
+    { key: "settled", label: "Past" },
   ];
 
   return (
@@ -151,7 +151,7 @@ export function PaymentsView() {
           </div>
         ) : displayed.length === 0 ? (
           <div className="py-16 text-center text-[15px] text-text-secondary font-semibold">
-            No {filter === "unpaid" ? "unpaid" : "paid"} payments found.
+            No {filter === "unpaid" ? "active" : "past"} payments found.
           </div>
         ) : (
           <div className="divide-y divide-border-warm">
