@@ -4,9 +4,15 @@ accounts:
   - id: "a0000000-0000-4000-8000-000000000001"
     name: "Acme Corp Design Studio 🎨"
     upcoming_threshold_days: 7
+    currencies: ["USD", "IDR", "EUR"]
+    default_currency: "USD"
+    archived: false
   - id: "a0000000-0000-4000-8000-000000000002"
     name: "Personal Sandbox ☕"
     upcoming_threshold_days: 7
+    currencies: ["IDR", "USD"]
+    default_currency: "IDR"
+    archived: false
 
 bills:
   # Monthly edge case (day 31)

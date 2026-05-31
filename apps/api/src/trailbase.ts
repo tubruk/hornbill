@@ -89,28 +89,58 @@ export class TrailbaseClient {
   }
 
   // --- Accounts CRUD ---
+  
+  private mapDbAccount(acc: any): Account {
+    let currencies: string[] = ["IDR", "USD"];
+    if (acc.currencies) {
+      try {
+        currencies = typeof acc.currencies === "string" 
+          ? JSON.parse(acc.currencies) 
+          : acc.currencies;
+      } catch {
+        currencies = ["IDR", "USD"];
+      }
+    }
+    return {
+      ...acc,
+      currencies,
+      default_currency: acc.default_currency ?? "IDR",
+      archived: acc.archived !== undefined ? (Number(acc.archived) === 1) : false,
+    };
+  }
 
   async listAccounts(): Promise<Account[]> {
     const res = await this.request<TrailbaseListResponse<any>>("/api/records/v1/accounts");
-    return res.records;
+    return res.records.map(acc => this.mapDbAccount(acc));
   }
 
   async getAccount(id: string): Promise<Account> {
-    return this.request<Account>(`/api/records/v1/accounts/${id}`);
+    const acc = await this.request<any>(`/api/records/v1/accounts/${id}`);
+    return this.mapDbAccount(acc);
   }
 
-  async createAccount(account: Omit<Account, "created_at" | "updated_at">): Promise<Account> {
+  async createAccount(account: Omit<Partial<Account> & { id: string; name: string }, "created_at" | "updated_at">): Promise<Account> {
     const now = Math.floor(Date.now() / 1000);
+    const payload = {
+      ...account,
+      upcoming_threshold_days: account.upcoming_threshold_days ?? 7,
+      currencies: JSON.stringify(account.currencies ?? ["IDR", "USD"]),
+      default_currency: account.default_currency ?? "IDR",
+      archived: account.archived ? 1 : 0,
+      created_at: now,
+      updated_at: now,
+    };
     await this.request<any>("/api/records/v1/accounts", {
       method: "POST",
-      body: JSON.stringify({
-        ...account,
-        created_at: now,
-        updated_at: now,
-      }),
+      body: JSON.stringify(payload),
     });
     return {
-      ...account,
+      id: account.id,
+      name: account.name,
+      upcoming_threshold_days: account.upcoming_threshold_days ?? 7,
+      currencies: account.currencies ?? ["IDR", "USD"],
+      default_currency: account.default_currency ?? "IDR",
+      archived: account.archived ?? false,
       created_at: now,
       updated_at: now,
     };
@@ -118,12 +148,19 @@ export class TrailbaseClient {
 
   async updateAccount(id: string, updates: Partial<Omit<Account, "id" | "created_at" | "updated_at">>): Promise<Account> {
     const now = Math.floor(Date.now() / 1000);
+    const payload: any = {
+      ...updates,
+      updated_at: now,
+    };
+    if (updates.currencies !== undefined) {
+      payload.currencies = JSON.stringify(updates.currencies);
+    }
+    if (updates.archived !== undefined) {
+      payload.archived = updates.archived ? 1 : 0;
+    }
     await this.request<any>(`/api/records/v1/accounts/${id}`, {
       method: "PATCH",
-      body: JSON.stringify({
-        ...updates,
-        updated_at: now,
-      }),
+      body: JSON.stringify(payload),
     });
     return this.getAccount(id);
   }

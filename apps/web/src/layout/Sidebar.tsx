@@ -128,29 +128,31 @@ export function Sidebar({
               aria-label="Accounts"
             >
               {/* Account list */}
-              {accounts.length > 0 ? (
+              {accounts.filter(acc => !acc.archived).length > 0 ? (
                 <div className="p-1">
-                  {accounts.map((acc) => (
-                    <button
-                      key={acc.id}
-                      role="option"
-                      aria-selected={currentAccount?.id === acc.id}
-                      onClick={() => {
-                        onSelectAccount(acc);
-                        setMenuOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-sm text-left text-[14px] font-semibold transition-colors cursor-pointer ${
-                        currentAccount?.id === acc.id
-                          ? "bg-surface-raised text-primary"
-                          : "text-text-secondary hover:bg-surface-warm hover:text-text-primary"
-                      }`}
-                    >
-                      <span className="truncate">{acc.name}</span>
-                      {currentAccount?.id === acc.id && (
-                        <Check className="w-4 h-4 text-primary shrink-0" />
-                      )}
-                    </button>
-                  ))}
+                  {accounts
+                    .filter((acc) => !acc.archived)
+                    .map((acc) => (
+                      <button
+                        key={acc.id}
+                        role="option"
+                        aria-selected={currentAccount?.id === acc.id}
+                        onClick={() => {
+                          onSelectAccount(acc);
+                          setMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-sm text-left text-[14px] font-semibold transition-colors cursor-pointer ${
+                          currentAccount?.id === acc.id
+                            ? "bg-surface-raised text-primary"
+                            : "text-text-secondary hover:bg-surface-warm hover:text-text-primary"
+                        }`}
+                      >
+                        <span className="truncate">{acc.name}</span>
+                        {currentAccount?.id === acc.id && (
+                          <Check className="w-4 h-4 text-primary shrink-0" />
+                        )}
+                      </button>
+                    ))}
                 </div>
               ) : (
                 <p className="px-3 py-3 text-[13px] text-text-secondary font-medium">

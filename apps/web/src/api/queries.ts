@@ -61,8 +61,8 @@ export function useCreateAccount() {
 export function useUpdateAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) =>
-      updateAccount(id, name),
+    mutationFn: ({ id, ...updates }: { id: string } & Partial<Omit<Account, "id" | "created_at" | "updated_at">>) =>
+      updateAccount(id, updates),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.accounts() });
     },

@@ -56,11 +56,27 @@ export function RootLayout() {
 
   const paymentsQuery = usePayments(currentAccount?.id, bills);
 
-  // ── Auto-select first account once loaded ───────────────────────────────
+  // ── Auto-select first active account and sync state ─────────────────────
 
   useEffect(() => {
-    if (token && !currentAccount && accounts.length > 0) {
-      setCurrentAccount(accounts[0]);
+    if (token && accounts.length > 0) {
+      const activeAccounts = accounts.filter((acc) => !acc.archived);
+      const exists = currentAccount && accounts.some((a) => a.id === currentAccount.id);
+      const isCurrentArchived = currentAccount && accounts.find((a) => a.id === currentAccount.id)?.archived;
+
+      if (!currentAccount || !exists || isCurrentArchived) {
+        if (activeAccounts.length > 0) {
+          setCurrentAccount(activeAccounts[0]);
+        } else {
+          setCurrentAccount(accounts[0]); // Fallback if all accounts are archived
+        }
+      } else {
+        // Sync the currentAccount state with any updates fetched from the API (name, currencies, etc.)
+        const latest = accounts.find((a) => a.id === currentAccount.id);
+        if (latest && JSON.stringify(latest) !== JSON.stringify(currentAccount)) {
+          setCurrentAccount(latest);
+        }
+      }
     }
   }, [accounts, currentAccount, setCurrentAccount, token]);
 

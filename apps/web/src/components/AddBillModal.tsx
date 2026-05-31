@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { Sparkles, X } from "lucide-react";
 import { Button } from "./Button";
@@ -6,7 +6,7 @@ import { Card } from "./Card";
 import { Input } from "./Input";
 import { Radio } from "./Radio";
 import { Checkbox } from "./Checkbox";
-import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY, DEFAULT_UPCOMING_THRESHOLD_DAYS, type Bill } from "@hornbill/core";
+import { DEFAULT_CURRENCY, DEFAULT_UPCOMING_THRESHOLD_DAYS, type Bill } from "@hornbill/core";
 import { useAccounts } from "../api/queries";
 
 interface Props {
@@ -40,6 +40,18 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
   const [name, setName] = useState(bill?.name ?? "");
   const [amount, setAmount] = useState(bill ? (bill.amount_cents / 100).toString() : "");
   const [currency, setCurrency] = useState<string>(bill?.currency ?? DEFAULT_CURRENCY);
+  const [hasInitializedCurrency, setHasInitializedCurrency] = useState(false);
+
+  useEffect(() => {
+    if (bill) {
+      setCurrency(bill.currency);
+      setHasInitializedCurrency(true);
+    } else if (currentAccount && !hasInitializedCurrency) {
+      setCurrency(currentAccount.default_currency ?? DEFAULT_CURRENCY);
+      setHasInitializedCurrency(true);
+    }
+  }, [currentAccount, bill, hasInitializedCurrency]);
+
   const [startDate, setStartDate] = useState(bill?.start_date ?? today());
   const [notes, setNotes] = useState(bill?.notes ?? "");
   const [recurrenceType, setRecurrenceType] = useState<"monthly" | "yearly" | "interval">(
@@ -168,7 +180,7 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
                     : "bg-surface-warm hover:border-primary/60 focus:border-primary focus:ring-3 focus:ring-primary/12 text-text-primary"
                 }`}
               >
-                {SUPPORTED_CURRENCIES.map((c) => (
+                {(currentAccount?.currencies ?? ["IDR", "USD"]).map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>

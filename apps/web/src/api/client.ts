@@ -58,11 +58,14 @@ export function createAccount(name: string): Promise<Account> {
   });
 }
 
-export function updateAccount(id: string, name: string): Promise<Account> {
+export function updateAccount(
+  id: string,
+  updates: Partial<Omit<Account, "id" | "created_at" | "updated_at">>
+): Promise<Account> {
   return apiFetch<Account>(`/accounts/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(updates),
   });
 }
 
