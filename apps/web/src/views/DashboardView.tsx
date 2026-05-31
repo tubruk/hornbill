@@ -392,31 +392,35 @@ export function DashboardView() {
 
         {/* Quick actions (right, 1-col) */}
         <div className="space-y-4">
-          <h3 className="font-display font-bold text-[20px] text-text-primary">
-            Quick Actions
-          </h3>
-          <Card hoverable={false} className="flex flex-col gap-4 p-5">
-            <div>
-              <h4 className="font-display font-semibold text-[16px] text-text-primary mb-1.5">
-                Add Bill
-              </h4>
-              <p className="text-[14px] text-text-secondary leading-relaxed font-medium">
-                Track a new recurring bill, SaaS license, or utility expense.
-              </p>
-            </div>
-            <div className="pt-4 border-t border-border-warm">
-              <Button
-                variant="primary"
-                size="medium"
-                onClick={openAddModal}
-                className="w-full gap-2"
-                disabled={!currentAccount}
-              >
-                <Plus className="w-4 h-4" />
-                Add Bill
-              </Button>
-            </div>
-          </Card>
+          {!isLoading && bills.length === 0 && (
+            <>
+              <h3 className="font-display font-bold text-[20px] text-text-primary">
+                Quick Actions
+              </h3>
+              <Card hoverable={false} className="flex flex-col gap-4 p-5">
+                <div>
+                  <h4 className="font-display font-semibold text-[16px] text-text-primary mb-1.5">
+                    Add Bill
+                  </h4>
+                  <p className="text-[14px] text-text-secondary leading-relaxed font-medium">
+                    Track a new recurring bill, SaaS license, or utility expense.
+                  </p>
+                </div>
+                <div className="pt-4 border-t border-border-warm">
+                  <Button
+                    variant="primary"
+                    size="medium"
+                    onClick={openAddModal}
+                    className="w-full gap-2"
+                    disabled={!currentAccount}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Bill
+                  </Button>
+                </div>
+              </Card>
+            </>
+          )}
 
           {/* Account summary card */}
           {currentAccount && !isLoading && (
