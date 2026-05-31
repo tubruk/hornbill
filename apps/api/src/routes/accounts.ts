@@ -1,66 +1,110 @@
 import { Hono } from "hono";
-import { db } from "../trailbase";
+import { getDb, verifyToken } from "../trailbase";
 import { DEFAULT_UPCOMING_THRESHOLD_DAYS } from "@hornbill/core";
 
 const app = new Hono();
 
+async function getAuthUser(c: any): Promise<any> {
+  const authHeader = c.req.header("Authorization");
+  if (!authHeader) {
+    throw new Error("Missing Authorization header");
+  }
+  return await verifyToken(authHeader);
+}
+
 app.get("/", async (c) => {
   try {
-    const list = await db.listAccounts();
-    return c.json(list);
+    const user = await getAuthUser(c);
+    const client = getDb(c);
+    const accountUsers = await client.listAccountUsers();
+    const myAccountIds = new Set(
+      accountUsers.filter((au) => au.user_id === user.sub).map((au) => au.account_id)
+    );
+    const allAccounts = await client.listAccounts();
+    const myAccounts = allAccounts.filter((acc) => myAccountIds.has(acc.id));
+    return c.json(myAccounts);
   } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+    const status = err.message.includes("Unauthorized") || err.message.includes("Authorization") ? 401 : 500;
+    return c.json({ error: err.message }, status);
   }
 });
 
 app.post("/", async (c) => {
   try {
+    const user = await getAuthUser(c);
+    const client = getDb(c);
     const body = await c.req.json();
     if (!body.name) {
       return c.json({ error: "Name is required" }, 400);
     }
-    const newAccount = await db.createAccount({
+    const newAccount = await client.createAccount({
       id: crypto.randomUUID(),
       name: body.name,
       upcoming_threshold_days: body.upcoming_threshold_days ?? DEFAULT_UPCOMING_THRESHOLD_DAYS,
     });
+    await client.associateUserToAccount(newAccount.id, user.sub);
     return c.json(newAccount, 201);
   } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+    const status = err.message.includes("Unauthorized") || err.message.includes("Authorization") ? 401 : 500;
+    return c.json({ error: err.message }, status);
   }
 });
 
 app.get("/:id", async (c) => {
   try {
+    const user = await getAuthUser(c);
+    const client = getDb(c);
     const id = c.req.param("id");
-    const account = await db.getAccount(id);
+    const accountUsers = await client.listAccountUsers();
+    const hasAccess = accountUsers.some((au) => au.user_id === user.sub && au.account_id === id);
+    if (!hasAccess) {
+      return c.json({ error: "Forbidden: No access to this account" }, 403);
+    }
+    const account = await client.getAccount(id);
     return c.json(account);
   } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+    const status = err.message.includes("Unauthorized") || err.message.includes("Authorization") ? 401 : 500;
+    return c.json({ error: err.message }, status);
   }
 });
 
 app.patch("/:id", async (c) => {
   try {
+    const user = await getAuthUser(c);
+    const client = getDb(c);
     const id = c.req.param("id");
+    const accountUsers = await client.listAccountUsers();
+    const hasAccess = accountUsers.some((au) => au.user_id === user.sub && au.account_id === id);
+    if (!hasAccess) {
+      return c.json({ error: "Forbidden: No access to this account" }, 403);
+    }
     const body = await c.req.json();
     if (!body.name) {
       return c.json({ error: "Name is required" }, 400);
     }
-    const updated = await db.updateAccount(id, { name: body.name });
+    const updated = await client.updateAccount(id, { name: body.name });
     return c.json(updated);
   } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+    const status = err.message.includes("Unauthorized") || err.message.includes("Authorization") ? 401 : 500;
+    return c.json({ error: err.message }, status);
   }
 });
 
 app.delete("/:id", async (c) => {
   try {
+    const user = await getAuthUser(c);
+    const client = getDb(c);
     const id = c.req.param("id");
-    await db.deleteAccount(id);
+    const accountUsers = await client.listAccountUsers();
+    const hasAccess = accountUsers.some((au) => au.user_id === user.sub && au.account_id === id);
+    if (!hasAccess) {
+      return c.json({ error: "Forbidden: No access to this account" }, 403);
+    }
+    await client.deleteAccount(id);
     return c.json({ success: true });
   } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+    const status = err.message.includes("Unauthorized") || err.message.includes("Authorization") ? 401 : 500;
+    return c.json({ error: err.message }, status);
   }
 });
 

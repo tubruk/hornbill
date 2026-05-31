@@ -1,11 +1,13 @@
-import { Loader2, Shield, Activity, RefreshCw } from "lucide-react";
+import { Loader2, Shield, Activity, RefreshCw, User } from "lucide-react";
 import { useAppCtx } from "../context/AppContext";
 import { useAccounts, useTriggerSync } from "../api/queries";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
+import { useAuth } from "../context/AuthContext";
 
 export function SettingsView() {
   const { notify } = useAppCtx();
+  const { email, logout } = useAuth();
   const accountsQuery = useAccounts();
   const isApiConnected = !accountsQuery.isError;
 
@@ -26,6 +28,28 @@ export function SettingsView() {
   return (
     <div className="space-y-7">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
+
+        {/* Account & Session */}
+        <Card hoverable={false} className="p-5">
+          <h4 className="font-display font-semibold text-[18px] text-text-primary mb-2 flex items-center gap-2">
+            <User className="w-5 h-5 text-primary" />
+            Account Session
+          </h4>
+          <p className="text-[14px] text-text-secondary font-medium leading-relaxed mb-5">
+            You are logged in as <span className="font-semibold text-text-primary">{email}</span>. Clear your active session and log out of the application.
+          </p>
+          <Button
+            variant="destructive"
+            size="medium"
+            onClick={() => {
+              if (confirm("Are you sure you want to log out?")) {
+                logout();
+              }
+            }}
+          >
+            Log Out
+          </Button>
+        </Card>
 
         {/* Database Maintenance */}
         <Card hoverable={false} className="p-5">

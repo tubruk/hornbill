@@ -4,6 +4,8 @@ import { RefreshCw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useAppCtx } from "../context/AppContext";
+import { useAuth } from "../context/AuthContext";
+import { AuthView } from "../views/AuthView";
 import {
   useAccounts,
   useCreateAccount,
@@ -38,13 +40,14 @@ const ROUTE_META: Record<string, { title: string; subtitle: string }> = {
 };
 
 export function RootLayout() {
+  const { token, email, logout } = useAuth();
   const { currentAccount, setCurrentAccount, toasts, notify, dismissToast, showAddModal, closeAddModal } = useAppCtx();
   const location = useLocation();
   const qc = useQueryClient();
 
   // ── Queries ──────────────────────────────────────────────────────────────
 
-  const accountsQuery = useAccounts();
+  const accountsQuery = useAccounts({ enabled: !!token });
   const accounts = accountsQuery.data ?? [];
   const isApiConnected = !accountsQuery.isError;
 
@@ -56,27 +59,12 @@ export function RootLayout() {
   // ── Auto-select first account once loaded ───────────────────────────────
 
   useEffect(() => {
-    if (!currentAccount && accounts.length > 0) {
+    if (token && !currentAccount && accounts.length > 0) {
       setCurrentAccount(accounts[0]);
     }
-  }, [accounts, currentAccount, setCurrentAccount]);
-
-  // ── Auto-create default account when API returns empty list ─────────────
+  }, [accounts, currentAccount, setCurrentAccount, token]);
 
   const createAccountMut = useCreateAccount();
-  useEffect(() => {
-    if (
-      accountsQuery.isSuccess &&
-      accounts.length === 0 &&
-      !createAccountMut.isPending
-    ) {
-      createAccountMut.mutate("Primary Account 🎨", {
-        onSuccess: (newAcc) => setCurrentAccount(newAcc),
-        onError: () => notify("Could not create default account.", "error"),
-      });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountsQuery.isSuccess, accounts.length]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -111,6 +99,10 @@ export function RootLayout() {
     qc.invalidateQueries({ queryKey: qk.accounts() });
   }
 
+  if (!token) {
+    return <AuthView />;
+  }
+
   // ── Route metadata ────────────────────────────────────────────────────────
 
   const meta = ROUTE_META[location.pathname] ?? ROUTE_META["/"];
@@ -137,6 +129,8 @@ export function RootLayout() {
           });
         }}
         isCreatingAccount={createAccountMut.isPending}
+        email={email}
+        onLogout={logout}
       />
 
       {/* ── Main workspace ────────────────────────────────── */}

@@ -1,21 +1,78 @@
 import type { Account, Bill, Payment } from "@hornbill/core";
+import { verify } from "hono/jwt";
+import { readFileSync, existsSync } from "fs";
 
 const TRAILBASE_URL = process.env.TRAILBASE_URL || "http://localhost:4000";
 const TRAILBASE_TOKEN = process.env.TRAILBASE_TOKEN || "";
+
+let publicKey: CryptoKey | null = null;
+
+async function getPublicKey(): Promise<CryptoKey> {
+  if (publicKey) return publicKey;
+  
+  const paths = [
+    "packages/db/traildepot/secrets/keys/public_key.pem",
+    "../db/traildepot/secrets/keys/public_key.pem",
+    "../../packages/db/traildepot/secrets/keys/public_key.pem",
+    "../../../packages/db/traildepot/secrets/keys/public_key.pem",
+    "/app/packages/db/traildepot/secrets/keys/public_key.pem",
+  ];
+  let pemPath = "";
+  for (const p of paths) {
+    if (existsSync(p)) {
+      pemPath = p;
+      break;
+    }
+  }
+  if (!pemPath) {
+    throw new Error("Could not find public_key.pem in any of the expected paths");
+  }
+
+  const pem = readFileSync(pemPath, "utf8");
+  const pemHeader = "-----BEGIN PUBLIC KEY-----";
+  const pemFooter = "-----END PUBLIC KEY-----";
+  const pemContents = pem
+    .replace(pemHeader, "")
+    .replace(pemFooter, "")
+    .replace(/\s+/g, "");
+  const binaryDerString = atob(pemContents);
+  const binaryDer = new Uint8Array(binaryDerString.length);
+  for (let i = 0; i < binaryDerString.length; i++) {
+    binaryDer[i] = binaryDerString.charCodeAt(i);
+  }
+  publicKey = await crypto.subtle.importKey(
+    "spki",
+    binaryDer.buffer,
+    { name: "Ed25519" },
+    true,
+    ["verify"]
+  );
+  return publicKey;
+}
+
+export async function verifyToken(token: string): Promise<any> {
+  const jwt = token.startsWith("Bearer ") ? token.substring(7) : token;
+  const key = await getPublicKey();
+  return verify(jwt, key, "EdDSA");
+}
 
 interface TrailbaseListResponse<T> {
   records: T[];
   count?: number;
 }
 
-class TrailbaseClient {
+export class TrailbaseClient {
+  constructor(private token?: string) {}
+
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${TRAILBASE_URL}${path}`;
     const headers = new Headers(options.headers || {});
     
     headers.set("Content-Type", "application/json");
-    if (TRAILBASE_TOKEN) {
-      headers.set("Authorization", `Bearer ${TRAILBASE_TOKEN}`);
+    
+    const activeToken = this.token || TRAILBASE_TOKEN;
+    if (activeToken) {
+      headers.set("Authorization", activeToken.startsWith("Bearer ") ? activeToken : `Bearer ${activeToken}`);
     }
 
     const response = await fetch(url, {
@@ -44,7 +101,7 @@ class TrailbaseClient {
 
   async createAccount(account: Omit<Account, "created_at" | "updated_at">): Promise<Account> {
     const now = Math.floor(Date.now() / 1000);
-    return this.request<Account>("/api/records/v1/accounts", {
+    await this.request<any>("/api/records/v1/accounts", {
       method: "POST",
       body: JSON.stringify({
         ...account,
@@ -52,6 +109,11 @@ class TrailbaseClient {
         updated_at: now,
       }),
     });
+    return {
+      ...account,
+      created_at: now,
+      updated_at: now,
+    };
   }
 
   async updateAccount(id: string, updates: Partial<Omit<Account, "id" | "created_at" | "updated_at">>): Promise<Account> {
@@ -115,15 +177,14 @@ class TrailbaseClient {
       created_at: now,
       updated_at: now,
     };
-    const res = await this.request<any>("/api/records/v1/bills", {
+    await this.request<any>("/api/records/v1/bills", {
       method: "POST",
       body: JSON.stringify(payload),
     });
     return {
-      ...res,
-      account_id: typeof res.account_id === "object" && res.account_id !== null ? res.account_id.id : res.account_id,
-      active: Number(res.active) === 1,
-      recurrence: typeof res.recurrence === "string" ? JSON.parse(res.recurrence) : res.recurrence,
+      ...bill,
+      created_at: now,
+      updated_at: now,
     };
   }
 
@@ -180,7 +241,7 @@ class TrailbaseClient {
 
   async createPayment(payment: Omit<Payment, "created_at" | "updated_at">): Promise<Payment> {
     const now = Math.floor(Date.now() / 1000);
-    const res = await this.request<any>("/api/records/v1/payments", {
+    await this.request<any>("/api/records/v1/payments", {
       method: "POST",
       body: JSON.stringify({
         ...payment,
@@ -189,8 +250,9 @@ class TrailbaseClient {
       }),
     });
     return {
-      ...res,
-      bill_id: typeof res.bill_id === "object" && res.bill_id !== null ? res.bill_id.id : res.bill_id,
+      ...payment,
+      created_at: now,
+      updated_at: now,
     };
   }
 
@@ -211,6 +273,35 @@ class TrailbaseClient {
       method: "DELETE",
     });
   }
+
+  async listAccountUsers(): Promise<{ id: string; account_id: string; user_id: string }[]> {
+    const res = await this.request<TrailbaseListResponse<any>>("/api/records/v1/account_users?limit=1000");
+    return res.records.map(r => ({
+      id: r.id,
+      account_id: typeof r.account_id === "object" && r.account_id !== null ? r.account_id.id : r.account_id,
+      user_id: typeof r.user_id === "object" && r.user_id !== null ? r.user_id.id : r.user_id,
+    }));
+  }
+
+  async associateUserToAccount(accountId: string, userId: string): Promise<any> {
+    return this.request<any>("/api/records/v1/account_users", {
+      method: "POST",
+      body: JSON.stringify({
+        account_id: accountId,
+        user_id: userId,
+      }),
+    });
+  }
 }
 
 export const db = new TrailbaseClient();
+
+export function getDb(tokenOrContext?: string | any): TrailbaseClient {
+  if (!tokenOrContext) return db;
+  if (typeof tokenOrContext === "string") {
+    return new TrailbaseClient(tokenOrContext);
+  }
+  // It is Hono context
+  const authHeader = tokenOrContext.req.header("Authorization");
+  return authHeader ? new TrailbaseClient(authHeader) : db;
+}

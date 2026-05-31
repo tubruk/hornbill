@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 
 import { AppProvider } from "./context/AppContext";
+import { AuthProvider } from "./context/AuthContext";
 import { RootLayout } from "./layout/RootLayout";
 import { DashboardView } from "./views/DashboardView";
 import { BillsView } from "./views/BillsView";
@@ -84,9 +85,11 @@ declare module "@tanstack/react-router" {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppProvider>
-        <RouterProvider router={router} />
-      </AppProvider>
+      <AuthProvider>
+        <AppProvider>
+          <RouterProvider router={router} />
+        </AppProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

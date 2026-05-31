@@ -1,31 +1,31 @@
 # Auto-generated config.Config textproto
 email {}
 server {
-  application_name: "TrailBase"
+  application_name: "Hornbill"
   logs_retention_sec: 604800
 }
 auth {
   auth_token_ttl_sec: 3600
   refresh_token_ttl_sec: 2592000
+  disable_password_auth: false
 }
 jobs {}
-
-record_apis: [
-  {
-    name: "accounts"
-    table_name: "accounts"
-    acl_world: [READ, CREATE, UPDATE, DELETE]
-  },
-  {
-    name: "bills"
-    table_name: "bills"
-    expand: ["account_id"]
-    acl_world: [READ, CREATE, UPDATE, DELETE]
-  },
-  {
-    name: "payments"
-    table_name: "payments"
-    expand: ["bill_id"]
-    acl_world: [READ, CREATE, UPDATE, DELETE]
-  }
-]
+record_apis: [{
+  name: "accounts"
+  table_name: "accounts"
+  acl_world: [READ, CREATE, UPDATE, DELETE]
+}, {
+  name: "bills"
+  table_name: "bills"
+  acl_world: [READ, CREATE, UPDATE, DELETE]
+  expand: ["account_id"]
+}, {
+  name: "payments"
+  table_name: "payments"
+  acl_world: [READ, CREATE, UPDATE, DELETE]
+  expand: ["bill_id"]
+}, {
+  name: "account_users"
+  table_name: "account_users"
+  acl_world: [READ, CREATE, UPDATE, DELETE]
+}]

@@ -7,6 +7,7 @@ import accounts from "./routes/accounts";
 import bills from "./routes/bills";
 import payments from "./routes/payments";
 import jobs from "./routes/jobs";
+import auth from "./routes/auth";
 
 const app = new Hono();
 
@@ -29,6 +30,7 @@ api.route("/accounts", accounts);
 api.route("/bills", bills);
 api.route("/payments", payments);
 api.route("/jobs", jobs);
+api.route("/auth", auth);
 
 app.route("/api/v1", api);
 

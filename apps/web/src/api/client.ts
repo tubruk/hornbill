@@ -5,12 +5,39 @@ const BASE = "/api/v1";
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${url}`, init);
+  const headers = new Headers(init?.headers || {});
+  const token = localStorage.getItem("hb_auth_token");
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const res = await fetch(`${BASE}${url}`, {
+    ...init,
+    headers,
+  });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as any).error ?? `HTTP ${res.status}`);
   }
   return res.json() as Promise<T>;
+}
+
+// ── Auth ───────────────────────────────────────────────────────────────────
+
+export function loginUser(email: string, password: string): Promise<{ auth_token: string; refresh_token: string }> {
+  return apiFetch<{ auth_token: string; refresh_token: string }>("/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function registerUser(email: string, password: string, password_repeat: string): Promise<any> {
+  return apiFetch<any>("/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, password_repeat }),
+  });
 }
 
 // ── Accounts ───────────────────────────────────────────────────────────────
