@@ -83,6 +83,11 @@ async function verifyAndCreateAccountInDb(email: string) {
 }
 
 app.post("/register", async (c) => {
+  // Reject registration if disabled via env var
+  const regEnabled = process.env.REGISTRATION_ENABLED !== "false";
+  if (!regEnabled) {
+    return c.json({ error: "Registration is currently disabled" }, 403);
+  }
   try {
     const body = await c.req.json();
     if (!body.email || !body.password || !body.password_repeat) {
