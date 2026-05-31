@@ -1,0 +1,46 @@
+# Dependency Directories
+node_modules/
+**/node_modules/
+
+# Production Build Outputs
+dist/
+**/dist/
+build/
+**/build/
+
+# Local database file storage and persistence volumes
+/data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Log files
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun-debug.log*
+
+# Environment Configurations
+.env
+.env.*
+!.env.example
+
+# IDEs & System Files
+.DS_Store
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary files and CLI downloads
+bin/
+tmp/
+
+# Agent files
+/.antigravitycli/
