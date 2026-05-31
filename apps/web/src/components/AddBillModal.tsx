@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { Sparkles, X } from "lucide-react";
 import { Button } from "./Button";
 import { Card } from "./Card";
@@ -100,7 +101,7 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
     });
   }
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-sm animate-fadeIn"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
@@ -301,6 +302,7 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
           </div>
         </form>
       </Card>
-    </div>
+    </div>,
+    document.body
   );
 }
