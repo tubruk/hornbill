@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;1,700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #C2410C;
+  --color-primary-hover: #9A3412;
+  --color-accent: #F59E0B;
+  --color-neutral-muted: #78716C;
+  --color-background-warm: #FAFAF9;
+  --color-surface-warm: #F5F5F4;
+  --color-surface-raised: #E7E5E4;
+  
+  --color-text-primary: #1C1917;
+  --color-text-secondary: #57534E;
+  --color-border-warm: #D6D3D1;
+  
+  --color-success: #16A34A;
+  --color-warning: #D97706;
+  --color-error: #DC2626;
+  
+  --font-display: "Source Sans 3", sans-serif;
+  --font-body: "Source Sans 3", sans-serif;
+  --font-mono: "Fira Code", monospace;
+  
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-pill: 9999px;
+  
+  --shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.05);
+  --shadow-md: 0 4px 16px rgba(28, 25, 23, 0.06);
+  --shadow-lg: 0 24px 48px rgba(28, 25, 23, 0.12);
+  --shadow-primary-glow: 0 4px 12px rgba(194, 65, 12, 0.25);
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-background-warm);
+  color: var(--color-text-primary);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+/* Custom transitions and scrollbars */
+.transition-ember {
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
