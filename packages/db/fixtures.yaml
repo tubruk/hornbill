@@ -89,6 +89,66 @@ bills:
     active: true
     notes: "Next due date moves relative to last payment execution"
 
+  # Spotify subscription (USD) under Personal Sandbox
+  - id: "b0000000-0000-4000-8000-000000000006"
+    account_id: "a0000000-0000-4000-8000-000000000002"
+    name: "Spotify Premium"
+    currency: "USD"
+    amount_cents: 1499
+    amount_type: "fixed"
+    recurrence:
+      type: "monthly"
+      monthly:
+        day: 15
+    start_date: "2026-05-15"
+    active: true
+    notes: "Personal music subscription"
+
+  # Internet Fiber (IDR) under Personal Sandbox
+  - id: "b0000000-0000-4000-8000-000000000007"
+    account_id: "a0000000-0000-4000-8000-000000000002"
+    name: "Home Fiber Internet"
+    currency: "IDR"
+    amount_cents: 450000
+    amount_type: "fixed"
+    recurrence:
+      type: "monthly"
+      monthly:
+        day: 10
+    start_date: "2026-05-10"
+    active: true
+    notes: "Home broadband"
+
+  # Shared Server Hosting (USD) under Personal Sandbox (Relative)
+  - id: "b0000000-0000-4000-8000-000000000008"
+    account_id: "a0000000-0000-4000-8000-000000000002"
+    name: "Shared Server Hosting"
+    currency: "USD"
+    amount_cents: 2500
+    amount_type: "fixed"
+    recurrence:
+      type: "monthly"
+      monthly:
+        day: 1
+    start_date: "-30d"
+    active: true
+    notes: "Relative date test bill"
+
+  # Streaming Service Bundle (IDR) under Personal Sandbox (Relative)
+  - id: "b0000000-0000-4000-8000-000000000009"
+    account_id: "a0000000-0000-4000-8000-000000000002"
+    name: "Streaming Service Bundle"
+    currency: "IDR"
+    amount_cents: 150000
+    amount_type: "fixed"
+    recurrence:
+      type: "monthly"
+      monthly:
+        day: 1
+    start_date: "-10d"
+    active: true
+    notes: "Relative IDR test bill"
+
 payments:
   # Premium Typography (Monthly day 31):
   # Paid on-time payment
@@ -143,3 +203,33 @@ payments:
     amount_cents: 14900000
     paid_at: null
     notes: "Generated next payment (due date calculated from paid_at + 1 month)"
+
+  # Payments for b0000000-0000-4000-8000-000000000008 (Relative)
+  - id: "c0000000-0000-4000-8000-000000000007"
+    bill_id: "b0000000-0000-4000-8000-000000000008"
+    due_date: "-30d"
+    amount_cents: 2500
+    paid_at: "-28d"
+    notes: "Paid relative payment"
+
+  - id: "c0000000-0000-4000-8000-000000000008"
+    bill_id: "b0000000-0000-4000-8000-000000000008"
+    due_date: "-5d"
+    amount_cents: 2500
+    paid_at: null
+    notes: "Overdue relative payment"
+
+  - id: "c0000000-0000-4000-8000-000000000009"
+    bill_id: "b0000000-0000-4000-8000-000000000008"
+    due_date: "+25d"
+    amount_cents: 2500
+    paid_at: null
+    notes: "Upcoming relative payment"
+
+  # Payments for b0000000-0000-4000-8000-000000000009 (Relative)
+  - id: "c0000000-0000-4000-8000-000000000010"
+    bill_id: "b0000000-0000-4000-8000-000000000009"
+    due_date: "-10d"
+    amount_cents: 150000
+    paid_at: null
+    notes: "Overdue relative IDR payment"

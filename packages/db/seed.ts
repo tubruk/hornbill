@@ -66,12 +66,36 @@ function stopTrailbase() {
   }
 }
 
+function resolveRelativeDates(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === "string") {
+    if (/^[+-]\d+d$/.test(obj)) {
+      const offsetDays = parseInt(obj.slice(0, -1), 10);
+      const date = new Date();
+      date.setDate(date.getDate() + offsetDays);
+      return date.toISOString().split("T")[0];
+    }
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(resolveRelativeDates);
+  }
+  if (typeof obj === "object") {
+    const res: any = {};
+    for (const key of Object.keys(obj)) {
+      res[key] = resolveRelativeDates(obj[key]);
+    }
+    return res;
+  }
+  return obj;
+}
+
 // Execute the fixtures seeder logic
 async function runSeeder() {
   const filePath = join(__dirname, "fixtures.yaml");
   console.log(`Loading fixtures from: ${filePath}`);
   const yamlContent = readFileSync(filePath, "utf8");
-  const data = parse(yamlContent);
+  const data = resolveRelativeDates(parse(yamlContent));
   const apiRequest = async (path: string, options: RequestInit = {}) => {
     const res = await fetch(`${TRAILBASE_URL}${path}`, {
       ...options,
