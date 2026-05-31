@@ -56,11 +56,10 @@ export function DashboardView() {
 
   const payPaymentMut = usePayPayment();
 
-  // ── Derived metrics ──────────────────────────────────────────────────────
-
   const {
     activeBills,
-    monthlySpendingCents,
+    monthlySpendingByCurrency,
+    defaultCurrency,
     overduePayments,
     pendingPayments,
     settledPayments,
@@ -69,11 +68,14 @@ export function DashboardView() {
   } = useMemo(() => {
     const activeBills = bills.filter((b) => b.active);
 
-    // Approximate monthly cost (yearly bills divided by 12)
-    const monthlySpendingCents = activeBills.reduce((acc, b) => {
-      if (b.recurrence.type === "yearly") return acc + Math.round(b.amount_cents / 12);
-      return acc + b.amount_cents;
-    }, 0);
+    // Group monthly cost by currency (approximate monthly cost with yearly bills divided by 12)
+    const monthlySpendingByCurrency: Record<string, number> = {};
+    activeBills.forEach((b) => {
+      const cents = b.recurrence.type === "yearly" ? Math.round(b.amount_cents / 12) : b.amount_cents;
+      monthlySpendingByCurrency[b.currency] = (monthlySpendingByCurrency[b.currency] || 0) + cents;
+    });
+
+    const defaultCurrency = bills[0]?.currency ?? "USD";
 
     const unpaid = payments.filter((p) => !p.paid_at);
     const overduePayments = unpaid.filter((p) => p.due_date < todayStr);
@@ -95,7 +97,8 @@ export function DashboardView() {
 
     return {
       activeBills,
-      monthlySpendingCents,
+      monthlySpendingByCurrency,
+      defaultCurrency,
       overduePayments,
       pendingPayments,
       settledPayments,
@@ -150,17 +153,27 @@ export function DashboardView() {
         ) : (
           <>
             {/* Monthly cost */}
-            <Card hoverable className="flex flex-col justify-between h-32 p-5">
+            <Card hoverable className="flex flex-col justify-between min-h-[128px] p-5">
               <div className="flex items-center justify-between">
                 <span className="text-[12px] font-semibold text-text-secondary uppercase tracking-wide">
                   Monthly Cost
                 </span>
                 <TrendingUp className="w-4 h-4 text-text-secondary" />
               </div>
-              <div>
-                <div className="font-display font-bold text-[30px] text-primary leading-none">
-                  {formatCents(monthlySpendingCents)}
-                </div>
+              <div className="mt-3 flex-1 flex flex-col justify-end">
+                {Object.keys(monthlySpendingByCurrency).length === 0 ? (
+                  <div className="font-display font-bold text-[30px] text-primary leading-none">
+                    {formatCents(0, defaultCurrency)}
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 animate-ember">
+                    {Object.entries(monthlySpendingByCurrency).map(([curr, cents]) => (
+                      <div key={curr} className="font-display font-bold text-[28px] text-primary leading-none">
+                        {formatCents(cents, curr)}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <span className="text-[13px] font-semibold text-text-secondary mt-1 block">
                   / month estimated
                 </span>
@@ -168,7 +181,7 @@ export function DashboardView() {
             </Card>
 
             {/* Overdue */}
-            <Card hoverable className="flex flex-col justify-between h-32 p-5">
+            <Card hoverable className="flex flex-col justify-between min-h-[128px] p-5">
               <div className="flex items-center justify-between">
                 <span className="text-[12px] font-semibold text-text-secondary uppercase tracking-wide">
                   Overdue Bills
@@ -185,7 +198,7 @@ export function DashboardView() {
             </Card>
 
             {/* Active bills */}
-            <Card hoverable className="flex flex-col justify-between h-32 p-5">
+            <Card hoverable className="flex flex-col justify-between min-h-[128px] p-5">
               <div className="flex items-center justify-between">
                 <span className="text-[12px] font-semibold text-text-secondary uppercase tracking-wide">
                   Active Bills
@@ -317,7 +330,7 @@ export function DashboardView() {
                     </div>
                     <div className="flex items-center gap-4 shrink-0">
                       <span className="text-[15px] font-mono font-semibold text-text-primary">
-                        {formatCents(p.amount_cents)}
+                        {formatCents(p.amount_cents, p.bill?.currency ?? "USD")}
                       </span>
                       <Button
                         variant="secondary"
@@ -386,9 +399,19 @@ export function DashboardView() {
                   <span className="text-text-secondary font-semibold">Total Payments</span>
                   <span className="text-text-primary font-semibold">{payments.length}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-start">
                   <span className="text-text-secondary font-semibold">Monthly est.</span>
-                  <span className="text-primary font-semibold font-mono">{formatCents(monthlySpendingCents)}</span>
+                  <div className="text-right space-y-1">
+                    {Object.keys(monthlySpendingByCurrency).length === 0 ? (
+                      <span className="text-primary font-semibold font-mono">{formatCents(0, defaultCurrency)}</span>
+                    ) : (
+                      Object.entries(monthlySpendingByCurrency).map(([curr, cents]) => (
+                        <div key={curr} className="text-primary font-semibold font-mono">
+                          {formatCents(cents, curr)}
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             </Card>

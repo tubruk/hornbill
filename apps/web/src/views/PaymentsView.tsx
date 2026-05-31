@@ -8,8 +8,8 @@ import { Chip } from "../components/Chip";
 
 type Filter = "all" | "pending" | "settled";
 
-function formatCents(cents: number): string {
-  return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
+function formatCents(cents: number, currency = "USD"): string {
+  return (cents / 100).toLocaleString("en-US", { style: "currency", currency });
 }
 
 function formatDate(iso: string): string {
@@ -125,7 +125,7 @@ export function PaymentsView() {
 
                   <div className="flex items-center gap-5 shrink-0">
                     <span className="text-[15px] font-mono font-semibold text-text-primary">
-                      {formatCents(p.amount_cents)}
+                      {formatCents(p.amount_cents, p.bill?.currency ?? "USD")}
                     </span>
                     {!isSettled && (
                       <Button
