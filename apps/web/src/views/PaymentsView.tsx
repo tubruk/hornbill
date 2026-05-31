@@ -6,8 +6,9 @@ import { useBills, usePayments, usePayPayment } from "../api/queries";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { Chip } from "../components/Chip";
+import { getPaymentState, DEFAULT_UPCOMING_THRESHOLD_DAYS } from "@hornbill/core";
 
-type Filter = "all" | "pending" | "settled";
+type Filter = "unpaid" | "settled";
 
 function formatCents(cents: number, currency = "USD"): string {
   return (cents / 100).toLocaleString("en-US", { style: "currency", currency });
@@ -21,7 +22,7 @@ function formatDate(iso: string): string {
 
 export function PaymentsView() {
   const { currentAccount, notify } = useAppCtx();
-  const [filter, setFilter] = useState<Filter>("pending");
+  const [filter, setFilter] = useState<Filter>("unpaid");
   const todayStr = new Date().toISOString().split("T")[0];
 
   const search = useSearch({ from: "/payments" });
@@ -34,12 +35,21 @@ export function PaymentsView() {
 
   const payMut = usePayPayment();
 
-  const displayed = payments.filter((p) => {
-    if (filter === "pending" && p.paid_at) return false;
-    if (filter === "settled" && !p.paid_at) return false;
-    if (billId && p.bill_id !== billId) return false;
-    return true;
-  });
+  const displayed = payments
+    .filter((p) => {
+      if (billId && p.bill_id !== billId) return false;
+
+      const isSettled = !!p.paid_at;
+
+      if (filter === "unpaid") {
+        return !isSettled;
+      }
+      if (filter === "settled") {
+        return isSettled;
+      }
+      return true;
+    })
+    .sort((a, b) => a.due_date.localeCompare(b.due_date));
 
   function handlePay(paymentId: string, billName: string) {
     if (!currentAccount) return;
@@ -61,8 +71,7 @@ export function PaymentsView() {
   }
 
   const FILTERS: { key: Filter; label: string }[] = [
-    { key: "all", label: "All" },
-    { key: "pending", label: "Pending" },
+    { key: "unpaid", label: "Unpaid" },
     { key: "settled", label: "Paid" },
   ];
 
@@ -143,13 +152,14 @@ export function PaymentsView() {
           </div>
         ) : displayed.length === 0 ? (
           <div className="py-16 text-center text-[15px] text-text-secondary font-semibold">
-            No {filter !== "all" ? filter : ""} payments found.
+            No {filter === "unpaid" ? "unpaid" : "paid"} payments found.
           </div>
         ) : (
           <div className="divide-y divide-border-warm">
             {displayed.map((p) => {
               const isSettled = !!p.paid_at;
-              const isOverdue = !isSettled && p.due_date < todayStr;
+              const threshold = p.bill?.upcoming_threshold_days ?? currentAccount?.upcoming_threshold_days ?? DEFAULT_UPCOMING_THRESHOLD_DAYS;
+              const { status } = getPaymentState(p, todayStr, threshold);
               const isPaying =
                 payMut.isPending &&
                 (payMut.variables as any)?.paymentId === p.id;
@@ -161,10 +171,12 @@ export function PaymentsView() {
                       <span className="truncate">{p.bill?.name ?? "—"}</span>
                       {isSettled ? (
                         <Chip variant="status" severity="success">Paid</Chip>
-                      ) : isOverdue ? (
+                      ) : status === "overdue" ? (
                         <Chip variant="status" severity="error">Overdue</Chip>
+                      ) : status === "due_soon" ? (
+                        <Chip variant="status" severity="warning">Due Soon</Chip>
                       ) : (
-                        <Chip variant="status" severity="warning">Pending</Chip>
+                        <Chip variant="status" severity="info">Upcoming</Chip>
                       )}
                     </div>
                     <span className="text-[12px] text-text-secondary font-mono mt-0.5 block">

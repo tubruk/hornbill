@@ -32,7 +32,7 @@ export const qk = {
 
 // ── Enriched payment type ──────────────────────────────────────────────────
 
-export type EnrichedPayment = Payment & { bill: { name: string; currency: string } | null };
+export type EnrichedPayment = Payment & { bill: Bill | null };
 
 // ── Accounts ───────────────────────────────────────────────────────────────
 
@@ -145,12 +145,12 @@ export function usePayments(
       const billMap = new Map(
         (bills ?? []).map((b) => [b.id, b])
       );
-      // Filter to this account's bills and enrich with bill names and currencies
+      // Filter to this account's bills and enrich with full bill details
       return all
         .filter((p) => billMap.has(p.bill_id))
         .map((p) => {
           const bill = billMap.get(p.bill_id);
-          return { ...p, bill: bill ? { name: bill.name, currency: bill.currency } : null };
+          return { ...p, bill: bill || null };
         });
     },
     // Only run when we have both an accountId and loaded bills

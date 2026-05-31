@@ -11,11 +11,12 @@ import {
   Loader2,
 } from "lucide-react";
 import { useAppCtx } from "../context/AppContext";
-import { useBills, usePayments, usePayPayment } from "../api/queries";
+import { useBills, usePayments, usePayPayment, type EnrichedPayment } from "../api/queries";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { Chip } from "../components/Chip";
 import { Progress } from "../components/Progress";
+import { getPaymentState, DEFAULT_UPCOMING_THRESHOLD_DAYS } from "@hornbill/core";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -77,9 +78,6 @@ export function DashboardView() {
 
     const defaultCurrency = bills[0]?.currency ?? "USD";
 
-    const unpaid = payments.filter((p) => !p.paid_at);
-    const overduePayments = unpaid.filter((p) => p.due_date < todayStr);
-    const pendingPayments = unpaid.filter((p) => p.due_date >= todayStr);
     const settledPayments = payments.filter((p) => !!p.paid_at);
 
     const settleRate =
@@ -87,13 +85,26 @@ export function DashboardView() {
         ? Math.round((settledPayments.length / payments.length) * 100)
         : 0;
 
-    // Upcoming = pending sorted ascending, capped at 30 days out
-    const thirtyDaysOut = new Date();
-    thirtyDaysOut.setDate(thirtyDaysOut.getDate() + 30);
-    const cutoff = thirtyDaysOut.toISOString().split("T")[0];
-    const upcomingPayments = pendingPayments
-      .filter((p) => p.due_date <= cutoff)
-      .sort((a, b) => a.due_date.localeCompare(b.due_date));
+    const unpaid = payments.filter((p) => !p.paid_at);
+    const overduePayments: EnrichedPayment[] = [];
+    const pendingPayments: EnrichedPayment[] = [];
+    const upcomingPayments: EnrichedPayment[] = [];
+
+    unpaid.forEach((p) => {
+      const threshold = p.bill?.upcoming_threshold_days ?? currentAccount?.upcoming_threshold_days ?? DEFAULT_UPCOMING_THRESHOLD_DAYS;
+      const { status } = getPaymentState(p, todayStr, threshold);
+      if (status === "overdue") {
+        overduePayments.push(p);
+      } else if (status === "due_soon") {
+        pendingPayments.push(p);
+      } else if (status === "upcoming") {
+        upcomingPayments.push(p);
+      }
+    });
+
+    overduePayments.sort((a, b) => a.due_date.localeCompare(b.due_date));
+    pendingPayments.sort((a, b) => a.due_date.localeCompare(b.due_date));
+    upcomingPayments.sort((a, b) => a.due_date.localeCompare(b.due_date));
 
     return {
       activeBills,
@@ -255,15 +266,21 @@ export function DashboardView() {
             </span>
           </div>
           <Progress value={settleRate} label="Overall settlement rate" />
-          <div className="flex items-center gap-6 mt-4 text-[13px] font-semibold">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-4 text-[13px] font-semibold">
             <span className="flex items-center gap-1.5 text-success">
               <CheckCircle2 className="w-4 h-4" />
               {settledPayments.length} Paid
             </span>
             <span className="flex items-center gap-1.5 text-warning">
               <Clock className="w-4 h-4" />
-              {pendingPayments.length} Pending
+              {pendingPayments.length} Due Soon
             </span>
+            {upcomingPayments.length > 0 && (
+              <span className="flex items-center gap-1.5 text-[#1E40AF]">
+                <Clock className="w-4 h-4" />
+                {upcomingPayments.length} Upcoming
+              </span>
+            )}
             {overduePayments.length > 0 && (
               <span className="flex items-center gap-1.5 text-error">
                 <AlertTriangle className="w-4 h-4" />
@@ -295,7 +312,7 @@ export function DashboardView() {
               <div className="py-12 flex justify-center">
                 <Loader2 className="w-6 h-6 text-primary animate-spin" />
               </div>
-            ) : overduePayments.length === 0 && upcomingPayments.length === 0 ? (
+            ) : overduePayments.length === 0 && pendingPayments.length === 0 ? (
               <div className="py-14 text-center">
                 <CheckCircle2 className="w-10 h-10 text-success mx-auto mb-3" />
                 <p className="text-[15px] font-semibold text-text-secondary">
@@ -303,9 +320,10 @@ export function DashboardView() {
                 </p>
               </div>
             ) : (
-              // Show overdue first, then upcoming, capped at 5
-              [...overduePayments, ...upcomingPayments].slice(0, 5).map((p) => {
-                const isOverdue = p.due_date < todayStr;
+              // Show overdue first, then pending, capped at 5
+              [...overduePayments, ...pendingPayments].slice(0, 5).map((p) => {
+                const threshold = p.bill?.upcoming_threshold_days ?? currentAccount?.upcoming_threshold_days ?? DEFAULT_UPCOMING_THRESHOLD_DAYS;
+                const { status } = getPaymentState(p, todayStr, threshold);
                 const isPaying =
                   payPaymentMut.isPending &&
                   (payPaymentMut.variables as any)?.paymentId === p.id;
@@ -316,12 +334,14 @@ export function DashboardView() {
                     className="py-3.5 flex items-center justify-between gap-4 first:pt-0 last:pb-0"
                   >
                     <div className="min-w-0">
-                      <div className="text-[15px] font-semibold text-text-primary flex items-center gap-2 flex-wrap">
+                      <div className="text-[15px] font-semibold text-text-primary flex items-center gap-2.5 flex-wrap">
                         <span className="truncate">{p.bill?.name ?? "—"}</span>
-                        {isOverdue ? (
+                        {status === "overdue" ? (
                           <Chip variant="status" severity="error">Overdue</Chip>
+                        ) : status === "due_soon" ? (
+                          <Chip variant="status" severity="warning">Due Soon</Chip>
                         ) : (
-                          <Chip variant="status" severity="warning">Pending</Chip>
+                          <Chip variant="status" severity="info">Upcoming</Chip>
                         )}
                       </div>
                       <span className="text-[12px] text-text-secondary font-mono mt-0.5 block">

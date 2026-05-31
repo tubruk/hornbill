@@ -4,10 +4,13 @@ import { Button } from "./Button";
 import { Card } from "./Card";
 import { Input } from "./Input";
 import { Radio } from "./Radio";
-import type { Bill } from "@hornbill/core";
+import { Checkbox } from "./Checkbox";
+import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY, DEFAULT_UPCOMING_THRESHOLD_DAYS, type Bill } from "@hornbill/core";
 
 interface Props {
   accountId: string;
+  accountThreshold?: number;
+  bill?: Bill;
   onSubmit: (payload: BillFormPayload) => Promise<void>;
   onClose: () => void;
   isSubmitting?: boolean;
@@ -21,23 +24,43 @@ export interface BillFormPayload {
   amount_type: "fixed";
   recurrence: Bill["recurrence"];
   start_date: string;
-  active: true;
+  active: boolean;
+  upcoming_threshold_days: number | null;
   notes: string | null;
 }
 
 const today = () => new Date().toISOString().split("T")[0];
 
-export function AddBillModal({ accountId, onSubmit, onClose, isSubmitting }: Props) {
-  const [name, setName] = useState("");
-  const [amount, setAmount] = useState("");
-  const [startDate, setStartDate] = useState(today());
-  const [notes, setNotes] = useState("");
-  const [recurrenceType, setRecurrenceType] = useState<"monthly" | "yearly" | "interval">("monthly");
-  const [monthlyDay, setMonthlyDay] = useState(1);
-  const [yearlyMonth, setYearlyMonth] = useState(1);
-  const [yearlyDay, setYearlyDay] = useState(1);
-  const [intervalEvery, setIntervalEvery] = useState(1);
-  const [intervalUnit, setIntervalUnit] = useState<"days" | "weeks" | "months">("months");
+export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onClose, isSubmitting }: Props) {
+  const [name, setName] = useState(bill?.name ?? "");
+  const [amount, setAmount] = useState(bill ? (bill.amount_cents / 100).toString() : "");
+  const [currency, setCurrency] = useState<string>(bill?.currency ?? DEFAULT_CURRENCY);
+  const [startDate, setStartDate] = useState(bill?.start_date ?? today());
+  const [notes, setNotes] = useState(bill?.notes ?? "");
+  const [recurrenceType, setRecurrenceType] = useState<"monthly" | "yearly" | "interval">(
+    bill?.recurrence.type ?? "monthly"
+  );
+  const [monthlyDay, setMonthlyDay] = useState(
+    bill?.recurrence.type === "monthly" ? bill.recurrence.monthly.day : 1
+  );
+  const [yearlyMonth, setYearlyMonth] = useState(
+    bill?.recurrence.type === "yearly" ? bill.recurrence.yearly.month : 1
+  );
+  const [yearlyDay, setYearlyDay] = useState(
+    bill?.recurrence.type === "yearly" ? bill.recurrence.yearly.day : 1
+  );
+  const [intervalEvery, setIntervalEvery] = useState(
+    bill?.recurrence.type === "interval" ? bill.recurrence.interval.every : 1
+  );
+  const [intervalUnit, setIntervalUnit] = useState<"days" | "weeks" | "months">(
+    bill?.recurrence.type === "interval" ? bill.recurrence.interval.unit : "months"
+  );
+  const [hasThresholdOverride, setHasThresholdOverride] = useState(
+    bill?.upcoming_threshold_days !== null && bill?.upcoming_threshold_days !== undefined
+  );
+  const [thresholdDays, setThresholdDays] = useState(
+    bill?.upcoming_threshold_days ?? accountThreshold ?? DEFAULT_UPCOMING_THRESHOLD_DAYS
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   async function handleSubmit(e: FormEvent) {
@@ -63,12 +86,13 @@ export function AddBillModal({ accountId, onSubmit, onClose, isSubmitting }: Pro
     await onSubmit({
       account_id: accountId,
       name: name.trim(),
-      currency: "USD",
+      currency,
       amount_cents: Math.round(parsed * 100),
       amount_type: "fixed",
       recurrence,
       start_date: startDate,
-      active: true,
+      active: bill ? bill.active : true,
+      upcoming_threshold_days: hasThresholdOverride ? Number(thresholdDays) : null,
       notes: notes.trim() || null,
     });
   }
@@ -87,10 +111,10 @@ export function AddBillModal({ accountId, onSubmit, onClose, isSubmitting }: Pro
           <div>
             <h3 className="font-display font-bold text-[22px] text-text-primary flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-primary" />
-              Add Bill
+              {bill ? "Edit Bill" : "Add Bill"}
             </h3>
             <p className="text-[14px] text-text-secondary font-medium mt-0.5">
-              Track a new recurring bill or service charge.
+              {bill ? "Update the recurring bill or service charge." : "Track a new recurring bill or service charge."}
             </p>
           </div>
           <button
@@ -114,24 +138,44 @@ export function AddBillModal({ accountId, onSubmit, onClose, isSubmitting }: Pro
             autoFocus
           />
 
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Amount (USD)"
-              placeholder="49.99"
-              type="number"
-              step="0.01"
-              min="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              error={!!errors.amount}
-              errorText={errors.amount}
-            />
-            <Input
-              label="Start Date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="font-body text-[14px] font-semibold text-text-primary mb-1.5 block">
+                Currency
+              </label>
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="w-full bg-surface-warm rounded-sm p-3 text-[16px] font-body border border-border-warm hover:border-primary/60 focus:border-primary focus:ring-3 focus:ring-primary/12 text-text-primary h-[46px] outline-none"
+              >
+                {SUPPORTED_CURRENCIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Input
+                label={`Amount (${currency})`}
+                placeholder="49.99"
+                type="number"
+                step="0.01"
+                min="0"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                error={!!errors.amount}
+                errorText={errors.amount}
+              />
+            </div>
+            <div>
+              <Input
+                label="Start Date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
           </div>
 
           <Input
@@ -140,6 +184,26 @@ export function AddBillModal({ accountId, onSubmit, onClose, isSubmitting }: Pro
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
+
+          {/* Warning Threshold Override */}
+          <div className="space-y-3 pt-2">
+            <Checkbox
+              label={`Override warning threshold (Account default: ${accountThreshold ?? DEFAULT_UPCOMING_THRESHOLD_DAYS} days)`}
+              checked={hasThresholdOverride}
+              onChange={(e: any) => setHasThresholdOverride(e.target.checked)}
+            />
+            {hasThresholdOverride && (
+              <div className="p-3 bg-surface-warm rounded-sm border border-border-warm animate-fadeIn max-w-[220px]">
+                <Input
+                  label="Days before due"
+                  type="number"
+                  min="1"
+                  value={thresholdDays}
+                  onChange={(e) => setThresholdDays(Math.max(1, Number(e.target.value)))}
+                />
+              </div>
+            )}
+          </div>
 
           {/* Recurrence type */}
           <div className="space-y-3">
@@ -207,7 +271,7 @@ export function AddBillModal({ accountId, onSubmit, onClose, isSubmitting }: Pro
               Cancel
             </Button>
             <Button variant="primary" size="medium" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Adding…" : "Add Bill"}
+              {isSubmitting ? (bill ? "Saving…" : "Adding…") : (bill ? "Save Changes" : "Add Bill")}
             </Button>
           </div>
         </form>

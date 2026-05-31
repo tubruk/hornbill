@@ -197,6 +197,7 @@ export function RootLayout() {
       {showAddModal && currentAccount && (
         <AddBillModal
           accountId={currentAccount.id}
+          accountThreshold={currentAccount.upcoming_threshold_days}
           onSubmit={handleCreateBill}
           onClose={closeAddModal}
           isSubmitting={createBillMut.isPending}

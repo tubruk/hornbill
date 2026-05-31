@@ -59,6 +59,7 @@ export interface CreateBillPayload {
   recurrence: Bill["recurrence"];
   start_date: string;
   active: boolean;
+  upcoming_threshold_days?: number | null;
   notes?: string | null;
 }
 
@@ -71,7 +72,7 @@ export function createBill(payload: CreateBillPayload): Promise<Bill> {
 }
 
 export type UpdateBillPayload = Partial<
-  Pick<Bill, "name" | "amount_cents" | "currency" | "recurrence" | "start_date" | "active" | "notes">
+  Pick<Bill, "name" | "amount_cents" | "currency" | "recurrence" | "start_date" | "active" | "notes" | "upcoming_threshold_days">
 >;
 
 export function updateBill(id: string, updates: UpdateBillPayload): Promise<Bill> {
