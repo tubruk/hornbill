@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
@@ -12,6 +12,24 @@ export function AuthView() {
   const [passwordRepeat, setPasswordRepeat] = useState("");
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [registrationEnabled, setRegistrationEnabled] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/v1/status")
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then((data) => {
+        if (data && typeof data.registration_enabled === "boolean") {
+          setRegistrationEnabled(data.registration_enabled);
+        }
+      })
+      .catch(() => {
+        // Fallback to true if API is offline or using mock mode
+        setRegistrationEnabled(true);
+      });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,28 +84,36 @@ export function AuthView() {
         </div>
 
         {/* Auth Mode Tabs */}
-        <div className="flex border-b border-border-warm mb-6">
-          <button
-            onClick={() => isRegister && toggleMode()}
-            className={`flex-1 pb-3 text-[16px] font-body font-semibold text-center border-b-2 transition-all duration-150 ${
-              !isRegister
-                ? "border-primary text-primary"
-                : "border-transparent text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            Log In
-          </button>
-          <button
-            onClick={() => !isRegister && toggleMode()}
-            className={`flex-1 pb-3 text-[16px] font-body font-semibold text-center border-b-2 transition-all duration-150 ${
-              isRegister
-                ? "border-primary text-primary"
-                : "border-transparent text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            Register
-          </button>
-        </div>
+        {registrationEnabled ? (
+          <div className="flex border-b border-border-warm mb-6">
+            <button
+              onClick={() => isRegister && toggleMode()}
+              className={`flex-1 pb-3 text-[16px] font-body font-semibold text-center border-b-2 transition-all duration-150 ${
+                !isRegister
+                  ? "border-primary text-primary"
+                  : "border-transparent text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              Log In
+            </button>
+            <button
+              onClick={() => !isRegister && toggleMode()}
+              className={`flex-1 pb-3 text-[16px] font-body font-semibold text-center border-b-2 transition-all duration-150 ${
+                isRegister
+                  ? "border-primary text-primary"
+                  : "border-transparent text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              Register
+            </button>
+          </div>
+        ) : (
+          <div className="border-b border-border-warm mb-6 pb-3">
+            <h3 className="text-[18px] font-display font-semibold text-center text-text-primary">
+              Log In
+            </h3>
+          </div>
+        )}
 
         {/* Error Banners */}
         {(formError || error) && (

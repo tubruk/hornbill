@@ -26,6 +26,16 @@ app.get("/", (c) => c.text("Hornbill API is flying!"));
 
 // Register routes
 const api = new Hono();
+
+api.get("/ping", (c) => c.json({ status: "ok" }));
+api.get("/status", (c) => {
+  const regEnabled = process.env.REGISTRATION_ENABLED !== "false";
+  return c.json({
+    status: "ok",
+    registration_enabled: regEnabled,
+  });
+});
+
 api.route("/accounts", accounts);
 api.route("/bills", bills);
 api.route("/payments", payments);
