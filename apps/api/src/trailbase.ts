@@ -158,7 +158,7 @@ class TrailbaseClient {
 
   async listPayments(billId?: string): Promise<Payment[]> {
     // Same BLOB UUID issue as listBills — filter in JS after fetching all.
-    const path = "/api/records/v1/payments?limit=10000";
+    const path = "/api/records/v1/payments?limit=1000";
     const res = await this.request<TrailbaseListResponse<Payment>>(path);
 
     if (!billId) return res.records;
