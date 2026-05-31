@@ -74,18 +74,24 @@ class TrailbaseClient {
   // --- Bills CRUD ---
 
   async listBills(accountId?: string): Promise<Bill[]> {
-    let path = "/api/records/v1/bills?limit=1000";
-    if (accountId) {
-      // Trailbase filter format: filter[column_name][@eq]=value
-      path += `&filter[account_id][@eq]=${accountId}`;
-    }
+    // NOTE: Trailbase stores UUIDs as binary BLOBs and serialises them as
+    // base64 in JSON responses. Passing that base64 value back as a
+    // filter[account_id][@eq]=... query parameter fails with "Invalid query"
+    // because Trailbase cannot coerce a URL string to a BLOB for comparison.
+    // Solution: fetch all bills and filter by account_id in JS instead.
+    const path = "/api/records/v1/bills?limit=1000";
     const res = await this.request<TrailbaseListResponse<any>>(path);
-    // Parse recurrence column which is stored as JSON string in SQLite
-    return res.records.map(bill => ({
+
+    const bills: Bill[] = res.records.map(bill => ({
       ...bill,
-      active: Number(bill.active) === 1, // Convert sqlite integer 0/1 back to boolean
+      active: Number(bill.active) === 1,
       recurrence: typeof bill.recurrence === "string" ? JSON.parse(bill.recurrence) : bill.recurrence,
     }));
+
+    if (!accountId) return bills;
+
+    // account_id from Trailbase is base64-encoded binary; compare as strings.
+    return bills.filter(bill => bill.account_id === accountId);
   }
 
   async getBill(id: string): Promise<Bill> {
@@ -151,12 +157,12 @@ class TrailbaseClient {
   // --- Payments CRUD ---
 
   async listPayments(billId?: string): Promise<Payment[]> {
-    let path = "/api/records/v1/payments?limit=1000";
-    if (billId) {
-      path += `&filter[bill_id][@eq]=${billId}`;
-    }
+    // Same BLOB UUID issue as listBills — filter in JS after fetching all.
+    const path = "/api/records/v1/payments?limit=10000";
     const res = await this.request<TrailbaseListResponse<Payment>>(path);
-    return res.records;
+
+    if (!billId) return res.records;
+    return res.records.filter(p => p.bill_id === billId);
   }
 
   async getPayment(id: string): Promise<Payment> {
