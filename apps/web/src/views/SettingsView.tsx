@@ -16,7 +16,7 @@ import {
 import { useAppCtx } from "../context/AppContext";
 import {
   useAccounts,
-  useTriggerSync,
+  useTriggerAccountSync,
   useUpdateAccount,
   useDeleteAccount,
   useCreateAccount,
@@ -56,7 +56,7 @@ export function SettingsView() {
   const accounts = accountsQuery.data ?? [];
   const isApiConnected = !accountsQuery.isError;
 
-  const syncMut = useTriggerSync();
+  const syncMut = useTriggerAccountSync(currentAccount?.id ?? "");
   const updateAccountMut = useUpdateAccount();
   const deleteAccountMut = useDeleteAccount();
   const createAccountMut = useCreateAccount();

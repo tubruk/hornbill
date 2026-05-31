@@ -140,3 +140,10 @@ export function payPayment(id: string, paidAt?: string | number, amountCents?: n
 export function triggerSync(): Promise<{ processed: number; generated: number }> {
   return apiFetch("/jobs/sync", { method: "POST" });
 }
+
+// Scoped sync for a specific account
+export function triggerAccountSync(accountId: string): Promise<{ processed: number; generated: number }> {
+  return apiFetch(`/jobs/sync/account/${encodeURIComponent(accountId)}`, { method: "POST" });
+}
+
+

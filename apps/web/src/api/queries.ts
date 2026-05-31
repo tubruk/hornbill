@@ -16,7 +16,8 @@ import {
   deleteBill,
   fetchPayments,
   payPayment,
-  triggerSync,
+
+  triggerAccountSync,
   type CreateBillPayload,
   type UpdateBillPayload,
 } from "./client";
@@ -170,10 +171,11 @@ export function usePayPayment() {
 
 // ── Jobs ───────────────────────────────────────────────────────────────────
 
-export function useTriggerSync() {
+// Scoped sync for a specific account
+export function useTriggerAccountSync(accountId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: triggerSync,
+    mutationFn: () => triggerAccountSync(accountId),
     onSuccess: () => {
       // After sync new payments may have been generated
       qc.invalidateQueries({ queryKey: ["payments"] });

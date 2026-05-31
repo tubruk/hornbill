@@ -118,9 +118,11 @@ export async function settlePayment(paymentId: string, paidAtVal?: number, amoun
  * Scanning daemon to check all active bills. If a bill is missing an unpaid payment,
  * it generates the next payment in the cycle.
  */
-export async function syncAllPayments(): Promise<{ processed: number; generated: number }> {
-  const bills = await db.listBills();
-  const activeBills = bills.filter((b) => b.active);
+export async function syncAllPayments(accountId?: string): Promise<{ processed: number; generated: number }> {
+  // Retrieve all bills, then optionally filter by accountId
+  const allBills = await db.listBills();
+  const filteredBills = accountId ? allBills.filter((b) => b.account_id === accountId) : allBills;
+  const activeBills = filteredBills.filter((b) => b.active);
 
   let processed = 0;
   let generated = 0;
