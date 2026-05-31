@@ -54,6 +54,23 @@ class TrailbaseClient {
     });
   }
 
+  async updateAccount(id: string, updates: Partial<Omit<Account, "id" | "created_at" | "updated_at">>): Promise<Account> {
+    const now = Math.floor(Date.now() / 1000);
+    return this.request<Account>(`/api/records/v1/accounts/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        ...updates,
+        updated_at: now,
+      }),
+    });
+  }
+
+  async deleteAccount(id: string): Promise<void> {
+    await this.request<void>(`/api/records/v1/accounts/${id}`, {
+      method: "DELETE",
+    });
+  }
+
   // --- Bills CRUD ---
 
   async listBills(accountId?: string): Promise<Bill[]> {

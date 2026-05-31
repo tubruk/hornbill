@@ -47,6 +47,40 @@ app.post("/api/accounts", async (c) => {
   }
 });
 
+app.get("/api/accounts/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const account = await db.getAccount(id);
+    return c.json(account);
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+app.patch("/api/accounts/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const body = await c.req.json();
+    if (!body.name) {
+      return c.json({ error: "Name is required" }, 400);
+    }
+    const updated = await db.updateAccount(id, { name: body.name });
+    return c.json(updated);
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+app.delete("/api/accounts/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    await db.deleteAccount(id);
+    return c.json({ success: true });
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
 // --- Bills Routes ---
 
 app.get("/api/bills", async (c) => {
