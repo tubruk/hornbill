@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
-import { Flame } from "lucide-react";
+import logo from "../assets/logo.png";
 
 export function AuthView() {
   const { login, register, error, clearError } = useAuth();
@@ -56,14 +56,12 @@ export function AuthView() {
       <div className="w-full max-w-md bg-surface-warm border border-border-warm rounded-md p-8 shadow-md animate-scaleIn">
         {/* Logo and Brand */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-3">
-            <Flame className="w-6 h-6 text-primary" />
-          </div>
+          <img src={logo} alt="Hornbill Logo" className="w-12 h-12 mb-3 object-contain" />
           <h2 className="font-display text-[28px] font-bold text-text-primary text-center">
             Hornbill
           </h2>
           <p className="font-body text-[14px] text-text-secondary mt-1 text-center">
-            Manage your recurring expenses with warm minimalism
+            Recurring bill tracker
           </p>
         </div>
 
