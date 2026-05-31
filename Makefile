@@ -1,4 +1,4 @@
-.PHONY: dev build test docker-build docker-up docker-down clean install db-reset
+.PHONY: dev build test docker-build docker-up docker-down clean install db-reset git-hooks
 
 # Install workspace dependencies
 install:
@@ -33,6 +33,18 @@ db-reset:
 	@rm -f packages/db/traildepot/data/*.db packages/db/traildepot/data/*.db-journal packages/db/traildepot/data/*.db-shm packages/db/traildepot/data/*.db-wal
 	@rm -rf data/
 	@echo "Database reset complete. Next launch will run migrations from scratch."
+
+# Symlink hooks from .githooks to .git/hooks
+git-hooks:
+	@echo "Installing git hooks..."
+	@mkdir -p .git/hooks
+	@for hook in .githooks/*; do \
+		if [ -x "$$hook" ]; then \
+			filename=$$(basename "$$hook"); \
+			ln -sf ../../$$hook .git/hooks/$$filename; \
+			echo "Linked $$filename -> $$hook"; \
+		fi \
+	done
 
 # Clean up builds and modules
 clean:

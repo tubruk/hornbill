@@ -1,0 +1,6 @@
+#!/bin/sh
+# Pre-commit hook to run unit tests using Bun.
+# If the tests fail, the commit is aborted.
+
+echo "Running pre-commit unit tests..."
+bun test
