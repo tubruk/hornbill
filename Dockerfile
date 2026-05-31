@@ -39,6 +39,8 @@ EXPOSE 4000
 ENV PORT=3000
 ENV TRAILBASE_URL=http://localhost:4000
 ENV NODE_ENV=production
+ENV REGISTRATION_ENABLED=${REGISTRATION_ENABLED:-true}
 
 # Run database + app entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -f http://localhost:${PORT}/api/v1/ping || exit 1
