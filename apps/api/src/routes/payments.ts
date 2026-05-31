@@ -56,6 +56,7 @@ app.post("/:id/pay", async (c) => {
     const paidAt = typeof body.paid_at === "string"
       ? Math.floor(new Date(body.paid_at).getTime() / 1000)
       : body.paid_at;
+
     const settled = await settlePayment(id, paidAt);
     return c.json(settled);
   } catch (err: any) {
