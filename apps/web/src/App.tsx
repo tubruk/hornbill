@@ -86,13 +86,13 @@ function App() {
     setLoading(true);
     try {
       // 1. Fetch Accounts
-      const accountsRes = await fetch("/api/accounts");
+      const accountsRes = await fetch("/api/v1/accounts");
       if (!accountsRes.ok) throw new Error("API Offline");
       let accountsData: Account[] = await accountsRes.json();
       
       // Seed a default studio workspace if empty
       if (accountsData.length === 0) {
-        const createAccountRes = await fetch("/api/accounts", {
+        const createAccountRes = await fetch("/api/v1/accounts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: "Atelier Studio 🎨" })
@@ -108,11 +108,11 @@ function App() {
       setCurrentAccount(activeAcc);
 
       // 2. Fetch Bills
-      const billsRes = await fetch("/api/bills" + (activeAcc ? `?accountId=${activeAcc.id}` : ""));
+      const billsRes = await fetch("/api/v1/bills" + (activeAcc ? `?accountId=${activeAcc.id}` : ""));
       const billsData: Bill[] = await billsRes.json();
       
       // 3. Fetch Payments
-      const paymentsRes = await fetch("/api/payments");
+      const paymentsRes = await fetch("/api/v1/payments");
       const paymentsData: Payment[] = await paymentsRes.json();
 
       if (billsData.length === 0 && activeAcc) {
@@ -151,7 +151,7 @@ function App() {
 
     if (isApiConnected) {
       try {
-        const res = await fetch(`/api/payments/${paymentId}/pay`, {
+        const res = await fetch(`/api/v1/payments/${paymentId}/pay`, {
           method: "POST",
           headers: { "Content-Type": "application/json" }
         });
@@ -223,7 +223,7 @@ function App() {
 
     if (isApiConnected) {
       try {
-        const res = await fetch("/api/bills", {
+        const res = await fetch("/api/v1/bills", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -283,7 +283,7 @@ function App() {
 
     if (isApiConnected) {
       try {
-        const res = await fetch(`/api/bills/${billId}`, {
+        const res = await fetch(`/api/v1/bills/${billId}`, {
           method: "DELETE"
         });
         if (res.ok) {
@@ -308,7 +308,7 @@ function App() {
     triggerNotification("Executing task synchronization...", "info");
     if (isApiConnected) {
       try {
-        const res = await fetch("/api/jobs/sync", {
+        const res = await fetch("/api/v1/jobs/sync", {
           method: "POST"
         });
         if (res.ok) {
