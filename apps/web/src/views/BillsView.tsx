@@ -1,4 +1,5 @@
-import { Loader2, Plus, Trash2, ToggleLeft, ToggleRight, RefreshCw } from "lucide-react";
+import { Loader2, Plus, Trash2, ToggleLeft, ToggleRight, RefreshCw, History } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { useAppCtx } from "../context/AppContext";
 import { useBills, useUpdateBill, useDeleteBill } from "../api/queries";
 import { Card } from "../components/Card";
@@ -185,6 +186,17 @@ export function BillsView() {
                         {bill.currency} · {bill.recurrence.type}
                       </span>
                     </div>
+
+                    {/* View payments */}
+                    <Tooltip content="View payments">
+                      <Link
+                        to="/payments"
+                        search={{ billId: bill.id }}
+                        className="p-1.5 rounded-sm text-text-secondary hover:text-primary hover:bg-surface-raised transition-colors cursor-pointer"
+                      >
+                        <History className="w-5 h-5" />
+                      </Link>
+                    </Tooltip>
 
                     {/* Toggle active */}
                     <Tooltip content={bill.active ? "Deactivate bill" : "Activate bill"}>

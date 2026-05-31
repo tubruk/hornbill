@@ -41,9 +41,18 @@ const billsRoute = createRoute({
   component: BillsView,
 });
 
+type PaymentsSearch = {
+  billId?: string;
+};
+
 const paymentsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/payments",
+  validateSearch: (search: Record<string, unknown>): PaymentsSearch => {
+    return {
+      billId: typeof search.billId === "string" ? search.billId : undefined,
+    };
+  },
   component: PaymentsView,
 });
 

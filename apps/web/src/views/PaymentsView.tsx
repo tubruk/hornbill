@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useSearch, useNavigate } from "@tanstack/react-router";
 import { useAppCtx } from "../context/AppContext";
 import { useBills, usePayments, usePayPayment } from "../api/queries";
 import { Card } from "../components/Card";
@@ -23,6 +24,10 @@ export function PaymentsView() {
   const [filter, setFilter] = useState<Filter>("pending");
   const todayStr = new Date().toISOString().split("T")[0];
 
+  const search = useSearch({ from: "/payments" });
+  const navigate = useNavigate({ from: "/payments" });
+  const billId = search.billId;
+
   const billsQuery = useBills(currentAccount?.id);
   const paymentsQuery = usePayments(currentAccount?.id, billsQuery.data);
   const payments = paymentsQuery.data ?? [];
@@ -30,8 +35,9 @@ export function PaymentsView() {
   const payMut = usePayPayment();
 
   const displayed = payments.filter((p) => {
-    if (filter === "pending") return !p.paid_at;
-    if (filter === "settled") return !!p.paid_at;
+    if (filter === "pending" && p.paid_at) return false;
+    if (filter === "settled" && !p.paid_at) return false;
+    if (billId && p.bill_id !== billId) return false;
     return true;
   });
 
@@ -62,24 +68,72 @@ export function PaymentsView() {
 
   return (
     <div className="space-y-6">
-      {/* Header + filter tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h3 className="font-display font-bold text-[20px] text-text-primary">Bills & Payments</h3>
-        <div className="flex gap-1 bg-surface-warm border border-border-warm p-1 rounded-sm">
-          {FILTERS.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setFilter(key)}
-              className={`text-[12px] font-semibold uppercase tracking-wider px-4 py-1.5 rounded-sm transition-colors cursor-pointer ${
-                filter === key
-                  ? "bg-background-warm text-primary shadow-sm"
-                  : "text-text-secondary hover:text-text-primary"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+
+      {/* Controls / Filter Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Left controls: Tabs + Dropdown */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full md:w-auto">
+          {/* Status filter pills (conjoined) */}
+          <div className="flex bg-surface-raised border border-border-warm p-0.5 rounded-full shrink-0">
+            {FILTERS.map(({ key, label }) => {
+              const isActive = filter === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => setFilter(key)}
+                  className={`text-[12px] font-semibold uppercase tracking-wider px-4 py-1.5 rounded-full transition-all cursor-pointer ${
+                    isActive
+                      ? "bg-primary text-white shadow-sm"
+                      : "text-text-secondary hover:bg-stone-300/40 hover:text-text-primary"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Bill filter selector */}
+          <select
+            id="bill-filter"
+            aria-label="Filter by bill"
+            value={billId || "all"}
+            onChange={(e) => {
+              const val = e.target.value;
+              navigate({
+                search: (prev) => ({
+                  ...prev,
+                  billId: val === "all" ? undefined : val,
+                }),
+              });
+            }}
+            className="w-full sm:w-56 bg-surface-raised border border-border-warm rounded-full px-4 py-1.5 text-[12px] font-semibold uppercase tracking-wider text-text-secondary hover:text-text-primary hover:bg-stone-300/40 outline-none cursor-pointer h-[34px] transition-all"
+          >
+            <option value="all" className="bg-background-warm">All Bills</option>
+            {billsQuery.data?.map((b) => (
+              <option key={b.id} value={b.id} className="bg-background-warm">
+                {b.name}
+              </option>
+            ))}
+          </select>
         </div>
+
+        {/* Clear Filter button */}
+        {billId && (
+          <button
+            onClick={() => {
+              navigate({
+                search: (prev) => ({
+                  ...prev,
+                  billId: undefined,
+                }),
+              });
+            }}
+            className="text-[12px] font-semibold uppercase tracking-wider text-primary hover:text-primary-hover cursor-pointer self-start sm:self-auto"
+          >
+            Clear Filter
+          </button>
+        )}
       </div>
 
       <Card hoverable={false}>
