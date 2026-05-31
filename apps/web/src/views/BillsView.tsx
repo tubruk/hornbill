@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2, Plus, Trash2, ToggleLeft, ToggleRight, RefreshCw, History, Edit2 } from "lucide-react";
+import { Loader2, Plus, Trash2, ToggleLeft, ToggleRight, RefreshCw, History, Edit2, MoreVertical } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useAppCtx } from "../context/AppContext";
 import { useBills, useUpdateBill, useDeleteBill } from "../api/queries";
@@ -29,6 +29,7 @@ function recurrenceLabel(bill: Bill): string {
 export function BillsView() {
   const { currentAccount, openAddModal, notify } = useAppCtx();
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   // ── Queries & mutations ────────────────────────────────────────────────
 
@@ -159,7 +160,7 @@ export function BillsView() {
               return (
                 <div
                   key={bill.id}
-                  className={`py-4 flex items-center justify-between gap-4 first:pt-0 last:pb-0 transition-opacity ${isBusy ? "opacity-60" : ""}`}
+                  className={`py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 first:pt-0 last:pb-0 transition-opacity ${isBusy ? "opacity-60" : ""}`}
                 >
                   {/* Bill info */}
                   <div className="min-w-0 flex-1">
@@ -180,8 +181,8 @@ export function BillsView() {
                   </div>
 
                   {/* Amount + actions */}
-                  <div className="flex items-center gap-4 shrink-0">
-                    <div className="text-right">
+                  <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pt-2 sm:pt-0 border-t border-border-warm/40 sm:border-0">
+                    <div className="text-left sm:text-right">
                       <span className="text-[15px] font-mono font-semibold text-text-primary block">
                         {formatCents(bill.amount_cents, bill.currency)}
                       </span>
@@ -190,64 +191,85 @@ export function BillsView() {
                       </span>
                     </div>
 
-                    {/* View payments */}
-                    <Tooltip content="View payments">
-                      <Link
-                        to="/payments"
-                        search={{ billId: bill.id }}
-                        className="p-1.5 rounded-sm text-text-secondary hover:text-primary hover:bg-surface-raised transition-colors cursor-pointer"
-                      >
-                        <History className="w-5 h-5" />
-                      </Link>
-                    </Tooltip>
-
-                    {/* Edit bill */}
-                    <Tooltip content="Edit bill">
+                    {/* More actions dropdown */}
+                    <div className="relative shrink-0">
                       <button
-                        onClick={() => setEditingBill(bill)}
+                        onClick={() => setActiveDropdown(activeDropdown === bill.id ? null : bill.id)}
                         disabled={isBusy}
-                        aria-label={`Edit ${bill.name}`}
-                        className="p-1.5 rounded-sm text-text-secondary hover:text-primary hover:bg-surface-raised transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="p-1.5 rounded-sm text-text-secondary hover:bg-surface-raised hover:text-text-primary transition-colors cursor-pointer"
+                        aria-label="More actions"
                       >
-                        <Edit2 className="w-5 h-5" />
+                        <MoreVertical className="w-5 h-5" />
                       </button>
-                    </Tooltip>
 
-                    {/* Toggle active */}
-                    <Tooltip content={bill.active ? "Deactivate bill" : "Activate bill"}>
-                      <button
-                        onClick={() => handleToggleActive(bill)}
-                        disabled={isBusy}
-                        aria-label={bill.active ? `Deactivate ${bill.name}` : `Activate ${bill.name}`}
-                        className="p-1.5 rounded-sm text-text-secondary hover:text-primary hover:bg-surface-raised transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        {isToggling ? (
-                          <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                        ) : bill.active ? (
-                          <ToggleRight className="w-5 h-5 text-success" />
-                        ) : (
-                          <ToggleLeft className="w-5 h-5 text-text-secondary" />
-                        )}
-                      </button>
-                    </Tooltip>
+                      {activeDropdown === bill.id && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-10"
+                            onClick={() => setActiveDropdown(null)}
+                          />
+                          <div className="absolute right-0 mt-1.5 w-44 bg-surface-raised border border-border-warm rounded-sm shadow-md py-1.5 z-20 animate-slideDown">
+                            <button
+                              onClick={() => {
+                                setActiveDropdown(null);
+                                setEditingBill(bill);
+                              }}
+                              className="w-full text-left px-3.5 py-2 text-[13px] font-semibold text-text-primary hover:bg-stone-300/40 flex items-center gap-2.5 cursor-pointer"
+                            >
+                              <Edit2 className="w-4 h-4 text-text-secondary" />
+                              Edit Bill
+                            </button>
 
-                    {/* Delete */}
-                    <Tooltip content="Delete bill">
-                      <Button
-                        variant="destructive"
-                        size="small"
-                        onClick={() => handleDelete(bill.id, bill.name)}
-                        disabled={isBusy}
-                        className="!w-8 !h-8 !p-0"
-                        aria-label={`Delete ${bill.name}`}
-                      >
-                        {isDeleting ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-3.5 h-3.5" />
-                        )}
-                      </Button>
-                    </Tooltip>
+                            <Link
+                              to="/payments"
+                              search={{ billId: bill.id }}
+                              onClick={() => setActiveDropdown(null)}
+                              className="w-full text-left px-3.5 py-2 text-[13px] font-semibold text-text-primary hover:bg-stone-300/40 flex items-center gap-2.5 cursor-pointer"
+                            >
+                              <History className="w-4 h-4 text-text-secondary" />
+                              View History
+                            </Link>
+
+                            <button
+                              onClick={() => {
+                                setActiveDropdown(null);
+                                handleToggleActive(bill);
+                              }}
+                              className="w-full text-left px-3.5 py-2 text-[13px] font-semibold text-text-primary hover:bg-stone-300/40 flex items-center gap-2.5 cursor-pointer"
+                            >
+                              {isToggling ? (
+                                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                              ) : bill.active ? (
+                                <>
+                                  <ToggleRight className="w-4 h-4 text-success" />
+                                  Deactivate
+                                </>
+                              ) : (
+                                <>
+                                  <ToggleLeft className="w-4 h-4 text-text-secondary" />
+                                  Activate
+                                </>
+                              )}
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setActiveDropdown(null);
+                                handleDelete(bill.id, bill.name);
+                              }}
+                              className="w-full text-left px-3.5 py-2 text-[13px] font-semibold text-error hover:bg-red-50 flex items-center gap-2.5 cursor-pointer border-t border-border-warm mt-1.5 pt-1.5"
+                            >
+                              {isDeleting ? (
+                                <Loader2 className="w-4 h-4 animate-spin text-error" />
+                              ) : (
+                                <Trash2 className="w-4 h-4 text-error" />
+                              )}
+                              Delete Bill
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
