@@ -5,7 +5,6 @@ import { useAppCtx } from "../context/AppContext";
 import { useBills, usePayments, usePayPayment } from "../api/queries";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
-import { Chip } from "../components/Chip";
 import { getPaymentState, DEFAULT_UPCOMING_THRESHOLD_DAYS } from "@hornbill/core";
 
 type Filter = "unpaid" | "settled";
@@ -169,22 +168,48 @@ export function PaymentsView() {
                   <div className="min-w-0">
                     <div className="text-[15px] font-semibold text-text-primary flex items-center gap-2 flex-wrap">
                       <span className="truncate">{p.bill?.name ?? "—"}</span>
-                      {isSettled ? (
-                        <Chip variant="status" severity="success">Paid</Chip>
-                      ) : status === "overdue" ? (
-                        <Chip variant="status" severity="error">Overdue</Chip>
-                      ) : status === "due_soon" ? (
-                        <Chip variant="status" severity="warning">Due Soon</Chip>
-                      ) : (
-                        <Chip variant="status" severity="info">Upcoming</Chip>
-                      )}
                     </div>
                     <span className="text-[12px] text-text-secondary font-mono mt-0.5 block">
-                      Due: {formatDate(p.due_date)}
-                      {p.paid_at && (
-                        <span className="ml-2 text-success">
-                          · Paid {formatDate(new Date(p.paid_at * 1000).toISOString().split("T")[0])}
-                        </span>
+                      {!isSettled ? (
+                        <>
+                          Due:{" "}
+                          <span
+                            className={
+                              status === "overdue"
+                                ? "text-error font-semibold"
+                                : status === "due_soon"
+                                ? "text-warning font-semibold"
+                                : "text-[#1E40AF] font-semibold"
+                            }
+                          >
+                            {formatDate(p.due_date)}
+                          </span>
+                          {" · "}
+                          <span
+                            className={
+                              status === "overdue"
+                                ? "text-error font-bold uppercase tracking-wider text-[10px]"
+                                : status === "due_soon"
+                                ? "text-warning font-bold uppercase tracking-wider text-[10px]"
+                                : "text-[#1E40AF] font-bold uppercase tracking-wider text-[10px]"
+                            }
+                          >
+                            {status === "overdue"
+                              ? "Overdue"
+                              : status === "due_soon"
+                              ? "Due Soon"
+                              : "Upcoming"}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          Due: {formatDate(p.due_date)}
+                          {p.paid_at && (
+                            <span className="ml-2 text-success">
+                              · Paid {formatDate(new Date(p.paid_at * 1000).toISOString().split("T")[0])}
+                            </span>
+                          )}
+                        </>
                       )}
                     </span>
                   </div>
