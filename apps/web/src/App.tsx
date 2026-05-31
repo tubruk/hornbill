@@ -41,9 +41,9 @@ import {
 
 const MOCK_BILLS: Bill[] = [
   { id: "1", name: "Adobe Creative Cloud", amount_cents: 5499, currency: "USD", active: true, recurrence: { type: "monthly", monthly: { day: 15 } }, start_date: "2026-01-15", notes: "Design suite subscription", created_at: 0, updated_at: 0, account_id: "00000000-0000-0000-0000-000000000000", amount_type: "fixed" },
-  { id: "2", name: "Figma Professional", amount_cents: 1500, currency: "USD", active: true, recurrence: { type: "monthly", monthly: { day: 8 } }, start_date: "2026-01-08", notes: "Team collaboration workspace", created_at: 0, updated_at: 0, account_id: "00000000-0000-0000-0000-000000000000", amount_type: "fixed" },
-  { id: "3", name: "Fontstand Library", amount_cents: 900, currency: "USD", active: true, recurrence: { type: "monthly", monthly: { day: 22 } }, start_date: "2026-01-22", notes: "Typography rental licenses", created_at: 0, updated_at: 0, account_id: "00000000-0000-0000-0000-000000000000", amount_type: "fixed" },
-  { id: "4", name: "AWS Cloud Sandbox", amount_cents: 2900, currency: "USD", active: true, recurrence: { type: "monthly", monthly: { day: 1 } }, start_date: "2026-01-01", notes: "Portfolio hosting infrastructure", created_at: 0, updated_at: 0, account_id: "00000000-0000-0000-0000-000000000000", amount_type: "fixed" }
+  { id: "2", name: "Figma Professional", amount_cents: 1500, currency: "USD", active: true, recurrence: { type: "monthly", monthly: { day: 8 } }, start_date: "2026-01-08", notes: "Team collaboration tool", created_at: 0, updated_at: 0, account_id: "00000000-0000-0000-0000-000000000000", amount_type: "fixed" },
+  { id: "3", name: "Fontstand Library", amount_cents: 900, currency: "USD", active: true, recurrence: { type: "monthly", monthly: { day: 22 } }, start_date: "2026-01-22", notes: "Typography subscription", created_at: 0, updated_at: 0, account_id: "00000000-0000-0000-0000-000000000000", amount_type: "fixed" },
+  { id: "4", name: "AWS Cloud Sandbox", amount_cents: 2900, currency: "USD", active: true, recurrence: { type: "monthly", monthly: { day: 1 } }, start_date: "2026-01-01", notes: "Portfolio hosting", created_at: 0, updated_at: 0, account_id: "00000000-0000-0000-0000-000000000000", amount_type: "fixed" }
 ];
 
 const MOCK_PAYMENTS: (Payment & { bill?: { name: string } })[] = [
@@ -125,7 +125,7 @@ const useAppState = () => {
   return context;
 };
 
-// --- VIEW: DASHBOARD OVERVIEW ---
+// --- VIEW: DASHBOARD ---
 function DashboardView() {
   const {
     formatCents,
@@ -145,7 +145,7 @@ function DashboardView() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         <Card hoverable={true} className="flex flex-col justify-between h-32">
-          <div className="text-[12px] font-semibold text-text-secondary uppercase tracking-wide">Prorated Cost</div>
+          <div className="text-[12px] font-semibold text-text-secondary uppercase tracking-wide">Monthly Cost</div>
           <div className="font-display font-bold text-[28px] text-primary mt-1">
             {formatCents(monthlySpendingCents)}
             <span className="text-[14px] font-body font-semibold text-text-secondary ml-1">/ mo</span>
@@ -153,7 +153,7 @@ function DashboardView() {
         </Card>
 
         <Card hoverable={true} className="flex flex-col justify-between h-32">
-          <div className="text-[12px] font-semibold text-text-secondary uppercase tracking-wide">Overdue Cycles</div>
+          <div className="text-[12px] font-semibold text-text-secondary uppercase tracking-wide">Overdue Bills</div>
           <div className="font-display font-bold text-[28px] mt-1 text-text-primary">
             {overduePayments.length > 0 ? (
               <span className="text-error">{overduePayments.length} due</span>
@@ -164,7 +164,7 @@ function DashboardView() {
         </Card>
 
         <Card hoverable={true} className="flex flex-col justify-between h-32">
-          <div className="text-[12px] font-semibold text-text-secondary uppercase tracking-wide">Studio Licenses</div>
+          <div className="text-[12px] font-semibold text-text-secondary uppercase tracking-wide">Active Subscriptions</div>
           <div className="font-display font-bold text-[28px] text-text-primary mt-1">
             {activeBills.length}
             <span className="text-[14px] font-body font-semibold text-text-secondary ml-1.5">active</span>
@@ -179,7 +179,7 @@ function DashboardView() {
           <div>
             <h3 className="font-display font-bold text-[20px] text-text-primary mb-1">Attention Required</h3>
             <p className="text-[14px] text-text-secondary font-semibold">
-              You have {overduePayments.length} subscription cycle(s) overdue. Please log tasks or settle balances to keep databases current.
+              You have {overduePayments.length} overdue bills. Please make payments to keep your accounts current.
             </p>
           </div>
           <Link to="/payments">
@@ -190,21 +190,21 @@ function DashboardView() {
         </Card>
       )}
 
-      {/* Progress Settle Rate metrics */}
+      {/* Progress metrics */}
       <Card hoverable={false} className="p-6">
-        <Progress value={settleRate} label="Overall Settlement Progress Rate" />
+        <Progress value={settleRate} label="Overall Payment Progress" />
       </Card>
 
-      {/* Main Grid: Pending Action Items and Integrations info */}
+      {/* Main Grid: Pending Action Items */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Left side: urgent bills list */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-display font-bold text-[20px] text-text-primary">Urgent Tasks Due</h3>
+            <h3 className="font-display font-bold text-[20px] text-text-primary">Urgent Bills Due</h3>
             <Link to="/payments">
               <Button variant="ghost" size="small" className="text-primary hover:text-primary-hover font-semibold">
-                Open Log <ChevronRight className="w-4 h-4 ml-1 inline" />
+                View All <ChevronRight className="w-4 h-4 ml-1 inline" />
               </Button>
             </Link>
           </div>
@@ -212,7 +212,7 @@ function DashboardView() {
           <Card hoverable={false}>
             {unpaidPayments.length === 0 ? (
               <div className="text-center py-10 text-text-secondary font-semibold">
-                All ledger obligations have been settled.
+                All bills have been paid.
               </div>
             ) : (
               <div className="divide-y divide-border-warm">
@@ -235,7 +235,7 @@ function DashboardView() {
                           size="small"
                           onClick={() => handlePay(p.id, p.bill?.name || "Task")}
                         >
-                          Settle
+                          Pay
                         </Button>
                       </div>
                     </div>
@@ -246,14 +246,14 @@ function DashboardView() {
           </Card>
         </div>
 
-        {/* Right side: Project Details/CTAs */}
+        {/* Right side: CTAs */}
         <div className="space-y-4">
-          <h3 className="font-display font-bold text-[20px] text-text-primary">Registry Operations</h3>
+          <h3 className="font-display font-bold text-[20px] text-text-primary">Subscription Operations</h3>
           <Card hoverable={false} className="h-full flex flex-col justify-between">
             <div>
-              <h4 className="font-display font-semibold text-[16px] text-text-primary mb-2">Create Record</h4>
+              <h4 className="font-display font-semibold text-[16px] text-text-primary mb-2">Add Subscription</h4>
               <p className="text-[14px] text-text-secondary leading-relaxed mb-6 font-medium">
-                Register design utilities, software licenses, or recurring infrastructure expenses to trace team productivity.
+                Add subscriptions, software licenses, or recurring utilities to trace your expenses.
               </p>
             </div>
             
@@ -265,7 +265,7 @@ function DashboardView() {
                 className="w-full gap-2"
               >
                 <Plus className="w-4 h-4" />
-                Register Service
+                Add Subscription
               </Button>
             </div>
           </Card>
@@ -276,7 +276,7 @@ function DashboardView() {
   );
 }
 
-// --- VIEW: REGISTRIES ---
+// --- VIEW: SUBSCRIPTIONS ---
 function SubscriptionsView() {
   const {
     bills,
@@ -288,17 +288,17 @@ function SubscriptionsView() {
   return (
     <div className="space-y-6 animate-fadeIn">
       <div className="flex items-center justify-between">
-        <h3 className="font-display font-bold text-[20px] text-text-primary">Studio Registries</h3>
+        <h3 className="font-display font-bold text-[20px] text-text-primary">Subscriptions</h3>
         <Button variant="primary" size="small" onClick={() => setShowAddModal(true)} className="gap-2">
           <Plus className="w-4 h-4" />
-          Add Service
+          Add Subscription
         </Button>
       </div>
 
       <Card hoverable={false}>
         {bills.length === 0 ? (
           <div className="text-center py-16 text-text-secondary font-semibold">
-            No active registries configured. Press "Add Service" to start.
+            No active subscriptions configured. Press "Add Subscription" to start.
           </div>
         ) : (
           <div className="divide-y divide-border-warm">
@@ -324,7 +324,7 @@ function SubscriptionsView() {
                     <span className="text-[16px] font-mono font-semibold text-text-primary block">{formatCents(bill.amount_cents)}</span>
                     <span className="text-[11px] text-text-secondary font-bold uppercase tracking-wider block mt-0.5">USD</span>
                   </div>
-                  <Tooltip content="Archive subscription">
+                  <Tooltip content="Delete subscription">
                     <Button
                       variant="destructive"
                       size="small"
@@ -344,7 +344,7 @@ function SubscriptionsView() {
   );
 }
 
-// --- VIEW: OBLIGATION LOGS ---
+// --- VIEW: BILLS & PAYMENTS ---
 function PaymentsView() {
   const {
     selectedFilter,
@@ -359,7 +359,7 @@ function PaymentsView() {
     <div className="space-y-6 animate-fadeIn">
       
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h3 className="font-display font-bold text-[20px] text-text-primary">Ledger Obligations</h3>
+        <h3 className="font-display font-bold text-[20px] text-text-primary">Bills & Payments</h3>
         
         <div className="flex gap-1 bg-surface-warm border border-border-warm p-1 rounded-sm">
           <button 
@@ -384,7 +384,7 @@ function PaymentsView() {
               selectedFilter === "settled" ? "bg-surface-raised text-primary" : "text-text-secondary hover:text-text-primary"
             }`}
           >
-            Settled
+            Paid
           </button>
         </div>
       </div>
@@ -405,16 +405,16 @@ function PaymentsView() {
                     <div className="text-[16px] font-semibold text-text-primary flex items-center gap-2">
                       {p.bill?.name}
                       {isSettled ? (
-                        <Chip variant="status" severity="success">Approved</Chip>
+                        <Chip variant="status" severity="success">Paid</Chip>
                       ) : isOverdue ? (
                         <Chip variant="status" severity="error">Overdue</Chip>
                       ) : (
-                        <Chip variant="status" severity="warning">Due Soon</Chip>
+                        <Chip variant="status" severity="warning">Pending</Chip>
                       )}
                     </div>
                     <span className="text-[12px] text-text-secondary font-mono mt-0.5 block">
                       Due date: {p.due_date}
-                      {p.paid_at && ` • Settled on ${new Date(p.paid_at * 1000).toLocaleDateString()}`}
+                      {p.paid_at && ` • Paid on ${new Date(p.paid_at * 1000).toLocaleDateString()}`}
                     </span>
                   </div>
                   
@@ -424,9 +424,9 @@ function PaymentsView() {
                       <Button 
                         variant="secondary" 
                         size="small"
-                        onClick={() => handlePay(p.id, p.bill?.name || "Obligation")}
+                        onClick={() => handlePay(p.id, p.bill?.name || "Bill")}
                       >
-                        Approve
+                        Pay
                       </Button>
                     )}
                   </div>
@@ -458,10 +458,10 @@ function SettingsView() {
         <Card hoverable={false}>
           <h4 className="font-display font-semibold text-[18px] text-text-primary mb-3 flex items-center gap-2">
             <Shield className="w-5 h-5 text-primary" />
-            Maintenance Core
+            Database Maintenance
           </h4>
           <p className="text-[14px] text-text-secondary leading-relaxed mb-6 font-medium">
-            Resets database cache levels and clears transaction tables. Local sqlite configuration will remain intact. Needs CLI approval.
+            Resets database cache levels and clears recent transactions. SQLite data configurations will remain intact.
           </p>
           <div>
             <Button 
@@ -473,7 +473,7 @@ function SettingsView() {
                 }
               }}
             >
-              Clear Database Cache
+              Clear Local Cache
             </Button>
           </div>
         </Card>
@@ -482,12 +482,12 @@ function SettingsView() {
         <Card hoverable={false}>
           <h4 className="font-display font-semibold text-[18px] text-text-primary mb-3 flex items-center gap-2">
             <Activity className="w-5 h-5 text-primary" />
-            Daemon Properties
+            System Properties
           </h4>
           
           <div className="space-y-4 pt-2">
             <div className="flex flex-col gap-1">
-              <span className="text-[12px] font-bold text-text-secondary uppercase">API Target Gateway</span>
+              <span className="text-[12px] font-bold text-text-secondary uppercase">API Gateway</span>
               <span className="px-3 py-2 rounded-sm bg-surface-raised border border-border-warm text-[14px] text-text-primary font-mono select-all">
                 {isApiConnected ? "http://localhost:3000" : "Mock In-Memory Gateway"}
               </span>
@@ -506,11 +506,11 @@ function SettingsView() {
 
       <Card hoverable={false} className="border border-border-warm bg-surface-warm p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
         <div>
-          <h4 className="font-display font-semibold text-[16px] text-text-primary mb-1">Synchronization Daemon</h4>
-          <p className="text-[14px] text-text-secondary font-medium">Force execute the payment generation cron loops immediately.</p>
+          <h4 className="font-display font-semibold text-[16px] text-text-primary mb-1">System Sync</h4>
+          <p className="text-[14px] text-text-secondary font-medium">Manually trigger the billing cron synchronization immediately.</p>
         </div>
         <Button variant="primary" size="medium" onClick={triggerSyncJob}>
-          Synchronize Daemon
+          Sync Now
         </Button>
       </Card>
 
@@ -561,18 +561,18 @@ function RootLayout() {
   const location = useLocation();
   const activePath = location.pathname;
 
-  let title = "Workspace Status";
-  let subtitle = "A unified log of recurring services and balances.";
+  let title = "Dashboard";
+  let subtitle = "A unified overview of recurring bills and active subscriptions.";
 
   if (activePath === "/subscriptions") {
-    title = "Studio Registries";
-    subtitle = "Manage design contracts, hosting licenses, and active keys.";
+    title = "Subscriptions";
+    subtitle = "Manage recurring bills, services, and subscription plans.";
   } else if (activePath === "/payments") {
-    title = "Obligation Log";
-    subtitle = "Record, track, and settle billing tasks.";
+    title = "Bills & Payments";
+    subtitle = "Record, track, and pay your recurring bills.";
   } else if (activePath === "/settings") {
-    title = "Atelier Calibration";
-    subtitle = "Configure SQLite engine properties and cron loops.";
+    title = "Settings";
+    subtitle = "Configure system settings, databases, and synchronization parameters.";
   }
 
   return (
@@ -591,7 +591,7 @@ function RootLayout() {
               <h1 className="font-display font-bold text-[20px] text-text-primary tracking-tight leading-none">
                 Hornbill
               </h1>
-              <span className="text-[11px] font-semibold text-neutral-muted uppercase tracking-wider block mt-1">Ember Workspace</span>
+              <span className="text-[11px] font-semibold text-neutral-muted uppercase tracking-wider block mt-1">Default Account</span>
             </div>
           </div>
 
@@ -603,7 +603,7 @@ function RootLayout() {
             >
               <span className="flex items-center gap-2 truncate">
                 <Layers className="w-4 h-4 text-primary" />
-                {currentAccount?.name || "Select Workspace"}
+                {currentAccount?.name || "Select Account"}
               </span>
               <ChevronDown className="w-4 h-4 text-text-secondary" />
             </button>
@@ -640,7 +640,7 @@ function RootLayout() {
             className="w-full h-10 px-3 rounded-sm text-left text-[14px] font-semibold flex items-center gap-3 transition-colors relative cursor-pointer"
           >
             <LayoutDashboard className="w-4 h-4" />
-            Dashboard Overview
+            Dashboard
           </Link>
           
           <Link 
@@ -650,7 +650,7 @@ function RootLayout() {
             className="w-full h-10 px-3 rounded-sm text-left text-[14px] font-semibold flex items-center gap-3 transition-colors relative cursor-pointer"
           >
             <CreditCard className="w-4 h-4" />
-            Subscription Registry
+            Subscriptions
           </Link>
 
           <Link 
@@ -660,7 +660,7 @@ function RootLayout() {
             className="w-full h-10 px-3 rounded-sm text-left text-[14px] font-semibold flex items-center gap-3 transition-colors relative cursor-pointer"
           >
             <CalendarDays className="w-4 h-4" />
-            Billing Obligations
+            Bills & Payments
           </Link>
 
           <Link 
@@ -670,7 +670,7 @@ function RootLayout() {
             className="w-full h-10 px-3 rounded-sm text-left text-[14px] font-semibold flex items-center gap-3 transition-colors relative cursor-pointer"
           >
             <Settings className="w-4 h-4" />
-            Secret Settings
+            Settings
           </Link>
         </nav>
 
@@ -688,7 +688,7 @@ function RootLayout() {
 
           {/* Connection Status indicator */}
           <div className="flex items-center justify-between text-[12px] font-semibold text-text-secondary">
-            <span>Daemon Sync:</span>
+            <span>Sync Status:</span>
             <span className={`inline-flex items-center gap-1.5 font-bold ${isApiConnected ? "text-success" : "text-warning"}`}>
               <span className={`w-2 h-2 rounded-full ${isApiConnected ? "bg-success" : "bg-warning"}`}></span>
               {isApiConnected ? "Connected" : "Offline Sandbox"}
@@ -706,7 +706,7 @@ function RootLayout() {
             className="flex flex-col items-center gap-1 text-[12px] font-semibold"
           >
             <LayoutDashboard className="w-5 h-5" />
-            Overview
+            Dashboard
           </Link>
           <Link 
             to="/subscriptions" 
@@ -715,7 +715,7 @@ function RootLayout() {
             className="flex flex-col items-center gap-1 text-[12px] font-semibold"
           >
             <CreditCard className="w-5 h-5" />
-            Registry
+            Subscriptions
           </Link>
           <Link 
             to="/payments" 
@@ -770,7 +770,7 @@ function RootLayout() {
             </div>
           </div>
 
-          {/* Toast notification banner (Amber Accent - used sparingly) */}
+          {/* Toast notification banner */}
           {notification && (
             <div className="animate-ember">
               <Card className="!p-3.5 border-l-[4px] border-l-accent bg-surface-warm flex items-center gap-3 shadow-sm select-none">
@@ -786,7 +786,7 @@ function RootLayout() {
           {loading ? (
             <div className="flex-1 flex flex-col items-center justify-center py-20">
               <div className="w-10 h-10 border-[3px] border-primary border-t-transparent rounded-full animate-spin mb-4" />
-              <h3 className="font-display text-[20px] text-text-secondary">Loading Workspace...</h3>
+              <h3 className="font-display text-[20px] text-text-secondary">Loading...</h3>
             </div>
           ) : (
             <div className="space-y-8 flex-1">
@@ -808,10 +808,10 @@ function RootLayout() {
             <div className="pb-4 border-b border-border-warm mb-6">
               <h3 className="font-display font-bold text-[22px] text-text-primary flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-primary" />
-                Register Creative License
+                Add Subscription
               </h3>
               <p className="text-[14px] text-text-secondary font-medium">
-                Add a subscription strategy to trace monthly prorated costs.
+                Add a subscription strategy to track monthly costs.
               </p>
             </div>
 
@@ -819,7 +819,7 @@ function RootLayout() {
             <form onSubmit={handleCreateBill} className="space-y-6">
               
               <Input
-                label="Service Label"
+                label="Subscription Name"
                 placeholder="Adobe CC, Figma, GitHub..."
                 value={billName}
                 onChange={(e) => setBillName(e.target.value)}
@@ -847,7 +847,7 @@ function RootLayout() {
               />
 
               <Input
-                label="Annotation"
+                label="Notes"
                 placeholder="Personal account, design team seat, etc."
                 value={billNotes}
                 onChange={(e) => setBillNotes(e.target.value)}
@@ -957,7 +957,7 @@ function RootLayout() {
                   Cancel
                 </Button>
                 <Button variant="primary" size="medium" type="submit">
-                  Save Service
+                  Add Subscription
                 </Button>
               </div>
 
@@ -1062,12 +1062,12 @@ function App() {
       if (!accountsRes.ok) throw new Error("API Offline");
       let accountsData: Account[] = await accountsRes.json();
       
-      // Seed a default studio workspace if empty
+      // Seed a default account if empty
       if (accountsData.length === 0) {
         const createAccountRes = await fetch("/api/v1/accounts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: "Atelier Studio 🎨" })
+          body: JSON.stringify({ name: "Primary Account 🎨" })
         });
         if (createAccountRes.ok) {
           const newAcc = await createAccountRes.json();
@@ -1105,8 +1105,8 @@ function App() {
       // Offline fallback
       setBills(MOCK_BILLS);
       setPayments(MOCK_PAYMENTS);
-      setAccounts([{ id: "mock-account-id", name: "Ember Offline Workspace ☕", created_at: 0, updated_at: 0 }]);
-      setCurrentAccount({ id: "mock-account-id", name: "Ember Offline Workspace ☕", created_at: 0, updated_at: 0 });
+      setAccounts([{ id: "mock-account-id", name: "Offline Account ☕", created_at: 0, updated_at: 0 }]);
+      setCurrentAccount({ id: "mock-account-id", name: "Offline Account ☕", created_at: 0, updated_at: 0 });
       setIsApiConnected(false);
     } finally {
       setLoading(false);
