@@ -172,12 +172,11 @@ export function BillsView() {
                         {bill.active ? "Active" : "Inactive"}
                       </Chip>
                     </div>
-                    <p className="text-[13px] text-text-secondary font-medium mt-0.5">
-                      {recurrenceLabel(bill)}
-                      {bill.notes && (
-                        <span className="text-neutral-muted"> · {bill.notes}</span>
-                      )}
-                    </p>
+                    {bill.notes && (
+                      <p className="text-[13px] text-text-secondary font-medium mt-0.5">
+                        {bill.notes}
+                      </p>
+                    )}
                   </div>
 
                   {/* Amount + actions */}
@@ -187,7 +186,7 @@ export function BillsView() {
                         {formatCents(bill.amount_cents, bill.currency)}
                       </span>
                       <span className="text-[11px] text-text-secondary font-bold uppercase tracking-wider block mt-0.5">
-                        {bill.currency} · {bill.recurrence.type}
+                        {recurrenceLabel(bill)}
                       </span>
                     </div>
 
