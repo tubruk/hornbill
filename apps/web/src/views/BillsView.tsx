@@ -168,7 +168,7 @@ export function BillsView() {
                       <span className={`truncate ${!bill.active ? "text-text-secondary line-through decoration-neutral-muted" : ""}`}>
                         {bill.name}
                       </span>
-                      <Chip variant="status" severity={bill.active ? "success" : "error"}>
+                      <Chip variant="status" severity={bill.active ? "success" : "error"} size="small">
                         {bill.active ? "Active" : "Inactive"}
                       </Chip>
                     </div>
