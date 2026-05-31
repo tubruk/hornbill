@@ -23,7 +23,7 @@ function formatDate(iso: string): string {
 export function PaymentsView() {
   const { currentAccount, notify } = useAppCtx();
   const [filter, setFilter] = useState<Filter>("unpaid");
-  const [payingPayment, setPayingPayment] = useState<{ id: string; name: string } | null>(null);
+  const [payingPayment, setPayingPayment] = useState<{ id: string; name: string; dueDate: string; isUpcoming: boolean } | null>(null);
   const todayStr = new Date().toISOString().split("T")[0];
 
   const search = useSearch({ from: "/payments" });
@@ -52,8 +52,8 @@ export function PaymentsView() {
     })
     .sort((a, b) => a.due_date.localeCompare(b.due_date));
 
-  function handlePay(paymentId: string, billName: string) {
-    setPayingPayment({ id: paymentId, name: billName });
+  function handlePay(paymentId: string, billName: string, dueDate: string, isUpcoming: boolean) {
+    setPayingPayment({ id: paymentId, name: billName, dueDate, isUpcoming });
   }
 
   async function handlePayConfirm(paidAtDate?: string) {
@@ -232,7 +232,7 @@ export function PaymentsView() {
                         variant="secondary"
                         size="small"
                         disabled={isPaying}
-                        onClick={() => handlePay(p.id, p.bill?.name ?? "Bill")}
+                        onClick={() => handlePay(p.id, p.bill?.name ?? "Bill", p.due_date, status === "upcoming")}
                       >
                         {isPaying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Pay"}
                       </Button>
@@ -248,6 +248,8 @@ export function PaymentsView() {
       {payingPayment && (
         <PayPaymentModal
           billName={payingPayment.name}
+          dueDate={payingPayment.dueDate}
+          isUpcoming={payingPayment.isUpcoming}
           onConfirm={handlePayConfirm}
           onClose={() => setPayingPayment(null)}
           isSubmitting={payMut.isPending}

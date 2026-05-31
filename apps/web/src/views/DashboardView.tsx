@@ -48,7 +48,7 @@ function SkeletonCard({ className = "" }: { className?: string }) {
 
 export function DashboardView() {
   const { currentAccount, openAddModal, notify } = useAppCtx();
-  const [payingPayment, setPayingPayment] = useState<{ id: string; name: string } | null>(null);
+  const [payingPayment, setPayingPayment] = useState<{ id: string; name: string; dueDate: string; isUpcoming: boolean } | null>(null);
   const todayStr = new Date().toISOString().split("T")[0];
 
   const billsQuery = useBills(currentAccount?.id);
@@ -141,8 +141,8 @@ export function DashboardView() {
 
   // ── Handle pay ───────────────────────────────────────────────────────────
 
-  function handlePay(paymentId: string, billName: string) {
-    setPayingPayment({ id: paymentId, name: billName });
+  function handlePay(paymentId: string, billName: string, dueDate: string, isUpcoming: boolean) {
+    setPayingPayment({ id: paymentId, name: billName, dueDate, isUpcoming });
   }
 
   async function handlePayConfirm(paidAtDate?: string) {
@@ -374,7 +374,7 @@ export function DashboardView() {
                         variant="secondary"
                         size="small"
                         disabled={isPaying}
-                        onClick={() => handlePay(p.id, p.bill?.name ?? "Bill")}
+                        onClick={() => handlePay(p.id, p.bill?.name ?? "Bill", p.due_date, status === "upcoming")}
                       >
                         {isPaying ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -461,6 +461,8 @@ export function DashboardView() {
       {payingPayment && (
         <PayPaymentModal
           billName={payingPayment.name}
+          dueDate={payingPayment.dueDate}
+          isUpcoming={payingPayment.isUpcoming}
           onConfirm={handlePayConfirm}
           onClose={() => setPayingPayment(null)}
           isSubmitting={payPaymentMut.isPending}

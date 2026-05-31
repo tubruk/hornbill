@@ -7,22 +7,33 @@ import { Input } from "./Input";
 
 interface Props {
   billName: string;
+  dueDate: string;
+  isUpcoming: boolean;
   onConfirm: (paidAtDate?: string) => Promise<void>;
   onClose: () => void;
   isSubmitting?: boolean;
 }
 
-export function PayPaymentModal({ billName, onConfirm, onClose, isSubmitting }: Props) {
+export function PayPaymentModal({ billName, dueDate, isUpcoming, onConfirm, onClose, isSubmitting }: Props) {
   const getYesterdayStr = () => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
     return d.toISOString().split("T")[0];
   };
 
+  const getDaysUntilDue = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(dueDate + "T00:00:00");
+    const diffTime = due.getTime() - today.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
   const [customDate, setCustomDate] = useState(getYesterdayStr());
   const [error, setError] = useState("");
 
   const yesterdayStr = getYesterdayStr();
+  const daysUntilDue = getDaysUntilDue();
 
   const handlePaidToday = () => {
     onConfirm(undefined);
@@ -70,6 +81,12 @@ export function PayPaymentModal({ billName, onConfirm, onClose, isSubmitting }: 
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {isUpcoming && (
+          <div className="mb-5 p-3.5 bg-[#FFFBEB] border border-[#FDE68A] rounded-sm text-[13px] text-[#92400E] font-semibold animate-fadeIn leading-relaxed">
+            ⚠️ <span className="font-bold">Upcoming Payment:</span> This bill is still far from its due date. It is due in <span className="font-bold text-[#78350F]">{daysUntilDue} days</span> (on {new Date(dueDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}).
+          </div>
+        )}
 
         {/* Content options */}
         <div className="space-y-4">
