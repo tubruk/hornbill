@@ -104,3 +104,63 @@ export async function syncAllPayments(): Promise<{ processed: number; generated:
 
   return { processed, generated };
 }
+
+/**
+ * Handles all payment-related side effects when a bill is updated.
+ */
+export async function handleBillUpdateSideEffects(
+  billId: string,
+  oldBill: Bill,
+  updatedBill: Bill
+): Promise<void> {
+  const payments = await db.listPayments(billId);
+  const unpaidPayment = payments.find((p) => p.paid_at === null || p.paid_at === undefined);
+
+  // 1. If deactivated: delete any outstanding unpaid payment
+  if (oldBill.active && !updatedBill.active) {
+    if (unpaidPayment) {
+      await db.deletePayment(unpaidPayment.id);
+    }
+    return;
+  }
+
+  // 2. If active and there is an outstanding unpaid payment, sync its amount or due date
+  if (updatedBill.active && unpaidPayment) {
+    let needsUpdate = false;
+    const updates: Partial<Omit<Payment, "id" | "created_at" | "updated_at">> = {};
+
+    // Sync amount if changed
+    if (oldBill.amount_cents !== updatedBill.amount_cents) {
+      updates.amount_cents = updatedBill.amount_cents;
+      needsUpdate = true;
+    }
+
+    // Sync due date if recurrence changed
+    const oldRecurStr = JSON.stringify(oldBill.recurrence);
+    const newRecurStr = JSON.stringify(updatedBill.recurrence);
+    if (oldRecurStr !== newRecurStr) {
+      const paidPayments = payments
+        .filter((p) => p.paid_at !== null && p.paid_at !== undefined)
+        .sort((a, b) => b.due_date.localeCompare(a.due_date));
+      
+      let newDueDate: string;
+      if (paidPayments.length === 0) {
+        newDueDate = updatedBill.start_date;
+      } else {
+        newDueDate = calculateNextDueDate(updatedBill, paidPayments[0]);
+      }
+      
+      updates.due_date = newDueDate;
+      needsUpdate = true;
+    }
+
+    if (needsUpdate) {
+      await db.updatePayment(unpaidPayment.id, updates);
+    }
+  }
+
+  // 3. If reactivated, check/generate initial/next cycle payment
+  if (!oldBill.active && updatedBill.active) {
+    await generateNextPaymentForBill(billId);
+  }
+}
