@@ -12,11 +12,13 @@ import {
   deleteAccount,
   fetchBills,
   createBill,
+  updateBill,
   deleteBill,
   fetchPayments,
   payPayment,
   triggerSync,
   type CreateBillPayload,
+  type UpdateBillPayload,
 } from "./client";
 
 // ── Query Key Factories ────────────────────────────────────────────────────
@@ -98,6 +100,21 @@ export function useCreateBill() {
       qc.invalidateQueries({ queryKey: qk.bills(vars.account_id) });
       // Also invalidate payments since a new payment cycle is generated on create
       qc.invalidateQueries({ queryKey: ["payments"] });
+    },
+  });
+}
+
+export function useUpdateBill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, updates }: { id: string; accountId: string; updates: UpdateBillPayload }) =>
+      updateBill(id, updates),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: qk.bills(vars.accountId) });
+      // Toggling active=true triggers server-side payment generation
+      if (vars.updates.active === true) {
+        qc.invalidateQueries({ queryKey: qk.payments(vars.accountId) });
+      }
     },
   });
 }

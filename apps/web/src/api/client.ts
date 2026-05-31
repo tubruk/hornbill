@@ -70,6 +70,18 @@ export function createBill(payload: CreateBillPayload): Promise<Bill> {
   });
 }
 
+export type UpdateBillPayload = Partial<
+  Pick<Bill, "name" | "amount_cents" | "currency" | "recurrence" | "start_date" | "active" | "notes">
+>;
+
+export function updateBill(id: string, updates: UpdateBillPayload): Promise<Bill> {
+  return apiFetch<Bill>(`/bills/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+}
+
 export function deleteBill(id: string): Promise<void> {
   return apiFetch<void>(`/bills/${id}`, { method: "DELETE" });
 }
