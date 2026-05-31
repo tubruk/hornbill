@@ -1,0 +1,145 @@
+# Database Seed Fixtures for Hornbill
+
+accounts:
+  - id: "a0000000-0000-4000-8000-000000000001"
+    name: "Acme Corp Design Studio 🎨"
+  - id: "a0000000-0000-4000-8000-000000000002"
+    name: "Personal Sandbox ☕"
+
+bills:
+  # Monthly edge case (day 31)
+  - id: "b0000000-0000-4000-8000-000000000001"
+    account_id: "a0000000-0000-4000-8000-000000000001"
+    name: "Premium Typography Licenses"
+    currency: "USD"
+    amount_cents: 9900
+    amount_type: "fixed"
+    recurrence:
+      type: "monthly"
+      monthly:
+        day: 31
+    start_date: "2026-01-31"
+    active: true
+    notes: "Clamps to 28/29/30 depending on target month"
+
+  # Yearly leap day edge case (Feb 29)
+  - id: "b0000000-0000-4000-8000-000000000002"
+    account_id: "a0000000-0000-4000-8000-000000000001"
+    name: "Enterprise Domain Registration"
+    currency: "USD"
+    amount_cents: 12000
+    amount_type: "fixed"
+    recurrence:
+      type: "yearly"
+      yearly:
+        month: 2
+        day: 29
+    start_date: "2024-02-29"
+    active: true
+    notes: "Leap year boundary checker"
+
+  # Daily/Weekly interval case
+  - id: "b0000000-0000-4000-8000-000000000003"
+    account_id: "a0000000-0000-4000-8000-000000000001"
+    name: "Co-working Space Fee"
+    currency: "USD"
+    amount_cents: 45000
+    amount_type: "fixed"
+    recurrence:
+      type: "interval"
+      interval:
+        every: 14
+        unit: "days"
+        from: "due_date"
+    start_date: "2026-05-01"
+    active: true
+    notes: "Bi-weekly co-working subscription"
+
+  # Weekly interval case
+  - id: "b0000000-0000-4000-8000-000000000004"
+    account_id: "a0000000-0000-4000-8000-000000000001"
+    name: "Design Sprint Consultation"
+    currency: "USD"
+    amount_cents: 150000
+    amount_type: "fixed"
+    recurrence:
+      type: "interval"
+      interval:
+        every: 3
+        unit: "weeks"
+        from: "due_date"
+    start_date: "2026-05-01"
+    active: true
+    notes: "Every 3 weeks consulting retainer"
+
+  # Interval relative to paid_at
+  - id: "b0000000-0000-4000-8000-000000000005"
+    account_id: "a0000000-0000-4000-8000-000000000002"
+    name: "AWS Cloud Infrastructure"
+    currency: "IDR"
+    amount_cents: 14900000
+    amount_type: "fixed"
+    recurrence:
+      type: "interval"
+      interval:
+        every: 1
+        unit: "months"
+        from: "paid_at"
+    start_date: "2026-05-01"
+    active: true
+    notes: "Next due date moves relative to last payment execution"
+
+payments:
+  # Premium Typography (Monthly day 31):
+  # Paid on-time payment
+  - id: "c0000000-0000-4000-8000-000000000001"
+    bill_id: "b0000000-0000-4000-8000-000000000001"
+    due_date: "2026-01-31"
+    amount_cents: 9900
+    paid_at: "2026-01-31"
+    notes: "Paid on time"
+
+  # Premium Typography (Monthly day 31):
+  # Paid late payment (clamped month Feb 28)
+  - id: "c0000000-0000-4000-8000-000000000002"
+    bill_id: "b0000000-0000-4000-8000-000000000001"
+    due_date: "2026-02-28"
+    amount_cents: 9900
+    paid_at: "2026-03-02"
+    notes: "Paid 2 days late (clamped Feb 28 due date)"
+
+  # Premium Typography (Monthly day 31):
+  # Unpaid overdue payment
+  - id: "c0000000-0000-4000-8000-000000000003"
+    bill_id: "b0000000-0000-4000-8000-000000000001"
+    due_date: "2026-05-31"
+    amount_cents: 9900
+    paid_at: null
+    notes: "Unpaid overdue billing cycle"
+
+  # Domain Registration (Yearly leap day):
+  # Rollover check
+  - id: "c0000000-0000-4000-8000-000000000004"
+    bill_id: "b0000000-0000-4000-8000-000000000002"
+    due_date: "2025-02-28"
+    amount_cents: 12000
+    paid_at: "2025-02-28"
+    notes: "Leap year rollover to non-leap year (clamps to Feb 28)"
+
+  # AWS Cloud Infrastructure (from paid_at monthly):
+  # Paid on-time
+  - id: "c0000000-0000-4000-8000-000000000005"
+    bill_id: "b0000000-0000-4000-8000-000000000005"
+    due_date: "2026-05-01"
+    amount_cents: 14900000
+    paid_at: "2026-05-05"
+    notes: "Paid late (on May 5th, shifting next due date to June 5th)"
+
+  # AWS Cloud Infrastructure (from paid_at monthly):
+  # Unpaid upcoming
+  - id: "c0000000-0000-4000-8000-000000000006"
+    bill_id: "b0000000-0000-4000-8000-000000000005"
+    due_date: "2026-06-05"
+    amount_cents: 14900000
+    paid_at: null
+    notes: "Generated next payment (due date calculated from paid_at + 1 month)"

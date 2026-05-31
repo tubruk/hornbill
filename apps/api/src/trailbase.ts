@@ -4,7 +4,7 @@ const TRAILBASE_URL = process.env.TRAILBASE_URL || "http://localhost:4000";
 const TRAILBASE_TOKEN = process.env.TRAILBASE_TOKEN || "";
 
 interface TrailbaseListResponse<T> {
-  data: T[];
+  records: T[];
   count?: number;
 }
 
@@ -35,7 +35,7 @@ class TrailbaseClient {
 
   async listAccounts(): Promise<Account[]> {
     const res = await this.request<TrailbaseListResponse<any>>("/api/records/v1/accounts");
-    return res.data;
+    return res.records;
   }
 
   async getAccount(id: string): Promise<Account> {
@@ -81,7 +81,7 @@ class TrailbaseClient {
     }
     const res = await this.request<TrailbaseListResponse<any>>(path);
     // Parse recurrence column which is stored as JSON string in SQLite
-    return res.data.map(bill => ({
+    return res.records.map(bill => ({
       ...bill,
       active: Number(bill.active) === 1, // Convert sqlite integer 0/1 back to boolean
       recurrence: typeof bill.recurrence === "string" ? JSON.parse(bill.recurrence) : bill.recurrence,
@@ -156,7 +156,7 @@ class TrailbaseClient {
       path += `&filter[bill_id][@eq]=${billId}`;
     }
     const res = await this.request<TrailbaseListResponse<Payment>>(path);
-    return res.data;
+    return res.records;
   }
 
   async getPayment(id: string): Promise<Payment> {

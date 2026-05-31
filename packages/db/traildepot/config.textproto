@@ -14,15 +14,18 @@ record_apis: [
   {
     name: "accounts"
     table_name: "accounts"
+    acl_world: [READ, CREATE, UPDATE, DELETE]
   },
   {
     name: "bills"
     table_name: "bills"
     expand: ["account_id"]
+    acl_world: [READ, CREATE, UPDATE, DELETE]
   },
   {
     name: "payments"
     table_name: "payments"
     expand: ["bill_id"]
+    acl_world: [READ, CREATE, UPDATE, DELETE]
   }
 ]

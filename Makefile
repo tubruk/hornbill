@@ -1,4 +1,4 @@
-.PHONY: dev build test docker-build docker-up docker-down clean install db-reset git-hooks
+.PHONY: dev build test docker-build docker-up docker-down clean install db-reset db-fixtures git-hooks
 
 # Install workspace dependencies
 install:
@@ -33,6 +33,11 @@ db-reset:
 	@rm -f packages/db/traildepot/data/*.db packages/db/traildepot/data/*.db-journal packages/db/traildepot/data/*.db-shm packages/db/traildepot/data/*.db-wal
 	@rm -rf data/
 	@echo "Database reset complete. Next launch will run migrations from scratch."
+
+# Seed the database with yaml fixtures
+db-fixtures:
+	@echo "Seeding database with yaml fixtures..."
+	@bun packages/db/seed.ts
 
 # Symlink hooks from .githooks to .git/hooks
 git-hooks:
