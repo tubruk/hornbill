@@ -14,6 +14,7 @@ import {
 import type { Account } from "@hornbill/core";
 import { Avatar } from "../components/Avatar";
 import { Button } from "../components/Button";
+import logo from "../assets/logo.png";
 
 const NAV_ITEMS = [
   { to: "/",            label: "Dashboard", icon: LayoutDashboard },
@@ -83,9 +84,7 @@ export function Sidebar({
 
         {/* Brand mark */}
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-9 h-9 bg-primary text-white rounded-sm flex items-center justify-center font-display font-bold text-[18px] shadow-sm shrink-0">
-            H
-          </div>
+          <img src={logo} alt="Hornbill Logo" className="w-9 h-9 object-contain rounded-sm shadow-sm shrink-0" />
           <div>
             <h1 className="font-display font-bold text-[20px] text-text-primary tracking-tight leading-none">
               Hornbill
