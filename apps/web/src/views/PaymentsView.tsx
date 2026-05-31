@@ -22,13 +22,23 @@ function formatDate(iso: string): string {
 
 export function PaymentsView() {
   const { currentAccount, notify } = useAppCtx();
-  const [filter, setFilter] = useState<Filter>("unpaid");
   const [payingPayment, setPayingPayment] = useState<{ id: string; name: string; dueDate: string; isUpcoming: boolean } | null>(null);
   const todayStr = new Date().toISOString().split("T")[0];
 
   const search = useSearch({ from: "/payments" });
   const navigate = useNavigate({ from: "/payments" });
   const billId = search.billId;
+  const filter = search.filter || "unpaid";
+
+  const setFilter = (newFilter: Filter) => {
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        filter: newFilter === "unpaid" ? undefined : newFilter,
+        billId: newFilter === "settled" ? prev.billId : undefined,
+      }),
+    });
+  };
 
   const billsQuery = useBills(currentAccount?.id);
   const paymentsQuery = usePayments(currentAccount?.id, billsQuery.data);
@@ -111,32 +121,34 @@ export function PaymentsView() {
           </div>
 
           {/* Bill filter selector */}
-          <select
-            id="bill-filter"
-            aria-label="Filter by bill"
-            value={billId || "all"}
-            onChange={(e) => {
-              const val = e.target.value;
-              navigate({
-                search: (prev) => ({
-                  ...prev,
-                  billId: val === "all" ? undefined : val,
-                }),
-              });
-            }}
-            className="w-full sm:w-56 bg-surface-raised border border-border-warm rounded-full px-4 py-1.5 text-[12px] font-semibold uppercase tracking-wider text-text-secondary hover:text-text-primary hover:bg-stone-300/40 outline-none cursor-pointer h-[34px] transition-all"
-          >
-            <option value="all" className="bg-background-warm">All Bills</option>
-            {billsQuery.data?.map((b) => (
-              <option key={b.id} value={b.id} className="bg-background-warm">
-                {b.name}
-              </option>
-            ))}
-          </select>
+          {filter === "settled" && (
+            <select
+              id="bill-filter"
+              aria-label="Filter by bill"
+              value={billId || "all"}
+              onChange={(e) => {
+                const val = e.target.value;
+                navigate({
+                  search: (prev) => ({
+                    ...prev,
+                    billId: val === "all" ? undefined : val,
+                  }),
+                });
+              }}
+              className="w-full sm:w-56 bg-surface-raised border border-border-warm rounded-full px-4 py-1.5 text-[12px] font-semibold uppercase tracking-wider text-text-secondary hover:text-text-primary hover:bg-stone-300/40 outline-none cursor-pointer h-[34px] transition-all"
+            >
+              <option value="all" className="bg-background-warm">All Bills</option>
+              {billsQuery.data?.map((b) => (
+                <option key={b.id} value={b.id} className="bg-background-warm">
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Clear Filter button */}
-        {billId && (
+        {filter === "settled" && billId && (
           <button
             onClick={() => {
               navigate({

@@ -43,6 +43,7 @@ const billsRoute = createRoute({
 
 type PaymentsSearch = {
   billId?: string;
+  filter?: "unpaid" | "settled";
 };
 
 const paymentsRoute = createRoute({
@@ -51,6 +52,7 @@ const paymentsRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): PaymentsSearch => {
     return {
       billId: typeof search.billId === "string" ? search.billId : undefined,
+      filter: (search.filter === "unpaid" || search.filter === "settled") ? (search.filter as "unpaid" | "settled") : undefined,
     };
   },
   component: PaymentsView,

@@ -221,7 +221,7 @@ export function BillsView() {
 
                             <Link
                               to="/payments"
-                              search={{ billId: bill.id }}
+                              search={{ billId: bill.id, filter: "settled" }}
                               onClick={() => setActiveDropdown(null)}
                               className="w-full text-left px-3.5 py-2 text-[13px] font-semibold text-text-primary hover:bg-stone-300/40 flex items-center gap-2.5 cursor-pointer"
                             >
