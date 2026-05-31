@@ -274,7 +274,7 @@ export function DashboardView() {
       )}
 
       {/* ── Payment progress ──────────────────────────────── */}
-      {!isLoading && activeBills.length > 0 && (
+      {!isLoading && activeBills.length > 0 && paymentProgressRate < 100 && (
         <Card hoverable={false} className="p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-display font-bold text-[18px] text-text-primary">
