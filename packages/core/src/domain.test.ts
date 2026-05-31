@@ -133,6 +133,100 @@ describe("calculateNextDueDate", () => {
     // Jan 10 + 14 days = Jan 24
     expect(nextDate).toBe("2026-01-24");
   });
+
+  test("interval recurrence - months unit", () => {
+    const bill = createMockBill({
+      type: "interval",
+      interval: { every: 3, unit: "months", from: "due_date" },
+    });
+    const latestPayment: Payment = {
+      id: "p1",
+      bill_id: bill.id,
+      due_date: "2026-01-15",
+      amount_cents: 1000,
+      paid_at: new Date("2026-01-15T12:00:00Z").getTime() / 1000,
+      created_at: 0,
+      updated_at: 0,
+    };
+    const nextDate = calculateNextDueDate(bill, latestPayment);
+    // Jan 15 + 3 months = Apr 15
+    expect(nextDate).toBe("2026-04-15");
+  });
+
+  test("interval recurrence - from paid_at fallback to due_date when paid_at is missing", () => {
+    const bill = createMockBill({
+      type: "interval",
+      interval: { every: 2, unit: "weeks", from: "paid_at" },
+    });
+    const latestPayment: Payment = {
+      id: "p1",
+      bill_id: bill.id,
+      due_date: "2026-01-05",
+      amount_cents: 1000,
+      paid_at: null, // missing paid_at, should fall back to due_date
+      created_at: 0,
+      updated_at: 0,
+    };
+    const nextDate = calculateNextDueDate(bill, latestPayment);
+    // Should fall back to due_date: Jan 05 + 14 days = Jan 19
+    expect(nextDate).toBe("2026-01-19");
+  });
+
+  test("monthly recurrence - year rollover boundary", () => {
+    const bill = createMockBill({
+      type: "monthly",
+      monthly: { day: 20 },
+    });
+    const latestPayment: Payment = {
+      id: "p1",
+      bill_id: bill.id,
+      due_date: "2026-12-20",
+      amount_cents: 1000,
+      paid_at: new Date("2026-12-20T12:00:00Z").getTime() / 1000,
+      created_at: 0,
+      updated_at: 0,
+    };
+    const nextDate = calculateNextDueDate(bill, latestPayment);
+    expect(nextDate).toBe("2027-01-20");
+  });
+
+  test("monthly recurrence - day clamping for 30-day months", () => {
+    const bill = createMockBill({
+      type: "monthly",
+      monthly: { day: 31 },
+    });
+    const latestPayment: Payment = {
+      id: "p1",
+      bill_id: bill.id,
+      due_date: "2026-03-31", // March has 31 days
+      amount_cents: 1000,
+      paid_at: new Date("2026-03-31T12:00:00Z").getTime() / 1000,
+      created_at: 0,
+      updated_at: 0,
+    };
+    // April has 30 days, should clamp to 30
+    const nextDate = calculateNextDueDate(bill, latestPayment);
+    expect(nextDate).toBe("2026-04-30");
+  });
+
+  test("yearly recurrence and interval recurrence - undefined latest payment behavior", () => {
+    // Yearly with no latest payment: shifts to next year's target month/day starting from bill.start_date
+    const yearlyBill = createMockBill({
+      type: "yearly",
+      yearly: { month: 5, day: 10 },
+    }, "2026-01-01");
+    // baseDate is start_date "2026-01-01", shifts target to 2027-05-10
+    const yearlyNextDate = calculateNextDueDate(yearlyBill);
+    expect(yearlyNextDate).toBe("2027-05-10");
+
+    // Interval with no latest payment: returns bill's start_date directly
+    const intervalBill = createMockBill({
+      type: "interval",
+      interval: { every: 10, unit: "days", from: "due_date" },
+    }, "2026-01-01");
+    const intervalNextDate = calculateNextDueDate(intervalBill);
+    expect(intervalNextDate).toBe("2026-01-01");
+  });
 });
 
 describe("getPaymentState", () => {
