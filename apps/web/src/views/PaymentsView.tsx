@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { useAppCtx } from "../context/AppContext";
 import { useBills, usePayments, usePayPayment } from "../api/queries";
+import { PayPaymentModal } from "../components/PayPaymentModal";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { getPaymentState, DEFAULT_UPCOMING_THRESHOLD_DAYS } from "@hornbill/core";
@@ -22,6 +23,7 @@ function formatDate(iso: string): string {
 export function PaymentsView() {
   const { currentAccount, notify } = useAppCtx();
   const [filter, setFilter] = useState<Filter>("unpaid");
+  const [payingPayment, setPayingPayment] = useState<{ id: string; name: string } | null>(null);
   const todayStr = new Date().toISOString().split("T")[0];
 
   const search = useSearch({ from: "/payments" });
@@ -51,11 +53,18 @@ export function PaymentsView() {
     .sort((a, b) => a.due_date.localeCompare(b.due_date));
 
   function handlePay(paymentId: string, billName: string) {
-    if (!currentAccount) return;
-    payMut.mutate(
-      { paymentId, accountId: currentAccount.id },
+    setPayingPayment({ id: paymentId, name: billName });
+  }
+
+  async function handlePayConfirm(paidAtDate?: string) {
+    if (!payingPayment || !currentAccount) return;
+    await payMut.mutateAsync(
+      { paymentId: payingPayment.id, accountId: currentAccount.id, paidAt: paidAtDate },
       {
-        onSuccess: () => notify(`"${billName}" marked as paid.`, "success"),
+        onSuccess: () => {
+          notify(`"${payingPayment.name}" marked as paid.`, "success");
+          setPayingPayment(null);
+        },
         onError: (err: any) => notify(err.message ?? "Failed to mark as paid.", "error"),
       }
     );
@@ -235,6 +244,16 @@ export function PaymentsView() {
           </div>
         )}
       </Card>
+
+      {payingPayment && (
+        <PayPaymentModal
+          billName={payingPayment.name}
+          onConfirm={handlePayConfirm}
+          onClose={() => setPayingPayment(null)}
+          isSubmitting={payMut.isPending}
+        />
+      )}
+
     </div>
   );
 }

@@ -94,8 +94,13 @@ export function fetchPayments(billId?: string): Promise<Payment[]> {
   return apiFetch<Payment[]>(`/payments${qs}`);
 }
 
-export function payPayment(id: string): Promise<Payment> {
-  return apiFetch<Payment>(`/payments/${id}/pay`, { method: "POST" });
+export function payPayment(id: string, paidAt?: string | number): Promise<Payment> {
+  const body = paidAt !== undefined ? { paid_at: paidAt } : {};
+  return apiFetch<Payment>(`/payments/${id}/pay`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 // ── Jobs ───────────────────────────────────────────────────────────────────

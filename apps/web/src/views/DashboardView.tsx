@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { PayPaymentModal } from "../components/PayPaymentModal";
 import {
   ChevronRight,
   Plus,
@@ -47,6 +48,7 @@ function SkeletonCard({ className = "" }: { className?: string }) {
 
 export function DashboardView() {
   const { currentAccount, openAddModal, notify } = useAppCtx();
+  const [payingPayment, setPayingPayment] = useState<{ id: string; name: string } | null>(null);
   const todayStr = new Date().toISOString().split("T")[0];
 
   const billsQuery = useBills(currentAccount?.id);
@@ -140,11 +142,18 @@ export function DashboardView() {
   // ── Handle pay ───────────────────────────────────────────────────────────
 
   function handlePay(paymentId: string, billName: string) {
-    if (!currentAccount) return;
-    payPaymentMut.mutate(
-      { paymentId, accountId: currentAccount.id },
+    setPayingPayment({ id: paymentId, name: billName });
+  }
+
+  async function handlePayConfirm(paidAtDate?: string) {
+    if (!payingPayment || !currentAccount) return;
+    await payPaymentMut.mutateAsync(
+      { paymentId: payingPayment.id, accountId: currentAccount.id, paidAt: paidAtDate },
       {
-        onSuccess: () => notify(`"${billName}" marked as paid.`, "success"),
+        onSuccess: () => {
+          notify(`"${payingPayment.name}" marked as paid.`, "success");
+          setPayingPayment(null);
+        },
         onError: (err: any) =>
           notify(err.message ?? "Could not pay payment.", "error"),
       }
@@ -448,6 +457,16 @@ export function DashboardView() {
         </div>
 
       </div>
+
+      {payingPayment && (
+        <PayPaymentModal
+          billName={payingPayment.name}
+          onConfirm={handlePayConfirm}
+          onClose={() => setPayingPayment(null)}
+          isSubmitting={payPaymentMut.isPending}
+        />
+      )}
+
     </div>
   );
 }
