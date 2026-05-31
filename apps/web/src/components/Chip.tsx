@@ -4,6 +4,7 @@ export interface ChipProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: "category" | "status";
   severity?: "success" | "warning" | "error" | "info";
   active?: boolean;
+  size?: "small" | "medium";
 }
 
 export const Chip: React.FC<ChipProps> = ({
@@ -11,11 +12,13 @@ export const Chip: React.FC<ChipProps> = ({
   variant = "category",
   severity = "success",
   active = false,
+  size = "medium",
   children,
   ...props
 }) => {
   // Base classes
-  const baseClass = "inline-flex items-center justify-center rounded-pill text-[12px] font-semibold tracking-wide uppercase px-3.5 py-1.5 transition-all select-none";
+  const sizeClasses = size === "small" ? "text-[10px] px-2.5 py-0.5" : "text-[12px] px-3.5 py-1.5";
+  const baseClass = `inline-flex items-center justify-center rounded-pill font-semibold tracking-wide uppercase transition-all select-none ${sizeClasses}`;
 
   let variantClass = "";
   if (variant === "category") {

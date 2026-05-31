@@ -56,13 +56,14 @@ class TrailbaseClient {
 
   async updateAccount(id: string, updates: Partial<Omit<Account, "id" | "created_at" | "updated_at">>): Promise<Account> {
     const now = Math.floor(Date.now() / 1000);
-    return this.request<Account>(`/api/records/v1/accounts/${id}`, {
+    await this.request<any>(`/api/records/v1/accounts/${id}`, {
       method: "PATCH",
       body: JSON.stringify({
         ...updates,
         updated_at: now,
       }),
     });
+    return this.getAccount(id);
   }
 
   async deleteAccount(id: string): Promise<void> {
@@ -74,24 +75,32 @@ class TrailbaseClient {
   // --- Bills CRUD ---
 
   async listBills(accountId?: string): Promise<Bill[]> {
-    let path = "/api/records/v1/bills?limit=1000";
-    if (accountId) {
-      // Trailbase filter format: filter[column_name][@eq]=value
-      path += `&filter[account_id][@eq]=${accountId}`;
-    }
+    // NOTE: Trailbase stores UUIDs as binary BLOBs and serialises them as
+    // base64 in JSON responses. Passing that base64 value back as a
+    // filter[account_id][@eq]=... query parameter fails with "Invalid query"
+    // because Trailbase cannot coerce a URL string to a BLOB for comparison.
+    // Solution: fetch all bills and filter by account_id in JS instead.
+    const path = "/api/records/v1/bills?limit=1000";
     const res = await this.request<TrailbaseListResponse<any>>(path);
-    // Parse recurrence column which is stored as JSON string in SQLite
-    return res.records.map(bill => ({
+
+    const bills: Bill[] = res.records.map(bill => ({
       ...bill,
-      active: Number(bill.active) === 1, // Convert sqlite integer 0/1 back to boolean
+      account_id: typeof bill.account_id === "object" && bill.account_id !== null ? bill.account_id.id : bill.account_id,
+      active: Number(bill.active) === 1,
       recurrence: typeof bill.recurrence === "string" ? JSON.parse(bill.recurrence) : bill.recurrence,
     }));
+
+    if (!accountId) return bills;
+
+    // account_id from Trailbase is base64-encoded binary; compare as strings.
+    return bills.filter(bill => bill.account_id === accountId);
   }
 
   async getBill(id: string): Promise<Bill> {
     const bill = await this.request<any>(`/api/records/v1/bills/${id}`);
     return {
       ...bill,
+      account_id: typeof bill.account_id === "object" && bill.account_id !== null ? bill.account_id.id : bill.account_id,
       active: Number(bill.active) === 1,
       recurrence: typeof bill.recurrence === "string" ? JSON.parse(bill.recurrence) : bill.recurrence,
     };
@@ -112,6 +121,7 @@ class TrailbaseClient {
     });
     return {
       ...res,
+      account_id: typeof res.account_id === "object" && res.account_id !== null ? res.account_id.id : res.account_id,
       active: Number(res.active) === 1,
       recurrence: typeof res.recurrence === "string" ? JSON.parse(res.recurrence) : res.recurrence,
     };
@@ -130,16 +140,12 @@ class TrailbaseClient {
       payload.recurrence = JSON.stringify(updates.recurrence);
     }
 
-    const res = await this.request<any>(`/api/records/v1/bills/${id}`, {
+    await this.request<any>(`/api/records/v1/bills/${id}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
 
-    return {
-      ...res,
-      active: Number(res.active) === 1,
-      recurrence: typeof res.recurrence === "string" ? JSON.parse(res.recurrence) : res.recurrence,
-    };
+    return this.getBill(id);
   }
 
   async deleteBill(id: string): Promise<void> {
@@ -151,21 +157,30 @@ class TrailbaseClient {
   // --- Payments CRUD ---
 
   async listPayments(billId?: string): Promise<Payment[]> {
-    let path = "/api/records/v1/payments?limit=1000";
-    if (billId) {
-      path += `&filter[bill_id][@eq]=${billId}`;
-    }
-    const res = await this.request<TrailbaseListResponse<Payment>>(path);
-    return res.records;
+    // Same BLOB UUID issue as listBills — filter in JS after fetching all.
+    const path = "/api/records/v1/payments?limit=1000";
+    const res = await this.request<TrailbaseListResponse<any>>(path);
+
+    const payments: Payment[] = res.records.map(p => ({
+      ...p,
+      bill_id: typeof p.bill_id === "object" && p.bill_id !== null ? p.bill_id.id : p.bill_id,
+    }));
+
+    if (!billId) return payments;
+    return payments.filter(p => p.bill_id === billId);
   }
 
   async getPayment(id: string): Promise<Payment> {
-    return this.request<Payment>(`/api/records/v1/payments/${id}`);
+    const res = await this.request<any>(`/api/records/v1/payments/${id}`);
+    return {
+      ...res,
+      bill_id: typeof res.bill_id === "object" && res.bill_id !== null ? res.bill_id.id : res.bill_id,
+    };
   }
 
   async createPayment(payment: Omit<Payment, "created_at" | "updated_at">): Promise<Payment> {
     const now = Math.floor(Date.now() / 1000);
-    return this.request<Payment>("/api/records/v1/payments", {
+    const res = await this.request<any>("/api/records/v1/payments", {
       method: "POST",
       body: JSON.stringify({
         ...payment,
@@ -173,17 +188,22 @@ class TrailbaseClient {
         updated_at: now,
       }),
     });
+    return {
+      ...res,
+      bill_id: typeof res.bill_id === "object" && res.bill_id !== null ? res.bill_id.id : res.bill_id,
+    };
   }
 
   async updatePayment(id: string, updates: Partial<Omit<Payment, "id" | "created_at" | "updated_at">>): Promise<Payment> {
     const now = Math.floor(Date.now() / 1000);
-    return this.request<Payment>(`/api/records/v1/payments/${id}`, {
+    await this.request<any>(`/api/records/v1/payments/${id}`, {
       method: "PATCH",
       body: JSON.stringify({
         ...updates,
         updated_at: now,
       }),
     });
+    return this.getPayment(id);
   }
 
   async deletePayment(id: string): Promise<void> {

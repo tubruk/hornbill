@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { db } from "../trailbase";
-import { generateNextPaymentForBill } from "../services";
+import { generateNextPaymentForBill, handleBillUpdateSideEffects } from "../services";
 
 const app = new Hono();
 
@@ -44,6 +44,7 @@ app.post("/", async (c) => {
       recurrence: body.recurrence,
       start_date: body.start_date,
       active: body.active !== false,
+      upcoming_threshold_days: body.upcoming_threshold_days !== undefined ? (body.upcoming_threshold_days === null ? null : Number(body.upcoming_threshold_days)) : null,
       notes: body.notes || null,
     });
 
@@ -64,15 +65,25 @@ app.patch("/:id", async (c) => {
   try {
     const id = c.req.param("id");
     const body = await c.req.json();
+
+    // Fetch the existing bill for validation & old state comparison
+    const oldBill = await db.getBill(id);
+
+    // Enforce immutability of currency & start_date
+    if (body.currency !== undefined && body.currency !== oldBill.currency) {
+      return c.json({ error: "currency is immutable" }, 400);
+    }
+    if (body.start_date !== undefined && body.start_date !== oldBill.start_date) {
+      return c.json({ error: "start_date is immutable" }, 400);
+    }
+
     const updated = await db.updateBill(id, body);
     
-    // If reactivated, check if a payment should be generated
-    if (body.active === true) {
-      try {
-        await generateNextPaymentForBill(id);
-      } catch (e) {
-        console.error("Failed to generate payment cycle upon bill reactivation:", e);
-      }
+    // Process all payment side-effects cleanly on the API side
+    try {
+      await handleBillUpdateSideEffects(id, oldBill, updated);
+    } catch (e) {
+      console.error(`Failed handling side effects for bill update ${id}:`, e);
     }
 
     return c.json(updated);

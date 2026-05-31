@@ -1,5 +1,5 @@
 import { differenceInDays, parseISO, format, addDays, addMonths, endOfMonth, setDate } from "date-fns";
-import type { Bill, Payment } from "./types";
+import { DEFAULT_UPCOMING_THRESHOLD_DAYS, type Bill, type Payment } from "./types";
 
 /**
  * Calculates the next due date based on the Bill recurrence strategy and its latest paid payment.
@@ -71,7 +71,7 @@ export function calculateNextDueDate(bill: Bill, latestPaidPayment?: Payment): s
   }
 }
 
-export type DerivedPaymentStatus = "paid" | "paid_late" | "overdue" | "unpaid";
+export type DerivedPaymentStatus = "paid" | "paid_late" | "overdue" | "due_soon" | "upcoming";
 
 export interface DerivedPaymentState {
   status: DerivedPaymentStatus;
@@ -81,12 +81,17 @@ export interface DerivedPaymentState {
 }
 
 /**
- * Derives payment state and metrics relative to a specific "today" date.
+ * Derives payment state and metrics relative to a specific "today" date and warning threshold.
  * 
  * @param payment The payment details
  * @param todayStr Target reference date string (defaults to today in local YYYY-MM-DD)
+ * @param thresholdDays Warning window threshold in days (defaults to DEFAULT_UPCOMING_THRESHOLD_DAYS)
  */
-export function getPaymentState(payment: Payment, todayStr: string = format(new Date(), "yyyy-MM-dd")): DerivedPaymentState {
+export function getPaymentState(
+  payment: Payment,
+  todayStr: string = format(new Date(), "yyyy-MM-dd"),
+  thresholdDays: number = DEFAULT_UPCOMING_THRESHOLD_DAYS
+): DerivedPaymentState {
   const isPaid = payment.paid_at !== null && payment.paid_at !== undefined;
   const isOverdue = !isPaid && payment.due_date < todayStr;
   
@@ -106,8 +111,18 @@ export function getPaymentState(payment: Payment, todayStr: string = format(new 
     unpaidOverdueByDays = differenceInDays(parseISO(todayStr), parseISO(payment.due_date));
   }
 
+  let status: DerivedPaymentStatus;
+  if (isPaid) {
+    status = paidLate ? "paid_late" : "paid";
+  } else if (isOverdue) {
+    status = "overdue";
+  } else {
+    const daysUntilDue = differenceInDays(parseISO(payment.due_date), parseISO(todayStr));
+    status = daysUntilDue <= thresholdDays ? "due_soon" : "upcoming";
+  }
+
   return {
-    status: isPaid ? (paidLate ? "paid_late" : "paid") : (isOverdue ? "overdue" : "unpaid"),
+    status,
     paidLate,
     paidLateByDays,
     unpaidOverdueByDays,

@@ -240,12 +240,18 @@ describe("getPaymentState", () => {
     updated_at: 0,
   });
 
-  test("unpaid and not yet due", () => {
+  test("unpaid and not yet due (due_soon)", () => {
     const payment = basePayment();
     const state = getPaymentState(payment, "2026-05-10");
-    expect(state.status).toBe("unpaid");
+    expect(state.status).toBe("due_soon");
     expect(state.paidLate).toBe(false);
     expect(state.unpaidOverdueByDays).toBe(0);
+  });
+
+  test("unpaid and not yet due (upcoming)", () => {
+    const payment = basePayment();
+    const state = getPaymentState(payment, "2026-05-05"); // 10 days before due date
+    expect(state.status).toBe("upcoming");
   });
 
   test("overdue payment", () => {

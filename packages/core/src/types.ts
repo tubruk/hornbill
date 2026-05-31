@@ -36,9 +36,15 @@ export type Recurrence = z.infer<typeof RecurrenceSchema>;
 
 // --- Core Entities Validation Schemas & Types ---
 
+export const SUPPORTED_CURRENCIES = ["IDR", "USD"] as const;
+export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
+export const DEFAULT_CURRENCY: SupportedCurrency = "IDR";
+export const DEFAULT_UPCOMING_THRESHOLD_DAYS = 7;
+
 export const AccountSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1),
+  upcoming_threshold_days: z.number().int().positive(),
   created_at: z.number().int(),
   updated_at: z.number().int(),
 });
@@ -49,12 +55,13 @@ export const BillSchema = z.object({
   id: z.string().uuid(),
   account_id: z.string().uuid(),
   name: z.string().min(1),
-  currency: z.string().length(3),
+  currency: z.enum(SUPPORTED_CURRENCIES),
   amount_cents: z.number().int().nonnegative(),
   amount_type: z.enum(["fixed", "variable"]),
   recurrence: RecurrenceSchema,
   start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be in YYYY-MM-DD format"),
   active: z.boolean(),
+  upcoming_threshold_days: z.number().int().positive().nullable().optional(),
   notes: z.string().nullable().optional(),
   created_at: z.number().int(),
   updated_at: z.number().int(),

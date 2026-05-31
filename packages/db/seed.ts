@@ -66,12 +66,36 @@ function stopTrailbase() {
   }
 }
 
+function resolveRelativeDates(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === "string") {
+    if (/^[+-]\d+d$/.test(obj)) {
+      const offsetDays = parseInt(obj.slice(0, -1), 10);
+      const date = new Date();
+      date.setDate(date.getDate() + offsetDays);
+      return date.toISOString().split("T")[0];
+    }
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(resolveRelativeDates);
+  }
+  if (typeof obj === "object") {
+    const res: any = {};
+    for (const key of Object.keys(obj)) {
+      res[key] = resolveRelativeDates(obj[key]);
+    }
+    return res;
+  }
+  return obj;
+}
+
 // Execute the fixtures seeder logic
 async function runSeeder() {
   const filePath = join(__dirname, "fixtures.yaml");
   console.log(`Loading fixtures from: ${filePath}`);
   const yamlContent = readFileSync(filePath, "utf8");
-  const data = parse(yamlContent);
+  const data = resolveRelativeDates(parse(yamlContent));
   const apiRequest = async (path: string, options: RequestInit = {}) => {
     const res = await fetch(`${TRAILBASE_URL}${path}`, {
       ...options,
@@ -113,6 +137,7 @@ async function runSeeder() {
       body: JSON.stringify({
         id: account.id,
         name: account.name,
+        upcoming_threshold_days: account.upcoming_threshold_days ?? 7,
         created_at: now,
         updated_at: now,
       }),
@@ -136,6 +161,7 @@ async function runSeeder() {
         recurrence: JSON.stringify(bill.recurrence),
         start_date: bill.start_date,
         active: bill.active ? 1 : 0,
+        upcoming_threshold_days: bill.upcoming_threshold_days ?? null,
         notes: bill.notes || null,
         created_at: now,
         updated_at: now,
