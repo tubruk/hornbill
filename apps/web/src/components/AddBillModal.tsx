@@ -7,6 +7,7 @@ import { Input } from "./Input";
 import { Radio } from "./Radio";
 import { Checkbox } from "./Checkbox";
 import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY, DEFAULT_UPCOMING_THRESHOLD_DAYS, type Bill } from "@hornbill/core";
+import { useAccounts } from "../api/queries";
 
 interface Props {
   accountId: string;
@@ -33,6 +34,9 @@ export interface BillFormPayload {
 const today = () => new Date().toISOString().split("T")[0];
 
 export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onClose, isSubmitting }: Props) {
+  const { data: accounts = [] } = useAccounts();
+  const currentAccount = accounts.find((a) => a.id === accountId);
+
   const [name, setName] = useState(bill?.name ?? "");
   const [amount, setAmount] = useState(bill ? (bill.amount_cents / 100).toString() : "");
   const [currency, setCurrency] = useState<string>(bill?.currency ?? DEFAULT_CURRENCY);
@@ -113,10 +117,17 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
         {/* Header */}
         <div className="pb-5 border-b border-border-warm mb-6 flex items-start justify-between">
           <div>
-            <h3 className="font-display font-bold text-[22px] text-text-primary flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              {bill ? "Edit Bill" : "Add Bill"}
-            </h3>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h3 className="font-display font-bold text-[22px] text-text-primary flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                {bill ? "Edit Bill" : "Add Bill"}
+              </h3>
+              {accounts.length > 1 && currentAccount && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-semibold bg-surface-raised text-text-secondary border border-border-warm">
+                  {currentAccount.name}
+                </span>
+              )}
+            </div>
             <p className="text-[14px] text-text-secondary font-medium mt-0.5">
               {bill ? "Update the recurring bill or service charge." : "Track a new recurring bill or service charge."}
             </p>
