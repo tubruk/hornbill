@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { X, Calendar } from "lucide-react";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { Input } from "./Input";
@@ -9,18 +9,57 @@ interface Props {
   billName: string;
   dueDate: string;
   isUpcoming: boolean;
-  onConfirm: (paidAtDate?: string) => Promise<void>;
+  amountCents: number;
+  currency: string;
+  onConfirm: (amountCents: number, paidAtDate?: string) => Promise<void>;
   onClose: () => void;
   isSubmitting?: boolean;
 }
 
-export function PayPaymentModal({ billName, dueDate, isUpcoming, onConfirm, onClose, isSubmitting }: Props) {
-  const getYesterdayStr = () => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return d.toISOString().split("T")[0];
-  };
+function formatPrettyDate(iso: string): string {
+  if (!iso) return "";
+  try {
+    return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch (e) {
+    return iso;
+  }
+}
 
+function getRelativeDateString(iso: string): string | null {
+  if (!iso) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const date = new Date(iso + "T00:00:00");
+  date.setHours(0, 0, 0, 0);
+
+  const diffTime = date.getTime() - today.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) {
+    return null;
+  }
+  if (diffDays === 1) {
+    return "Tomorrow";
+  }
+  if (diffDays === -1) {
+    return "Yesterday";
+  }
+  if (diffDays > 1) {
+    return `In ${diffDays} days`;
+  }
+  if (diffDays < -1) {
+    return `${Math.abs(diffDays)} days ago`;
+  }
+  return null;
+}
+
+export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, currency, onConfirm, onClose, isSubmitting }: Props) {
   const getDaysUntilDue = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -29,29 +68,41 @@ export function PayPaymentModal({ billName, dueDate, isUpcoming, onConfirm, onCl
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
-  const [customDate, setCustomDate] = useState(getYesterdayStr());
+  const getTodayStr = () => new Date().toISOString().split("T")[0];
+
+  const [amount, setAmount] = useState((amountCents / 100).toString());
+  const [amountError, setAmountError] = useState("");
+  const [dateOption, setDateOption] = useState<"today" | "custom">("today");
+  const [customDate, setCustomDate] = useState(getTodayStr());
   const [error, setError] = useState("");
 
-  const yesterdayStr = getYesterdayStr();
   const daysUntilDue = getDaysUntilDue();
 
-  const handlePaidToday = () => {
-    onConfirm(undefined);
+  const validateAmount = (): number | null => {
+    const parsed = parseFloat(amount);
+    if (isNaN(parsed) || parsed < 0) {
+      setAmountError("Enter a valid positive amount.");
+      return null;
+    }
+    setAmountError("");
+    return Math.round(parsed * 100);
   };
 
-  const handleCustomDateSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customDate) {
-      setError("Please select a date.");
-      return;
+    const cents = validateAmount();
+    if (cents === null) return;
+
+    if (dateOption === "custom") {
+      if (!customDate) {
+        setError("Please select a date.");
+        return;
+      }
+      setError("");
+      onConfirm(cents, customDate);
+    } else {
+      onConfirm(cents, undefined);
     }
-    const todayStr = new Date().toISOString().split("T")[0];
-    if (customDate >= todayStr) {
-      setError("Custom date must be before today.");
-      return;
-    }
-    setError("");
-    onConfirm(customDate);
   };
 
   return createPortal(
@@ -88,68 +139,120 @@ export function PayPaymentModal({ billName, dueDate, isUpcoming, onConfirm, onCl
           </div>
         )}
 
-        {/* Content options */}
-        <div className="space-y-4">
-          <Button
-            variant="primary"
-            size="medium"
-            onClick={handlePaidToday}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Amount Paid input */}
+          <Input
+            label={`Amount Paid (${currency})`}
+            type="number"
+            step="0.01"
+            min="0"
+            value={amount}
+            onChange={(e) => {
+              setAmount(e.target.value);
+              setAmountError("");
+            }}
+            error={!!amountError}
+            errorText={amountError}
             disabled={isSubmitting}
-            className="w-full justify-center h-[46px]"
-          >
-            Paid Today
-          </Button>
+          />
 
-          {/* Divider */}
-          <div className="relative flex py-2 items-center">
-            <div className="flex-grow border-t border-border-warm"></div>
-            <span className="flex-shrink mx-4 text-text-secondary text-[11px] font-bold uppercase tracking-wider">
-              or pay on another day
-            </span>
-            <div className="flex-grow border-t border-border-warm"></div>
-          </div>
+          {/* Date Option Selection & Date Input */}
+          <div className="space-y-3">
+            <label className="font-body text-[14px] font-semibold text-text-primary block">
+              Payment Date
+            </label>
+            <div className="flex bg-surface-raised border border-border-warm p-0.5 rounded-full w-fit">
+              <button
+                type="button"
+                onClick={() => {
+                  setDateOption("today");
+                  setError("");
+                }}
+                className={`text-[12px] font-semibold uppercase tracking-wider px-4 py-1.5 rounded-full transition-all cursor-pointer ${
+                  dateOption === "today"
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-text-secondary hover:bg-stone-300/40 hover:text-text-primary"
+                }`}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={() => setDateOption("custom")}
+                className={`text-[12px] font-semibold uppercase tracking-wider px-4 py-1.5 rounded-full transition-all cursor-pointer ${
+                  dateOption === "custom"
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-text-secondary hover:bg-stone-300/40 hover:text-text-primary"
+                }`}
+              >
+                Custom Date
+              </button>
+            </div>
 
-          {/* Custom Date selection */}
-          <form onSubmit={handleCustomDateSubmit} className="space-y-4">
-            <div className="flex gap-3 items-end">
-              <div className="flex-1">
-                <Input
-                  label="Select Past Date"
-                  type="date"
-                  max={yesterdayStr}
-                  value={customDate}
-                  onChange={(e) => {
+            <div
+              className={`w-full rounded-sm p-3 border transition-all duration-150 flex items-center justify-between min-h-[46px] relative ${
+                dateOption === "today"
+                  ? "bg-surface-raised border-border-warm text-text-secondary cursor-default"
+                  : error
+                  ? "bg-surface-warm border-error text-text-primary focus-within:ring-3 focus-within:ring-error/12"
+                  : "bg-surface-warm border-border-warm text-text-primary hover:border-primary cursor-pointer focus-within:border-primary focus-within:ring-3 focus-within:ring-primary/12"
+              }`}
+            >
+              <span className="font-body text-[16px] font-medium pointer-events-none">
+                {(() => {
+                  const selectedDate = dateOption === "today" ? getTodayStr() : customDate;
+                  if (!selectedDate) return "Select Date";
+                  const pretty = formatPrettyDate(selectedDate);
+                  const relative = getRelativeDateString(selectedDate);
+                  return relative ? `${pretty} (${relative})` : pretty;
+                })()}
+              </span>
+
+              <input
+                type="date"
+                value={dateOption === "today" ? getTodayStr() : customDate}
+                onChange={(e) => {
+                  if (dateOption === "custom") {
                     setCustomDate(e.target.value);
                     setError("");
-                  }}
-                  error={!!error}
-                  errorText={error}
-                />
-              </div>
-              <Button
-                variant="secondary"
-                size="medium"
-                type="submit"
-                disabled={isSubmitting}
-                className="h-[46px]"
-              >
-                Record Date
-              </Button>
-            </div>
-          </form>
-        </div>
+                  }
+                }}
+                disabled={dateOption === "today" || isSubmitting}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-default disabled:pointer-events-none"
+                aria-label="Select custom date"
+              />
 
-        {/* Footer actions */}
-        <div className="mt-6 pt-4 border-t border-border-warm flex justify-end">
-          <Button
-            variant="ghost"
-            size="small"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-        </div>
+              <Calendar className="w-4 h-4 text-text-secondary pointer-events-none" />
+            </div>
+
+            {dateOption === "custom" && error && (
+              <span className="font-body text-[12px] text-error mt-1.5 font-medium block">
+                {error}
+              </span>
+            )}
+          </div>
+
+          {/* Submit and Cancel buttons */}
+          <div className="pt-4 border-t border-border-warm flex justify-end gap-3">
+            <Button
+              variant="ghost"
+              size="medium"
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="medium"
+              type="submit"
+              disabled={isSubmitting}
+            >
+              Confirm Payment
+            </Button>
+          </div>
+        </form>
       </Card>
     </div>,
     document.body

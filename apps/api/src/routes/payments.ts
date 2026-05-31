@@ -56,8 +56,9 @@ app.post("/:id/pay", async (c) => {
     const paidAt = typeof body.paid_at === "string"
       ? Math.floor(new Date(body.paid_at).getTime() / 1000)
       : body.paid_at;
+    const amountCents = body.amount_cents !== undefined ? Number(body.amount_cents) : undefined;
 
-    const settled = await settlePayment(id, paidAt);
+    const settled = await settlePayment(id, paidAt, amountCents);
     return c.json(settled);
   } catch (err: any) {
     return c.json({ error: err.message }, 400);

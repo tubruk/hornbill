@@ -121,8 +121,10 @@ export function fetchPayments(billId?: string): Promise<Payment[]> {
   return apiFetch<Payment[]>(`/payments${qs}`);
 }
 
-export function payPayment(id: string, paidAt?: string | number): Promise<Payment> {
-  const body = paidAt !== undefined ? { paid_at: paidAt } : {};
+export function payPayment(id: string, paidAt?: string | number, amountCents?: number): Promise<Payment> {
+  const body: Record<string, any> = {};
+  if (paidAt !== undefined) body.paid_at = paidAt;
+  if (amountCents !== undefined) body.amount_cents = amountCents;
   return apiFetch<Payment>(`/payments/${id}/pay`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
