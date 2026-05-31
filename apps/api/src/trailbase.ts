@@ -84,6 +84,7 @@ class TrailbaseClient {
 
     const bills: Bill[] = res.records.map(bill => ({
       ...bill,
+      account_id: typeof bill.account_id === "object" && bill.account_id !== null ? bill.account_id.id : bill.account_id,
       active: Number(bill.active) === 1,
       recurrence: typeof bill.recurrence === "string" ? JSON.parse(bill.recurrence) : bill.recurrence,
     }));
@@ -98,6 +99,7 @@ class TrailbaseClient {
     const bill = await this.request<any>(`/api/records/v1/bills/${id}`);
     return {
       ...bill,
+      account_id: typeof bill.account_id === "object" && bill.account_id !== null ? bill.account_id.id : bill.account_id,
       active: Number(bill.active) === 1,
       recurrence: typeof bill.recurrence === "string" ? JSON.parse(bill.recurrence) : bill.recurrence,
     };
@@ -118,6 +120,7 @@ class TrailbaseClient {
     });
     return {
       ...res,
+      account_id: typeof res.account_id === "object" && res.account_id !== null ? res.account_id.id : res.account_id,
       active: Number(res.active) === 1,
       recurrence: typeof res.recurrence === "string" ? JSON.parse(res.recurrence) : res.recurrence,
     };
@@ -143,6 +146,7 @@ class TrailbaseClient {
 
     return {
       ...res,
+      account_id: typeof res.account_id === "object" && res.account_id !== null ? res.account_id.id : res.account_id,
       active: Number(res.active) === 1,
       recurrence: typeof res.recurrence === "string" ? JSON.parse(res.recurrence) : res.recurrence,
     };
@@ -159,19 +163,28 @@ class TrailbaseClient {
   async listPayments(billId?: string): Promise<Payment[]> {
     // Same BLOB UUID issue as listBills — filter in JS after fetching all.
     const path = "/api/records/v1/payments?limit=1000";
-    const res = await this.request<TrailbaseListResponse<Payment>>(path);
+    const res = await this.request<TrailbaseListResponse<any>>(path);
 
-    if (!billId) return res.records;
-    return res.records.filter(p => p.bill_id === billId);
+    const payments: Payment[] = res.records.map(p => ({
+      ...p,
+      bill_id: typeof p.bill_id === "object" && p.bill_id !== null ? p.bill_id.id : p.bill_id,
+    }));
+
+    if (!billId) return payments;
+    return payments.filter(p => p.bill_id === billId);
   }
 
   async getPayment(id: string): Promise<Payment> {
-    return this.request<Payment>(`/api/records/v1/payments/${id}`);
+    const res = await this.request<any>(`/api/records/v1/payments/${id}`);
+    return {
+      ...res,
+      bill_id: typeof res.bill_id === "object" && res.bill_id !== null ? res.bill_id.id : res.bill_id,
+    };
   }
 
   async createPayment(payment: Omit<Payment, "created_at" | "updated_at">): Promise<Payment> {
     const now = Math.floor(Date.now() / 1000);
-    return this.request<Payment>("/api/records/v1/payments", {
+    const res = await this.request<any>("/api/records/v1/payments", {
       method: "POST",
       body: JSON.stringify({
         ...payment,
@@ -179,17 +192,25 @@ class TrailbaseClient {
         updated_at: now,
       }),
     });
+    return {
+      ...res,
+      bill_id: typeof res.bill_id === "object" && res.bill_id !== null ? res.bill_id.id : res.bill_id,
+    };
   }
 
   async updatePayment(id: string, updates: Partial<Omit<Payment, "id" | "created_at" | "updated_at">>): Promise<Payment> {
     const now = Math.floor(Date.now() / 1000);
-    return this.request<Payment>(`/api/records/v1/payments/${id}`, {
+    const res = await this.request<any>(`/api/records/v1/payments/${id}`, {
       method: "PATCH",
       body: JSON.stringify({
         ...updates,
         updated_at: now,
       }),
     });
+    return {
+      ...res,
+      bill_id: typeof res.bill_id === "object" && res.bill_id !== null ? res.bill_id.id : res.bill_id,
+    };
   }
 
   async deletePayment(id: string): Promise<void> {
