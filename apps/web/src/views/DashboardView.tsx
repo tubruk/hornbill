@@ -184,11 +184,11 @@ export function DashboardView() {
               </div>
             </Card>
 
-            {/* Active subscriptions */}
+            {/* Active bills */}
             <Card hoverable className="flex flex-col justify-between h-32 p-5">
               <div className="flex items-center justify-between">
                 <span className="text-[12px] font-semibold text-text-secondary uppercase tracking-wide">
-                  Subscriptions
+                  Active Bills
                 </span>
                 <Activity className="w-4 h-4 text-text-secondary" />
               </div>
@@ -347,7 +347,7 @@ export function DashboardView() {
           <Card hoverable={false} className="flex flex-col gap-4 p-5">
             <div>
               <h4 className="font-display font-semibold text-[16px] text-text-primary mb-1.5">
-                Add Subscription
+                Add Bill
               </h4>
               <p className="text-[14px] text-text-secondary leading-relaxed font-medium">
                 Track a new recurring bill, SaaS license, or utility expense.
@@ -362,7 +362,7 @@ export function DashboardView() {
                 disabled={!currentAccount}
               >
                 <Plus className="w-4 h-4" />
-                Add Subscription
+                Add Bill
               </Button>
             </div>
           </Card>

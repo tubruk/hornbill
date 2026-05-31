@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard,
-  CreditCard,
-  CalendarDays,
+  Receipt,
+  Wallet,
   Settings,
   ChevronDown,
   Layers,
@@ -16,10 +16,10 @@ import { Avatar } from "../components/Avatar";
 import { Button } from "../components/Button";
 
 const NAV_ITEMS = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/subscriptions", label: "Subscriptions", icon: CreditCard },
-  { to: "/payments", label: "Bills & Payments", icon: CalendarDays },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/",            label: "Dashboard", icon: LayoutDashboard },
+  { to: "/bills",       label: "Bills",     icon: Receipt },
+  { to: "/payments",   label: "Payments",  icon: Wallet },
+  { to: "/settings",   label: "Settings",  icon: Settings },
 ] as const;
 
 interface Props {
@@ -253,7 +253,7 @@ export function Sidebar({
               className={`flex flex-col items-center gap-1 text-[11px] font-semibold transition-colors ${isActive ? "text-primary" : "text-text-secondary"}`}
             >
               <Icon className="w-5 h-5" />
-              {label === "Bills & Payments" ? "Payments" : label}
+              {label}
             </Link>
           );
         })}

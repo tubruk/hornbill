@@ -44,7 +44,7 @@ export function AddBillModal({ accountId, onSubmit, onClose, isSubmitting }: Pro
     e.preventDefault();
     const errs: Record<string, string> = {};
 
-    if (!name.trim()) errs.name = "Subscription name is required.";
+    if (!name.trim()) errs.name = "Bill name is required.";
     const parsed = parseFloat(amount);
     if (isNaN(parsed) || parsed < 0) errs.amount = "Enter a valid positive amount.";
 
@@ -87,10 +87,10 @@ export function AddBillModal({ accountId, onSubmit, onClose, isSubmitting }: Pro
           <div>
             <h3 className="font-display font-bold text-[22px] text-text-primary flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-primary" />
-              Add Subscription
+              Add Bill
             </h3>
             <p className="text-[14px] text-text-secondary font-medium mt-0.5">
-              Track a recurring bill or service license.
+              Track a new recurring bill or service charge.
             </p>
           </div>
           <button
@@ -105,7 +105,7 @@ export function AddBillModal({ accountId, onSubmit, onClose, isSubmitting }: Pro
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
           <Input
-            label="Subscription Name"
+            label="Bill Name"
             placeholder="Adobe CC, GitHub, AWS..."
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -207,7 +207,7 @@ export function AddBillModal({ accountId, onSubmit, onClose, isSubmitting }: Pro
               Cancel
             </Button>
             <Button variant="primary" size="medium" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Adding…" : "Add Subscription"}
+              {isSubmitting ? "Adding…" : "Add Bill"}
             </Button>
           </div>
         </form>

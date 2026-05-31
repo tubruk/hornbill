@@ -23,13 +23,13 @@ const ROUTE_META: Record<string, { title: string; subtitle: string }> = {
     title: "Dashboard",
     subtitle: "A unified overview of your recurring bills and active subscriptions.",
   },
-  "/subscriptions": {
-    title: "Subscriptions",
+  "/bills": {
+    title: "Bills",
     subtitle: "Manage recurring bills, services, and subscription plans.",
   },
   "/payments": {
-    title: "Bills & Payments",
-    subtitle: "Record, track, and pay your recurring bills.",
+    title: "Payments",
+    subtitle: "Record, track, and settle your recurring bill payments.",
   },
   "/settings": {
     title: "Settings",
@@ -86,10 +86,10 @@ export function RootLayout() {
     await createBillMut.mutateAsync(payload, {
       onSuccess: () => {
         closeAddModal();
-        notify("Subscription added successfully.", "success");
+        notify("Bill added successfully.", "success");
       },
       onError: (err: any) => {
-        notify(err.message ?? "Failed to add subscription.", "error");
+        notify(err.message ?? "Failed to add bill.", "error");
       },
     });
   }

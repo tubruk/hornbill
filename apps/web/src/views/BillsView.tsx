@@ -18,7 +18,7 @@ function recurrenceLabel(bill: { recurrence: any }): string {
   return "—";
 }
 
-export function SubscriptionsView() {
+export function BillsView() {
   const { currentAccount, openAddModal, notify } = useAppCtx();
 
   const billsQuery = useBills(currentAccount?.id);
@@ -41,7 +41,7 @@ export function SubscriptionsView() {
   if (!currentAccount) {
     return (
       <div className="py-20 text-center text-text-secondary font-semibold">
-        Select an account to view subscriptions.
+        Select an account to view bills.
       </div>
     );
   }
@@ -49,10 +49,10 @@ export function SubscriptionsView() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="font-display font-bold text-[20px] text-text-primary">All Subscriptions</h3>
+        <h3 className="font-display font-bold text-[20px] text-text-primary">All Bills</h3>
         <Button variant="primary" size="small" onClick={openAddModal} className="gap-2">
           <Plus className="w-4 h-4" />
-          Add Subscription
+          Add Bill
         </Button>
       </div>
 
@@ -64,11 +64,11 @@ export function SubscriptionsView() {
         ) : bills.length === 0 ? (
           <div className="py-16 text-center">
             <p className="text-[15px] font-semibold text-text-secondary mb-4">
-              No subscriptions yet. Add one to start tracking.
+              No bills yet. Add one to start tracking.
             </p>
             <Button variant="primary" size="small" onClick={openAddModal} className="gap-2">
               <Plus className="w-4 h-4" />
-              Add Subscription
+              Add Bill
             </Button>
           </div>
         ) : (
@@ -97,7 +97,7 @@ export function SubscriptionsView() {
                       {bill.currency}
                     </span>
                   </div>
-                  <Tooltip content="Delete subscription">
+                  <Tooltip content="Delete bill">
                     <Button
                       variant="destructive"
                       size="small"

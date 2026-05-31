@@ -9,7 +9,7 @@ import {
 import { AppProvider } from "./context/AppContext";
 import { RootLayout } from "./layout/RootLayout";
 import { DashboardView } from "./views/DashboardView";
-import { SubscriptionsView } from "./views/SubscriptionsView";
+import { BillsView } from "./views/BillsView";
 import { PaymentsView } from "./views/PaymentsView";
 import { SettingsView } from "./views/SettingsView";
 
@@ -35,10 +35,10 @@ const indexRoute = createRoute({
   component: DashboardView,
 });
 
-const subscriptionsRoute = createRoute({
+const billsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/subscriptions",
-  component: SubscriptionsView,
+  path: "/bills",
+  component: BillsView,
 });
 
 const paymentsRoute = createRoute({
@@ -56,7 +56,7 @@ const settingsRoute = createRoute({
 const router = createRouter({
   routeTree: rootRoute.addChildren([
     indexRoute,
-    subscriptionsRoute,
+    billsRoute,
     paymentsRoute,
     settingsRoute,
   ]),
