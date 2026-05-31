@@ -56,13 +56,14 @@ class TrailbaseClient {
 
   async updateAccount(id: string, updates: Partial<Omit<Account, "id" | "created_at" | "updated_at">>): Promise<Account> {
     const now = Math.floor(Date.now() / 1000);
-    return this.request<Account>(`/api/records/v1/accounts/${id}`, {
+    await this.request<any>(`/api/records/v1/accounts/${id}`, {
       method: "PATCH",
       body: JSON.stringify({
         ...updates,
         updated_at: now,
       }),
     });
+    return this.getAccount(id);
   }
 
   async deleteAccount(id: string): Promise<void> {
@@ -139,17 +140,12 @@ class TrailbaseClient {
       payload.recurrence = JSON.stringify(updates.recurrence);
     }
 
-    const res = await this.request<any>(`/api/records/v1/bills/${id}`, {
+    await this.request<any>(`/api/records/v1/bills/${id}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
 
-    return {
-      ...res,
-      account_id: typeof res.account_id === "object" && res.account_id !== null ? res.account_id.id : res.account_id,
-      active: Number(res.active) === 1,
-      recurrence: typeof res.recurrence === "string" ? JSON.parse(res.recurrence) : res.recurrence,
-    };
+    return this.getBill(id);
   }
 
   async deleteBill(id: string): Promise<void> {
@@ -200,17 +196,14 @@ class TrailbaseClient {
 
   async updatePayment(id: string, updates: Partial<Omit<Payment, "id" | "created_at" | "updated_at">>): Promise<Payment> {
     const now = Math.floor(Date.now() / 1000);
-    const res = await this.request<any>(`/api/records/v1/payments/${id}`, {
+    await this.request<any>(`/api/records/v1/payments/${id}`, {
       method: "PATCH",
       body: JSON.stringify({
         ...updates,
         updated_at: now,
       }),
     });
-    return {
-      ...res,
-      bill_id: typeof res.bill_id === "object" && res.bill_id !== null ? res.bill_id.id : res.bill_id,
-    };
+    return this.getPayment(id);
   }
 
   async deletePayment(id: string): Promise<void> {
