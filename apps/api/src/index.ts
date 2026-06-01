@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { CONFIG } from "./config";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
+import { logger } from "hono/logger";
 import { serveStatic } from "hono/bun";
 import { existsSync } from "fs";
 import { syncAllPayments } from "./services";
@@ -20,6 +21,9 @@ const app = new Hono<{ Variables: Variables }>();
 
 // Enable security headers
 app.use("*", secureHeaders());
+
+// Enable request logging
+app.use("*", logger());
 
 // Enable CORS for frontend requests
 app.use(
