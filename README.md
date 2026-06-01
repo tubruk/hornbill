@@ -1,25 +1,26 @@
-# Hornbill
+# 🪶 Hornbill
 
 ![Hornbill Logo](.github/assets/hornbill_240.png)
 
-## What is Hornbill?
+## 🧐 What is Hornbill?
 
-Hornbill is a **self‑hosted personal billing tool** you can run on a single Docker container. It helps you track your own invoices, recurring payments, and simple budgeting without any third‑party service.
+[Hornbill](https://en.wikipedia.org/wiki/Hornbill) (known as **Rangkong** or **Enggang** in [Indonesia](https://id.wikipedia.org/wiki/Rangkong)) is a **self‑hosted personal bill tracker** you can run on a single Docker container. It helps you keep track of recurring bills, upcoming due dates, and payment history.
 
-## Why use it?
+## 💡 Why use it?
 
-- **Your data stays with you** – everything lives in a local SQLite file.
-- **One‑click Docker setup** – just build and run.
-- **Flexible recurrence** – choose monthly, yearly, or a custom interval (days, weeks, or months) with two anchoring options (from the previous due date or from the actual payment date).
-- **Simple web UI** – clean interface to create accounts, bills, and view generated payments.
-- **Free and open source** – released under the AGPL‑v3.
+- **🔒 Your data stays with you** – stored in a local SQLite database (powered by [Trailbase](https://trailbase.io/)).
+- **🐋 Docker-based setup** – simple to run via Docker or docker-compose.
+- **💱 Multi-currency** – supports tracking bills in multiple currencies.
+- **📅 Flexible recurrence** – configure monthly, yearly, or custom intervals.
+- **🖥️ Simple web UI** – clean, minimalist interface to manage bills and track payment history.
+- **🛡️ Free and open source** – released under the AGPL‑v3.
 
-## Screenshots
+## 📸 Screenshots
 
 [<img alt="Hornbill Dashboard" src=".github/assets/ss_hornbill_dashboard.png" height="250px">](.github/assets/ss_hornbill_dashboard.png)
 [<img alt="Hornbill Bills" src=".github/assets/ss_hornbill_bills.png" height="250px">](.github/assets/ss_hornbill_bills.png)
 
-## Quick Start (Docker)
+## 🚀 Quick Start (Docker)
 
 ```bash
 # Build the image
@@ -37,7 +38,7 @@ docker run -d \
 
 Open `http://localhost:3000` in your browser to start using Hornbill.
 
-## Configuration (Environment Variables)
+## ⚙️ Configuration (Environment Variables)
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -47,7 +48,7 @@ Open `http://localhost:3000` in your browser to start using Hornbill.
 | `REGISTRATION_ENABLED` | Show sign‑up page (`true`) or hide it (`false`). | `false` |
 | `SYNC_INTERVAL_MINUTES` | How often the background job generates payments (minutes). | `1440` |
 
-## Recurrence Models
+## 🔁 Recurrence Models
 
 When creating a bill you can select one of the following recurrence options:
 
@@ -60,13 +61,13 @@ When creating a bill you can select one of the following recurrence options:
 
 All recurrence settings are stored in the database, and the background daemon automatically creates the corresponding payment entries at the configured interval.
 
-## Getting Help
+## 🤝 Getting Help
 
 - **Documentation** – see the `docs/` folder for a quick user guide.
 - **Issues** – open a GitHub issue for bugs or feature requests.
 - **Contributing** – feel free to submit pull requests; follow the guidelines in `CONTRIBUTING.md`.
 
-## License
+## 📄 License
 
 Hornbill is licensed under the **GNU Affero General Public License v3** – see the [LICENSE](LICENSE) file.
 
