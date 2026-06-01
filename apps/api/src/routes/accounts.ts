@@ -1,11 +1,13 @@
 import { Hono } from "hono";
-import { getDb, verifyToken } from "../trailbase";
-import { DEFAULT_UPCOMING_THRESHOLD_DAYS, AccountSchema } from "@hornbill/core";
+import type { Context } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { getDb, verifyToken, type UserPayload } from "../trailbase";
+import { DEFAULT_UPCOMING_THRESHOLD_DAYS, AccountSchema, type Account } from "@hornbill/core";
 import { checkAccountAccess } from "../middleware/auth";
 
-const app = new Hono<{ Variables: { user: any; myAccountIds: Set<string>; account: any } }>();
+const app = new Hono<{ Variables: { user: UserPayload; myAccountIds: Set<string>; account: Account } }>();
 
-async function getAuthUser(c: any): Promise<any> {
+async function getAuthUser(c: Context): Promise<UserPayload> {
   const authHeader = c.req.header("Authorization");
   if (!authHeader) {
     throw new Error("Missing Authorization header");
@@ -30,9 +32,10 @@ app.get("/", async (c) => {
     const allAccounts = await client.listAccounts();
     const myAccounts = allAccounts.filter((acc) => myAccountIds!.has(acc.id));
     return c.json(myAccounts);
-  } catch (err: any) {
-    const status = err.message.includes("Unauthorized") || err.message.includes("Authorization") ? 401 : 500;
-    return c.json({ error: err.message }, status);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to list accounts";
+    const status: ContentfulStatusCode = message.includes("Unauthorized") || message.includes("Authorization") ? 401 : 500;
+    return c.json({ error: message }, status);
   }
 });
 
@@ -70,9 +73,10 @@ app.post("/", async (c) => {
     });
     await client.associateUserToAccount(newAccount.id, user.sub);
     return c.json(newAccount, 201);
-  } catch (err: any) {
-    const status = err.message.includes("Unauthorized") || err.message.includes("Authorization") ? 401 : 500;
-    return c.json({ error: err.message }, status);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to create account";
+    const status: ContentfulStatusCode = message.includes("Unauthorized") || message.includes("Authorization") ? 401 : 500;
+    return c.json({ error: message }, status);
   }
 });
 
@@ -80,15 +84,16 @@ app.get("/:id", checkAccountAccess("param", "id"), async (c) => {
   try {
     const account = c.get("account");
     return c.json(account);
-  } catch (err: any) {
-    const status = err.message.includes("Unauthorized") || err.message.includes("Authorization") ? 401 : 500;
-    return c.json({ error: err.message }, status);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to fetch account";
+    const status: ContentfulStatusCode = message.includes("Unauthorized") || message.includes("Authorization") ? 401 : 500;
+    return c.json({ error: message }, status);
   }
 });
 
 app.patch("/:id", checkAccountAccess("param", "id"), async (c) => {
   try {
-    const id = c.req.param("id");
+    const id = c.req.param("id")!;
     const body = await c.req.json();
     const current = c.get("account");
     
@@ -112,21 +117,23 @@ app.patch("/:id", checkAccountAccess("param", "id"), async (c) => {
       archived: body.archived,
     });
     return c.json(updated);
-  } catch (err: any) {
-    const status = err.message.includes("Unauthorized") || err.message.includes("Authorization") ? 401 : 500;
-    return c.json({ error: err.message }, status);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to update account";
+    const status: ContentfulStatusCode = message.includes("Unauthorized") || message.includes("Authorization") ? 401 : 500;
+    return c.json({ error: message }, status);
   }
 });
 
 app.delete("/:id", checkAccountAccess("param", "id"), async (c) => {
   try {
-    const id = c.req.param("id");
+    const id = c.req.param("id")!;
     const client = getDb(c);
     await client.deleteAccount(id);
     return c.json({ success: true });
-  } catch (err: any) {
-    const status = err.message.includes("Unauthorized") || err.message.includes("Authorization") ? 401 : 500;
-    return c.json({ error: err.message }, status);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to delete account";
+    const status: ContentfulStatusCode = message.includes("Unauthorized") || message.includes("Authorization") ? 401 : 500;
+    return c.json({ error: message }, status);
   }
 });
 

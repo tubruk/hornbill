@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { CONFIG } from "../config";
 import { Database } from "bun:sqlite";
 import { existsSync } from "fs";
@@ -115,9 +116,10 @@ app.post("/register", async (c) => {
     } catch {
       errJson = undefined;
     }
-    return c.json({ error: errJson?.error || data || "Registration failed" }, response.status as any);
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+    return c.json({ error: errJson?.error || data || "Registration failed" }, response.status as ContentfulStatusCode);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Registration failed";
+    return c.json({ error: message }, 500);
   }
 });
 
@@ -146,16 +148,17 @@ app.post("/login", async (c) => {
         errJson = undefined;
       }
       const errorMsg = errJson?.error || data || "Invalid credentials or email not verified";
-      return c.json({ error: errorMsg }, response.status as any);
+      return c.json({ error: errorMsg }, response.status as ContentfulStatusCode);
     }
 
     try {
-      return c.json(JSON.parse(data), response.status as any);
+      return c.json(JSON.parse(data), response.status as ContentfulStatusCode);
     } catch {
-      return c.json({ message: data }, response.status as any);
+      return c.json({ message: data }, response.status as ContentfulStatusCode);
     }
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Login failed";
+    return c.json({ error: message }, 500);
   }
 });
 

@@ -1,9 +1,10 @@
 import { Hono } from "hono";
-import { getDb, verifyAccountAccess } from "../trailbase";
+import type { Bill } from "@hornbill/core";
+import { getDb, verifyAccountAccess, type UserPayload } from "../trailbase";
 import { generateNextPaymentForBill, handleBillUpdateSideEffects } from "../services";
 import { checkAccountAccess, checkBillAccess } from "../middleware/auth";
 
-const app = new Hono<{ Variables: { user: any; myAccountIds: Set<string>; bill: any } }>();
+const app = new Hono<{ Variables: { user: UserPayload; myAccountIds: Set<string>; bill: Bill } }>();
 
 app.get("/", async (c) => {
   try {
@@ -26,8 +27,9 @@ app.get("/", async (c) => {
       const myBills = allBills.filter((bill) => myAccountIds.has(bill.account_id));
       return c.json(myBills);
     }
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to list bills";
+    return c.json({ error: message }, 500);
   }
 });
 
@@ -37,8 +39,9 @@ app.get("/:id", checkBillAccess("param", "id"), async (c) => {
     const bill = c.get("bill");
     const payments = await getDb(c).listPayments(id);
     return c.json({ ...bill, payments });
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to fetch bill";
+    return c.json({ error: message }, 500);
   }
 });
 
@@ -73,14 +76,15 @@ app.post("/", checkAccountAccess("body", "account_id"), async (c) => {
     }
 
     return c.json(newBill, 201);
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to create bill";
+    return c.json({ error: message }, 500);
   }
 });
 
 app.patch("/:id", checkBillAccess("param", "id"), async (c) => {
   try {
-    const id = c.req.param("id");
+    const id = c.req.param("id")!;
     const body = await c.req.json();
 
     // Retrieve the authorized existing bill from context
@@ -104,18 +108,20 @@ app.patch("/:id", checkBillAccess("param", "id"), async (c) => {
     }
 
     return c.json(updated);
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to update bill";
+    return c.json({ error: message }, 500);
   }
 });
 
 app.delete("/:id", checkBillAccess("param", "id"), async (c) => {
   try {
-    const id = c.req.param("id");
+    const id = c.req.param("id")!;
     await getDb(c).deleteBill(id);
     return c.json({ success: true });
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to delete bill";
+    return c.json({ error: message }, 500);
   }
 });
 

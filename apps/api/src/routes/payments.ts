@@ -1,9 +1,10 @@
 import { Hono } from "hono";
-import { getDb, verifyBillAccess } from "../trailbase";
+import type { Bill, Payment } from "@hornbill/core";
+import { getDb, verifyBillAccess, type UserPayload } from "../trailbase";
 import { settlePayment } from "../services";
 import { checkBillAccess, checkPaymentAccess } from "../middleware/auth";
 
-const app = new Hono<{ Variables: { user: any; myAccountIds: Set<string>; payment: any; bill: any } }>();
+const app = new Hono<{ Variables: { user: UserPayload; myAccountIds: Set<string>; payment: Payment; bill: Bill } }>();
 
 app.get("/", async (c) => {
   try {
@@ -32,8 +33,9 @@ app.get("/", async (c) => {
       const myPayments = allPayments.filter((p) => myBillIds.has(p.bill_id));
       return c.json(myPayments);
     }
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to list payments";
+    return c.json({ error: message }, 500);
   }
 });
 
@@ -41,8 +43,9 @@ app.get("/:id", checkPaymentAccess("param", "id"), async (c) => {
   try {
     const payment = c.get("payment");
     return c.json(payment);
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to fetch payment";
+    return c.json({ error: message }, 500);
   }
 });
 
@@ -66,14 +69,15 @@ app.post("/", checkBillAccess("body", "bill_id"), async (c) => {
       notes: body.notes || null,
     });
     return c.json(newPayment, 201);
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to create payment";
+    return c.json({ error: message }, 500);
   }
 });
 
 app.post("/:id/pay", checkPaymentAccess("param", "id"), async (c) => {
   try {
-    const id = c.req.param("id");
+    const id = c.req.param("id")!;
     const body = await c.req.json().catch(() => ({}));
     const paidAt = typeof body.paid_at === "string"
       ? Math.floor(new Date(body.paid_at).getTime() / 1000)
@@ -82,14 +86,15 @@ app.post("/:id/pay", checkPaymentAccess("param", "id"), async (c) => {
 
     const settled = await settlePayment(id, paidAt, amountCents);
     return c.json(settled);
-  } catch (err: any) {
-    return c.json({ error: err.message }, 400);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to settle payment";
+    return c.json({ error: message }, 400);
   }
 });
 
 app.patch("/:id", checkPaymentAccess("param", "id"), async (c) => {
   try {
-    const id = c.req.param("id");
+    const id = c.req.param("id")!;
     const body = await c.req.json();
     
     const updates = { ...body };
@@ -99,18 +104,20 @@ app.patch("/:id", checkPaymentAccess("param", "id"), async (c) => {
     
     const updated = await getDb(c).updatePayment(id, updates);
     return c.json(updated);
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to update payment";
+    return c.json({ error: message }, 500);
   }
 });
 
 app.delete("/:id", checkPaymentAccess("param", "id"), async (c) => {
   try {
-    const id = c.req.param("id");
+    const id = c.req.param("id")!;
     await getDb(c).deletePayment(id);
     return c.json({ success: true });
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to delete payment";
+    return c.json({ error: message }, 500);
   }
 });
 

@@ -7,15 +7,16 @@ import { trimTrailingSlash } from "hono/trailing-slash";
 import { serveStatic } from "hono/bun";
 import { existsSync } from "fs";
 import { syncAllPayments } from "./services";
-import { verifyToken } from "./trailbase";
 import accounts from "./routes/accounts";
 import bills from "./routes/bills";
 import payments from "./routes/payments";
 import jobs from "./routes/jobs";
 import auth from "./routes/auth";
+import { verifyToken, type UserPayload } from "./trailbase";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 type Variables = {
-  user: any;
+  user: UserPayload;
 };
 
 const app = new Hono<{ Variables: Variables }>();
@@ -58,8 +59,9 @@ app.use("/api/v1/*", async (c, next) => {
     const user = await verifyToken(authHeader);
     c.set("user", user);
     await next();
-  } catch (err: any) {
-    return c.json({ error: `Unauthorized: ${err.message}` }, 401);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Invalid token";
+    return c.json({ error: `Unauthorized: ${message}` }, 401);
   }
 });
 
@@ -94,8 +96,8 @@ app.route("/api/v1", api);
 // Centralized error handling
 app.onError((err, c) => {
   console.error("API Unhandled Error:", err);
-  const status = err.message.includes("Unauthorized") || err.message.includes("Authorization") ? 401 : 500;
-  return c.json({ error: err.message || "Internal Server Error" }, status as any);
+  const status: ContentfulStatusCode = err.message.includes("Unauthorized") || err.message.includes("Authorization") ? 401 : 500;
+  return c.json({ error: err.message || "Internal Server Error" }, status);
 });
 
 // JSON 404 handler

@@ -1,16 +1,17 @@
 import { Hono } from "hono";
-import { getDb, verifyAccountAccess } from "../trailbase";
+import { getDb, verifyAccountAccess, type UserPayload } from "../trailbase";
 import { syncAllPayments } from "../services";
 
-const app = new Hono<{ Variables: { user: any; myAccountIds: Set<string> } }>();
+const app = new Hono<{ Variables: { user: UserPayload; myAccountIds: Set<string> } }>();
 
 /* ---------- Global sync (admin) ---------- */
 app.post("/sync", async (c) => {
   try {
     const stats = await syncAllPayments(); // all bills
     return c.json({ success: true, ...stats });
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Sync failed";
+    return c.json({ error: message }, 500);
   }
 });
 
@@ -33,8 +34,9 @@ app.post("/sync/account/:accountId", async (c) => {
     // Run sync only for this account.
     const stats = await syncAllPayments(accountId);
     return c.json({ success: true, ...stats });
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Sync failed";
+    return c.json({ error: message }, 500);
   }
 });
 

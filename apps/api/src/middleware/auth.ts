@@ -1,7 +1,8 @@
+import type { Context, Next } from "hono";
 import { verifyAccountAccess, getDb } from "../trailbase";
 
 export const checkAccountAccess = (source: "param" | "query" | "body", key = "id") => {
-  return async (c: any, next: any) => {
+  return async (c: Context, next: Next) => {
     let accountId: string | undefined;
     if (source === "param") {
       accountId = c.req.param(key);
@@ -11,7 +12,7 @@ export const checkAccountAccess = (source: "param" | "query" | "body", key = "id
       try {
         const body = await c.req.raw.clone().json();
         accountId = body?.[key];
-      } catch (err) {
+      } catch {
         return c.json({ error: "Invalid JSON body" }, 400);
       }
     }
@@ -32,8 +33,9 @@ export const checkAccountAccess = (source: "param" | "query" | "body", key = "id
         return c.json({ error: "Account not found" }, 404);
       }
       c.set("account", account);
-    } catch (err: any) {
-      return c.json({ error: err.message || "Failed to fetch account" }, 500);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to fetch account";
+      return c.json({ error: message }, 500);
     }
 
     await next();
@@ -41,7 +43,7 @@ export const checkAccountAccess = (source: "param" | "query" | "body", key = "id
 };
 
 export const checkBillAccess = (source: "param" | "query" | "body" = "param", key = "id") => {
-  return async (c: any, next: any) => {
+  return async (c: Context, next: Next) => {
     let billId: string | undefined;
     if (source === "param") {
       billId = c.req.param(key);
@@ -51,7 +53,7 @@ export const checkBillAccess = (source: "param" | "query" | "body" = "param", ke
       try {
         const body = await c.req.raw.clone().json();
         billId = body?.[key];
-      } catch (err) {
+      } catch {
         return c.json({ error: "Invalid JSON body" }, 400);
       }
     }
@@ -74,8 +76,9 @@ export const checkBillAccess = (source: "param" | "query" | "body" = "param", ke
 
       // Option 1: Store bill in Hono context
       c.set("bill", bill);
-    } catch (err: any) {
-      return c.json({ error: err.message || "Failed to fetch bill" }, 500);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to fetch bill";
+      return c.json({ error: message }, 500);
     }
 
     await next();
@@ -83,7 +86,7 @@ export const checkBillAccess = (source: "param" | "query" | "body" = "param", ke
 };
 
 export const checkPaymentAccess = (source: "param" | "query" | "body" = "param", key = "id") => {
-  return async (c: any, next: any) => {
+  return async (c: Context, next: Next) => {
     let paymentId: string | undefined;
     if (source === "param") {
       paymentId = c.req.param(key);
@@ -93,7 +96,7 @@ export const checkPaymentAccess = (source: "param" | "query" | "body" = "param",
       try {
         const body = await c.req.raw.clone().json();
         paymentId = body?.[key];
-      } catch (err) {
+      } catch {
         return c.json({ error: "Invalid JSON body" }, 400);
       }
     }
@@ -122,8 +125,9 @@ export const checkPaymentAccess = (source: "param" | "query" | "body" = "param",
       // Option 1: Store payment and bill in Hono context
       c.set("payment", payment);
       c.set("bill", bill);
-    } catch (err: any) {
-      return c.json({ error: err.message || "Failed to fetch payment" }, 500);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to fetch payment";
+      return c.json({ error: message }, 500);
     }
 
     await next();

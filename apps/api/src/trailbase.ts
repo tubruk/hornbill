@@ -1,6 +1,7 @@
 import type { Account, Bill, Payment } from "@hornbill/core";
 import { verify } from "hono/jwt";
 import { readFileSync, existsSync } from "fs";
+import type { Context } from "hono";
 import { CONFIG } from "./config";
 
 const TRAILBASE_URL = CONFIG.TRAILBASE_URL;
@@ -52,15 +53,63 @@ async function getPublicKey(): Promise<CryptoKey> {
   return publicKey;
 }
 
-export async function verifyToken(token: string): Promise<any> {
+export interface UserPayload {
+  sub: string;
+}
+
+export async function verifyToken(token: string): Promise<UserPayload> {
   const jwt = token.startsWith("Bearer ") ? token.substring(7) : token;
   const key = await getPublicKey();
-  return verify(jwt, key, "EdDSA");
+  const payload = await verify(jwt, key, "EdDSA");
+  return payload as unknown as UserPayload;
 }
 
 interface TrailbaseListResponse<T> {
   records: T[];
   count?: number;
+}
+
+interface DbAccount {
+  id: string;
+  name: string;
+  currencies?: string | string[];
+  default_currency?: string;
+  archived?: number | boolean;
+  upcoming_threshold_days?: number;
+  created_at: number;
+  updated_at: number;
+}
+
+interface DbBill {
+  id: string;
+  account_id: string | { id: string };
+  name: string;
+  currency: string;
+  amount_cents: number;
+  amount_type: string;
+  recurrence: string | Record<string, unknown>;
+  start_date: string;
+  active: number | boolean;
+  upcoming_threshold_days: number | null;
+  notes: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+interface DbPayment {
+  id: string;
+  bill_id: string | { id: string };
+  amount_cents: number;
+  due_date: string;
+  paid_at: number | null;
+  created_at: number;
+  updated_at: number;
+}
+
+interface DbAccountUser {
+  id: string;
+  account_id: string | { id: string };
+  user_id: string | { id: string };
 }
 
 export class TrailbaseClient {
@@ -92,7 +141,7 @@ export class TrailbaseClient {
 
   // --- Accounts CRUD ---
   
-  private mapDbAccount(acc: any): Account {
+  private mapDbAccount(acc: DbAccount): Account {
     let currencies: string[] = ["IDR", "USD"];
     if (acc.currencies) {
       try {
@@ -108,16 +157,17 @@ export class TrailbaseClient {
       currencies,
       default_currency: acc.default_currency ?? "IDR",
       archived: acc.archived !== undefined ? (Number(acc.archived) === 1) : false,
+      upcoming_threshold_days: acc.upcoming_threshold_days ?? 7,
     };
   }
 
   async listAccounts(): Promise<Account[]> {
-    const res = await this.request<TrailbaseListResponse<any>>("/api/records/v1/accounts");
+    const res = await this.request<TrailbaseListResponse<DbAccount>>("/api/records/v1/accounts");
     return res.records.map(acc => this.mapDbAccount(acc));
   }
 
   async getAccount(id: string): Promise<Account> {
-    const acc = await this.request<any>(`/api/records/v1/accounts/${id}`);
+    const acc = await this.request<DbAccount>(`/api/records/v1/accounts/${id}`);
     return this.mapDbAccount(acc);
   }
 
@@ -132,7 +182,7 @@ export class TrailbaseClient {
       created_at: now,
       updated_at: now,
     };
-    await this.request<any>("/api/records/v1/accounts", {
+    await this.request<unknown>("/api/records/v1/accounts", {
       method: "POST",
       body: JSON.stringify(payload),
     });
@@ -150,17 +200,19 @@ export class TrailbaseClient {
 
   async updateAccount(id: string, updates: Partial<Omit<Account, "id" | "created_at" | "updated_at">>): Promise<Account> {
     const now = Math.floor(Date.now() / 1000);
-    const payload: any = {
-      ...updates,
+    const payload: Partial<Omit<DbAccount, "id" | "created_at" | "updated_at">> & { currencies?: string; archived?: number; updated_at: number } = {
       updated_at: now,
     };
+    if (updates.name !== undefined) payload.name = updates.name;
+    if (updates.default_currency !== undefined) payload.default_currency = updates.default_currency;
+    if (updates.upcoming_threshold_days !== undefined) payload.upcoming_threshold_days = updates.upcoming_threshold_days;
     if (updates.currencies !== undefined) {
       payload.currencies = JSON.stringify(updates.currencies);
     }
     if (updates.archived !== undefined) {
       payload.archived = updates.archived ? 1 : 0;
     }
-    await this.request<any>(`/api/records/v1/accounts/${id}`, {
+    await this.request<unknown>(`/api/records/v1/accounts/${id}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
@@ -176,34 +228,30 @@ export class TrailbaseClient {
   // --- Bills CRUD ---
 
   async listBills(accountId?: string): Promise<Bill[]> {
-    // NOTE: Trailbase stores UUIDs as binary BLOBs and serialises them as
-    // base64 in JSON responses. Passing that base64 value back as a
-    // filter[account_id][@eq]=... query parameter fails with "Invalid query"
-    // because Trailbase cannot coerce a URL string to a BLOB for comparison.
-    // Solution: fetch all bills and filter by account_id in JS instead.
     const path = "/api/records/v1/bills?limit=1000";
-    const res = await this.request<TrailbaseListResponse<any>>(path);
+    const res = await this.request<TrailbaseListResponse<DbBill>>(path);
 
     const bills: Bill[] = res.records.map(bill => ({
       ...bill,
       account_id: typeof bill.account_id === "object" && bill.account_id !== null ? bill.account_id.id : bill.account_id,
       active: Number(bill.active) === 1,
       recurrence: typeof bill.recurrence === "string" ? JSON.parse(bill.recurrence) : bill.recurrence,
+      amount_type: bill.amount_type as "fixed" | "variable",
     }));
 
     if (!accountId) return bills;
 
-    // account_id from Trailbase is base64-encoded binary; compare as strings.
     return bills.filter(bill => bill.account_id === accountId);
   }
 
   async getBill(id: string): Promise<Bill> {
-    const bill = await this.request<any>(`/api/records/v1/bills/${id}`);
+    const bill = await this.request<DbBill>(`/api/records/v1/bills/${id}`);
     return {
       ...bill,
       account_id: typeof bill.account_id === "object" && bill.account_id !== null ? bill.account_id.id : bill.account_id,
       active: Number(bill.active) === 1,
       recurrence: typeof bill.recurrence === "string" ? JSON.parse(bill.recurrence) : bill.recurrence,
+      amount_type: bill.amount_type as "fixed" | "variable",
     };
   }
 
@@ -211,12 +259,12 @@ export class TrailbaseClient {
     const now = Math.floor(Date.now() / 1000);
     const payload = {
       ...bill,
-      active: bill.active ? 1 : 0, // Convert boolean to SQLite 0/1 integer
-      recurrence: JSON.stringify(bill.recurrence), // Serialize to string
+      active: bill.active ? 1 : 0,
+      recurrence: JSON.stringify(bill.recurrence),
       created_at: now,
       updated_at: now,
     };
-    await this.request<any>("/api/records/v1/bills", {
+    await this.request<unknown>("/api/records/v1/bills", {
       method: "POST",
       body: JSON.stringify(payload),
     });
@@ -229,10 +277,16 @@ export class TrailbaseClient {
 
   async updateBill(id: string, updates: Partial<Omit<Bill, "id" | "created_at" | "updated_at">>): Promise<Bill> {
     const now = Math.floor(Date.now() / 1000);
-    const payload: any = {
-      ...updates,
+    const payload: Partial<Omit<DbBill, "id" | "created_at" | "updated_at">> & { active?: number; recurrence?: string; updated_at: number } = {
       updated_at: now,
     };
+    if (updates.name !== undefined) payload.name = updates.name;
+    if (updates.currency !== undefined) payload.currency = updates.currency;
+    if (updates.amount_cents !== undefined) payload.amount_cents = updates.amount_cents;
+    if (updates.amount_type !== undefined) payload.amount_type = updates.amount_type;
+    if (updates.start_date !== undefined) payload.start_date = updates.start_date;
+    if (updates.upcoming_threshold_days !== undefined) payload.upcoming_threshold_days = updates.upcoming_threshold_days;
+    if (updates.notes !== undefined) payload.notes = updates.notes;
     if (updates.active !== undefined) {
       payload.active = updates.active ? 1 : 0;
     }
@@ -240,7 +294,7 @@ export class TrailbaseClient {
       payload.recurrence = JSON.stringify(updates.recurrence);
     }
 
-    await this.request<any>(`/api/records/v1/bills/${id}`, {
+    await this.request<unknown>(`/api/records/v1/bills/${id}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
@@ -257,9 +311,8 @@ export class TrailbaseClient {
   // --- Payments CRUD ---
 
   async listPayments(billId?: string): Promise<Payment[]> {
-    // Same BLOB UUID issue as listBills — filter in JS after fetching all.
     const path = "/api/records/v1/payments?limit=1000";
-    const res = await this.request<TrailbaseListResponse<any>>(path);
+    const res = await this.request<TrailbaseListResponse<DbPayment>>(path);
 
     const payments: Payment[] = res.records.map(p => ({
       ...p,
@@ -271,7 +324,7 @@ export class TrailbaseClient {
   }
 
   async getPayment(id: string): Promise<Payment> {
-    const res = await this.request<any>(`/api/records/v1/payments/${id}`);
+    const res = await this.request<DbPayment>(`/api/records/v1/payments/${id}`);
     return {
       ...res,
       bill_id: typeof res.bill_id === "object" && res.bill_id !== null ? res.bill_id.id : res.bill_id,
@@ -280,7 +333,7 @@ export class TrailbaseClient {
 
   async createPayment(payment: Omit<Payment, "created_at" | "updated_at">): Promise<Payment> {
     const now = Math.floor(Date.now() / 1000);
-    await this.request<any>("/api/records/v1/payments", {
+    await this.request<unknown>("/api/records/v1/payments", {
       method: "POST",
       body: JSON.stringify({
         ...payment,
@@ -297,7 +350,7 @@ export class TrailbaseClient {
 
   async updatePayment(id: string, updates: Partial<Omit<Payment, "id" | "created_at" | "updated_at">>): Promise<Payment> {
     const now = Math.floor(Date.now() / 1000);
-    await this.request<any>(`/api/records/v1/payments/${id}`, {
+    await this.request<unknown>(`/api/records/v1/payments/${id}`, {
       method: "PATCH",
       body: JSON.stringify({
         ...updates,
@@ -314,7 +367,7 @@ export class TrailbaseClient {
   }
 
   async listAccountUsers(): Promise<{ id: string; account_id: string; user_id: string }[]> {
-    const res = await this.request<TrailbaseListResponse<any>>("/api/records/v1/account_users?limit=1000");
+    const res = await this.request<TrailbaseListResponse<DbAccountUser>>("/api/records/v1/account_users?limit=1000");
     return res.records.map(r => ({
       id: r.id,
       account_id: typeof r.account_id === "object" && r.account_id !== null ? r.account_id.id : r.account_id,
@@ -322,8 +375,8 @@ export class TrailbaseClient {
     }));
   }
 
-  async associateUserToAccount(accountId: string, userId: string): Promise<any> {
-    return this.request<any>("/api/records/v1/account_users", {
+  async associateUserToAccount(accountId: string, userId: string): Promise<unknown> {
+    return this.request<unknown>("/api/records/v1/account_users", {
       method: "POST",
       body: JSON.stringify({
         account_id: accountId,
@@ -335,18 +388,17 @@ export class TrailbaseClient {
 
 export const db = new TrailbaseClient();
 
-export function getDb(tokenOrContext?: string | any): TrailbaseClient {
+export function getDb(tokenOrContext?: string | Context): TrailbaseClient {
   if (!tokenOrContext) return db;
   if (typeof tokenOrContext === "string") {
     return new TrailbaseClient(tokenOrContext);
   }
-  // It is Hono context
   const authHeader = tokenOrContext.req.header("Authorization");
   return authHeader ? new TrailbaseClient(authHeader) : db;
 }
 
-export async function verifyAccountAccess(c: any, accountId: string): Promise<boolean> {
-  let user = c.get("user");
+export async function verifyAccountAccess(c: Context, accountId: string): Promise<boolean> {
+  let user = c.get("user") as UserPayload | undefined;
   if (!user) {
     const authHeader = c.req.header("Authorization");
     if (!authHeader) return false;
@@ -364,7 +416,7 @@ export async function verifyAccountAccess(c: any, accountId: string): Promise<bo
     try {
       const accountUsers = await client.listAccountUsers();
       myAccountIds = new Set(
-        accountUsers.filter((au) => au.user_id === user.sub).map((au) => au.account_id)
+        accountUsers.filter((au) => au.user_id === user!.sub).map((au) => au.account_id)
       );
       c.set("myAccountIds", myAccountIds);
     } catch (err) {
@@ -375,8 +427,8 @@ export async function verifyAccountAccess(c: any, accountId: string): Promise<bo
   return myAccountIds.has(accountId);
 }
 
-export async function verifyBillAccess(c: any, billId: string): Promise<boolean> {
-  const cachedBill = c.get("bill");
+export async function verifyBillAccess(c: Context, billId: string): Promise<boolean> {
+  const cachedBill = c.get("bill") as Bill | undefined;
   if (cachedBill && cachedBill.id === billId) {
     return await verifyAccountAccess(c, cachedBill.account_id);
   }
@@ -390,8 +442,8 @@ export async function verifyBillAccess(c: any, billId: string): Promise<boolean>
   }
 }
 
-export async function verifyPaymentAccess(c: any, paymentId: string): Promise<boolean> {
-  const cachedPayment = c.get("payment");
+export async function verifyPaymentAccess(c: Context, paymentId: string): Promise<boolean> {
+  const cachedPayment = c.get("payment") as Payment | undefined;
   if (cachedPayment && cachedPayment.id === paymentId) {
     return await verifyBillAccess(c, cachedPayment.bill_id);
   }
@@ -404,4 +456,3 @@ export async function verifyPaymentAccess(c: any, paymentId: string): Promise<bo
     return false;
   }
 }
-
