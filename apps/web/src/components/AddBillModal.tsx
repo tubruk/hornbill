@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { Sparkles, X } from "lucide-react";
 import { Button } from "./Button";
@@ -39,18 +39,22 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
 
   const [name, setName] = useState(bill?.name ?? "");
   const [amount, setAmount] = useState(bill ? (bill.amount_cents / 100).toString() : "");
-  const [currency, setCurrency] = useState<string>(bill?.currency ?? DEFAULT_CURRENCY);
-  const [hasInitializedCurrency, setHasInitializedCurrency] = useState(false);
+  const [currency, setCurrency] = useState<string>(
+    bill?.currency ?? currentAccount?.default_currency ?? DEFAULT_CURRENCY
+  );
 
-  useEffect(() => {
+  const [prevBill, setPrevBill] = useState(bill);
+  const [prevAccount, setPrevAccount] = useState(currentAccount);
+
+  if (bill?.id !== prevBill?.id || currentAccount?.id !== prevAccount?.id) {
+    setPrevBill(bill);
+    setPrevAccount(currentAccount);
     if (bill) {
       setCurrency(bill.currency);
-      setHasInitializedCurrency(true);
-    } else if (currentAccount && !hasInitializedCurrency) {
+    } else if (currentAccount) {
       setCurrency(currentAccount.default_currency ?? DEFAULT_CURRENCY);
-      setHasInitializedCurrency(true);
     }
-  }, [bill, currentAccount, hasInitializedCurrency]);
+  }
 
   const [startDate, setStartDate] = useState(bill?.start_date ?? today());
   const [notes, setNotes] = useState(bill?.notes ?? "");

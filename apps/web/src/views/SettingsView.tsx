@@ -62,10 +62,10 @@ export function SettingsView() {
   const createAccountMut = useCreateAccount();
 
   // --- Active Account Configuration States ---
-  const [name, setName] = useState("");
-  const [threshold, setThreshold] = useState(7);
-  const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([]);
-  const [defaultCurrency, setDefaultCurrency] = useState("");
+  const [name, setName] = useState(currentAccount?.name ?? "");
+  const [threshold, setThreshold] = useState(currentAccount?.upcoming_threshold_days ?? 7);
+  const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>(currentAccount?.currencies ?? ["IDR", "USD"]);
+  const [defaultCurrency, setDefaultCurrency] = useState(currentAccount?.default_currency ?? "IDR");
 
   // Autocomplete search states
   const [currencySearch, setCurrencySearch] = useState("");
@@ -87,15 +87,15 @@ export function SettingsView() {
   const [newAccName, setNewAccName] = useState("");
   const [showNewAccInput, setShowNewAccInput] = useState(false);
 
-  // Sync form inputs when current selected account changes
-  useEffect(() => {
-    if (currentAccount) {
-      setName(currentAccount.name);
-      setThreshold(currentAccount.upcoming_threshold_days);
-      setSelectedCurrencies(currentAccount.currencies ?? ["IDR", "USD"]);
-      setDefaultCurrency(currentAccount.default_currency ?? "IDR");
-    }
-  }, [currentAccount]);
+  // Sync form inputs when current selected account changes during render
+  const [prevAccount, setPrevAccount] = useState(currentAccount);
+  if (currentAccount?.id !== prevAccount?.id) {
+    setPrevAccount(currentAccount);
+    setName(currentAccount?.name ?? "");
+    setThreshold(currentAccount?.upcoming_threshold_days ?? 7);
+    setSelectedCurrencies(currentAccount?.currencies ?? ["IDR", "USD"]);
+    setDefaultCurrency(currentAccount?.default_currency ?? "IDR");
+  }
 
   // Click outside listener to close search dropdown
   useEffect(() => {

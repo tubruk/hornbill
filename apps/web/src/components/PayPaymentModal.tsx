@@ -25,7 +25,7 @@ function formatPrettyDate(iso: string): string {
       day: "numeric",
       year: "numeric",
     });
-  } catch (e) {
+  } catch {
     return iso;
   }
 }
