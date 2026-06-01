@@ -29,18 +29,24 @@
 
 ## 🚀 Quick Start (Docker)
 
+To run the pre-built image from GitHub Container Registry (GHCR):
+
 ```bash
-# Build the image
-docker build -t hornbill:latest .
-
-# Run the container (adjust env vars as needed)
-
-
+# Run the container (mounts a directory to persist data)
 docker run -d \
   -p 3000:3000 -p 4000:4000 \
-  -e REGISTRATION_ENABLED=false \
+  -v ./data:/app/data \
   --name hornbill \
-  hornbill:latest
+  ghcr.io/chickenzord/hornbill:latest
+```
+
+### Alternative: Run from Source (Docker Compose)
+
+To build and run the image from the source code, you can use the provided [docker-compose.yml](docker-compose.yml) which builds from the local directory context:
+
+```bash
+# Build and run the container in the background
+docker compose up -d
 ```
 
 Open `http://localhost:3000` in your browser to start using Hornbill.
