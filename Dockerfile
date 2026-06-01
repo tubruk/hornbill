@@ -2,13 +2,19 @@
 FROM oven/bun:1.3.14 AS frontend-builder
 WORKDIR /app
 
-# Copy lockfile, configs, and packages
+# Copy lockfile, configs, and workspace manifests
 COPY package.json bun.lock tsconfig.json ./
+COPY packages/core/package.json ./packages/core/
+COPY packages/db/package.json ./packages/db/
+COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
+
+# Install dependencies with frozen lockfile
+RUN bun install --frozen-lockfile
+
+# Copy source code and build frontend
 COPY packages/core ./packages/core
 COPY apps/web ./apps/web
-
-# Install dependencies and build
-RUN bun install
 RUN bun run --filter web build
 
 # Stage 2: Build final runner
@@ -21,17 +27,23 @@ RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 # Copy Trailbase binary from official image
 COPY --from=trailbase/trailbase:latest /app/trail /usr/local/bin/trail
 
-# Copy source and configurations
+# Copy workspace configs and lockfiles first for production caching
 COPY package.json bun.lock tsconfig.json ./
+COPY packages/core/package.json ./packages/core/
+COPY packages/db/package.json ./packages/db/
+COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
+
+# Install production dependencies
+RUN bun install --production --frozen-lockfile
+
+# Copy source code and built assets
 COPY scripts/entrypoint.sh ./entrypoint.sh
 COPY config ./config
 COPY packages/core ./packages/core
 COPY packages/db ./packages/db
 COPY apps/api ./apps/api
 COPY --from=frontend-builder /app/apps/web/dist ./apps/web/dist
-
-# Install production dependencies
-RUN bun install --production
 
 # Expose API port
 EXPOSE 3000
