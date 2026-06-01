@@ -1,4 +1,5 @@
 import { expect, test, describe, spyOn, beforeEach, afterEach } from "bun:test";
+import { Hono } from "hono";
 import * as trailbase from "./trailbase";
 import * as services from "./services";
 import accountsApp from "./routes/accounts";
@@ -15,8 +16,6 @@ describe("API Routes", () => {
   let handleBillUpdateSideEffectsSpy: any;
   let generateNextPaymentForBillSpy: any;
   let verifyAccountAccessSpy: any;
-  let verifyBillAccessSpy: any;
-  let verifyPaymentAccessSpy: any;
 
   // We'll create a mock client with mocked methods
   const mockClient = {
@@ -545,6 +544,66 @@ describe("API Routes", () => {
       });
       expect(res.status).toBe(500);
     });
+
+    test("GET / - returns 403 if unauthorized to list bills for account", async () => {
+      verifyAccountAccessSpy.mockResolvedValue(false);
+      const res = await billsApp.request("/?accountId=acc-1");
+      expect(res.status).toBe(403);
+      const json = await res.json();
+      expect(json.error).toBe("Forbidden: No access to this account");
+    });
+
+    test("GET / - lists bills for all user's accounts when accountId is missing", async () => {
+      const testApp = new Hono<{ Variables: { user: trailbase.UserPayload } }>();
+      testApp.use("*", async (c, next) => {
+        c.set("user", { sub: "user-123" });
+        await next();
+      });
+      testApp.route("/", billsApp);
+
+      spyOn(mockClient, "listAccountUsers").mockResolvedValue([{ id: "1", account_id: "acc-1", user_id: "user-123" }]);
+      spyOn(mockClient, "listBills").mockResolvedValue([mockBillItem]);
+
+      const res = await testApp.request("/");
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json).toEqual([mockBillItem]);
+    });
+
+    test("GET /:id - returns 500 if listPayments fails", async () => {
+      spyOn(trailbase.db, "getBill").mockResolvedValue(mockBillItem);
+      spyOn(trailbase.db, "listPayments").mockRejectedValue(new Error("List payments failed") as never);
+
+      const res = await billsApp.request("/bill-1");
+      expect(res.status).toBe(500);
+      const json = await res.json();
+      expect(json.error).toBe("List payments failed");
+    });
+
+    test("POST / - fails with 400 on missing fields other than account_id", async () => {
+      const res = await billsApp.request("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account_id: "acc-1", name: "Rent" }), // missing currency, recurrence, start_date
+      });
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toBe("Missing required fields: account_id, name, currency, recurrence, start_date");
+    });
+
+    test("PATCH /:id - returns 500 if updateBill fails", async () => {
+      spyOn(trailbase.db, "getBill").mockResolvedValue(mockBillItem);
+      spyOn(trailbase.db, "updateBill").mockRejectedValue(new Error("Update failed") as never);
+
+      const res = await billsApp.request("/bill-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "New Rent" }),
+      });
+      expect(res.status).toBe(500);
+      const json = await res.json();
+      expect(json.error).toBe("Update failed");
+    });
   });
 
   describe("payments routes", () => {
@@ -697,6 +756,96 @@ describe("API Routes", () => {
         method: "DELETE",
       });
       expect(res.status).toBe(500);
+    });
+
+    test("GET / - returns 403 if unauthorized to list payments for bill", async () => {
+      const verifyBillAccessSpy = spyOn(trailbase, "verifyBillAccess").mockResolvedValue(false);
+      const res = await paymentsApp.request("/?billId=bill-1");
+      expect(res.status).toBe(403);
+      const json = await res.json();
+      expect(json.error).toBe("Forbidden: No access to this bill");
+      verifyBillAccessSpy.mockRestore();
+    });
+
+    test("GET / - lists payments when billId is missing", async () => {
+      const testApp = new Hono<{ Variables: { user: trailbase.UserPayload } }>();
+      testApp.use("*", async (c, next) => {
+        c.set("user", { sub: "user-123" });
+        await next();
+      });
+      testApp.route("/", paymentsApp);
+
+      spyOn(mockClient, "listAccountUsers").mockResolvedValue([{ id: "1", account_id: "acc-1", user_id: "user-123" }]);
+      spyOn(mockClient, "listBills").mockResolvedValue([{ id: "bill-1", account_id: "acc-1" } as any]);
+      spyOn(mockClient, "listPayments").mockResolvedValue([mockPaymentItem]);
+
+      const res = await testApp.request("/");
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json).toEqual([mockPaymentItem]);
+    });
+
+    test("GET /:id - returns 500 if c.get('payment') throws an error", async () => {
+      const testApp = new Hono();
+      testApp.use("/:id", async (c, next) => {
+        const originalGet = c.get;
+        c.get = (key: string) => {
+          if (key === "payment") {
+            throw new Error("Mocked context error");
+          }
+          return originalGet.call(c, key as any);
+        };
+        await next();
+      });
+      testApp.route("/", paymentsApp);
+
+      spyOn(trailbase.db, "getPayment").mockResolvedValue(mockPaymentItem);
+      spyOn(trailbase.db, "getBill").mockResolvedValue({ id: "bill-1", account_id: "acc-1" } as any);
+      const verifyAccountAccessSpy = spyOn(trailbase, "verifyAccountAccess").mockResolvedValue(true);
+
+      const res = await testApp.request("/pay-1");
+      expect(res.status).toBe(500);
+      const json = await res.json();
+      expect(json.error).toBe("Mocked context error");
+
+      verifyAccountAccessSpy.mockRestore();
+    });
+
+    test("POST / - creates payment successfully with number paid_at", async () => {
+      spyOn(trailbase.db, "createPayment").mockResolvedValue(mockPaymentItem);
+
+      const res = await paymentsApp.request("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bill_id: "bill-1",
+          due_date: "2026-01-15",
+          amount_cents: 1500,
+          paid_at: 1771111111,
+        }),
+      });
+      expect(res.status).toBe(201);
+    });
+
+    test("POST /:id/pay - handles invalid JSON body", async () => {
+      const res = await paymentsApp.request("/pay-1/pay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "INVALID_JSON",
+      });
+      expect(res.status).toBe(200);
+    });
+
+    test("PATCH /:id - updates payment details with string paid_at", async () => {
+      const updated = { ...mockPaymentItem, amount_cents: 1600 };
+      spyOn(trailbase.db, "updatePayment").mockResolvedValue(updated);
+
+      const res = await paymentsApp.request("/pay-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paid_at: "2026-01-16T12:00:00Z" }),
+      });
+      expect(res.status).toBe(200);
     });
   });
 
