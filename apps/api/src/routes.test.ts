@@ -38,7 +38,7 @@ describe("API Routes", () => {
 
   beforeEach(() => {
     // Spy and mock trailbase functions
-    getDbSpy = spyOn(trailbase, "getDb").mockImplementation(() => mockClient as any);
+    getDbSpy = spyOn(trailbase, "getDb").mockImplementation(() => trailbase.db as any);
     verifyTokenSpy = spyOn(trailbase, "verifyToken").mockImplementation(async () => ({ sub: "user-123" }));
     
     // Also spy and mock services
@@ -47,17 +47,24 @@ describe("API Routes", () => {
     handleBillUpdateSideEffectsSpy = spyOn(services, "handleBillUpdateSideEffects").mockImplementation(async () => {});
     generateNextPaymentForBillSpy = spyOn(services, "generateNextPaymentForBill").mockImplementation(async () => ({}) as any);
 
-    // Also mock methods on the default db client imported in some routes
-    spyOn(trailbase.db, "listBills").mockImplementation(mockClient.listBills);
-    spyOn(trailbase.db, "getBill").mockImplementation(mockClient.getBill);
-    spyOn(trailbase.db, "createBill").mockImplementation(mockClient.createBill);
-    spyOn(trailbase.db, "updateBill").mockImplementation(mockClient.updateBill);
-    spyOn(trailbase.db, "deleteBill").mockImplementation(mockClient.deleteBill);
-    spyOn(trailbase.db, "listPayments").mockImplementation(mockClient.listPayments);
-    spyOn(trailbase.db, "getPayment").mockImplementation(mockClient.getPayment);
-    spyOn(trailbase.db, "createPayment").mockImplementation(mockClient.createPayment);
-    spyOn(trailbase.db, "updatePayment").mockImplementation(mockClient.updatePayment);
-    spyOn(trailbase.db, "deletePayment").mockImplementation(mockClient.deletePayment);
+    // Mock all methods on the default db client to delegate dynamically to mockClient
+    spyOn(trailbase.db, "listAccounts").mockImplementation((...args) => (mockClient.listAccounts as any)(...args));
+    spyOn(trailbase.db, "getAccount").mockImplementation((...args) => (mockClient.getAccount as any)(...args));
+    spyOn(trailbase.db, "createAccount").mockImplementation((...args) => (mockClient.createAccount as any)(...args));
+    spyOn(trailbase.db, "updateAccount").mockImplementation((...args) => (mockClient.updateAccount as any)(...args));
+    spyOn(trailbase.db, "deleteAccount").mockImplementation((...args) => (mockClient.deleteAccount as any)(...args));
+    spyOn(trailbase.db, "listAccountUsers").mockImplementation((...args) => (mockClient.listAccountUsers as any)(...args));
+    spyOn(trailbase.db, "associateUserToAccount").mockImplementation((...args) => (mockClient.associateUserToAccount as any)(...args));
+    spyOn(trailbase.db, "listBills").mockImplementation((...args) => (mockClient.listBills as any)(...args));
+    spyOn(trailbase.db, "getBill").mockImplementation((...args) => (mockClient.getBill as any)(...args));
+    spyOn(trailbase.db, "createBill").mockImplementation((...args) => (mockClient.createBill as any)(...args));
+    spyOn(trailbase.db, "updateBill").mockImplementation((...args) => (mockClient.updateBill as any)(...args));
+    spyOn(trailbase.db, "deleteBill").mockImplementation((...args) => (mockClient.deleteBill as any)(...args));
+    spyOn(trailbase.db, "listPayments").mockImplementation((...args) => (mockClient.listPayments as any)(...args));
+    spyOn(trailbase.db, "getPayment").mockImplementation((...args) => (mockClient.getPayment as any)(...args));
+    spyOn(trailbase.db, "createPayment").mockImplementation((...args) => (mockClient.createPayment as any)(...args));
+    spyOn(trailbase.db, "updatePayment").mockImplementation((...args) => (mockClient.updatePayment as any)(...args));
+    spyOn(trailbase.db, "deletePayment").mockImplementation((...args) => (mockClient.deletePayment as any)(...args));
   });
 
   afterEach(() => {

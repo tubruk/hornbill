@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { db } from "../trailbase";
+import { getDb } from "../trailbase";
 import { generateNextPaymentForBill, handleBillUpdateSideEffects } from "../services";
 
 const app = new Hono();
@@ -7,7 +7,7 @@ const app = new Hono();
 app.get("/", async (c) => {
   try {
     const accountId = c.req.query("accountId");
-    const list = await db.listBills(accountId);
+    const list = await getDb(c).listBills(accountId);
     return c.json(list);
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
@@ -17,8 +17,8 @@ app.get("/", async (c) => {
 app.get("/:id", async (c) => {
   try {
     const id = c.req.param("id");
-    const bill = await db.getBill(id);
-    const payments = await db.listPayments(id);
+    const bill = await getDb(c).getBill(id);
+    const payments = await getDb(c).listPayments(id);
     return c.json({ ...bill, payments });
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
@@ -34,7 +34,7 @@ app.post("/", async (c) => {
       return c.json({ error: "Missing required fields: account_id, name, currency, recurrence, start_date" }, 400);
     }
 
-    const newBill = await db.createBill({
+    const newBill = await getDb(c).createBill({
       id: crypto.randomUUID(),
       account_id: body.account_id,
       name: body.name,
@@ -67,7 +67,7 @@ app.patch("/:id", async (c) => {
     const body = await c.req.json();
 
     // Fetch the existing bill for validation & old state comparison
-    const oldBill = await db.getBill(id);
+    const oldBill = await getDb(c).getBill(id);
 
     // Enforce immutability of currency & start_date
     if (body.currency !== undefined && body.currency !== oldBill.currency) {
@@ -77,7 +77,7 @@ app.patch("/:id", async (c) => {
       return c.json({ error: "start_date is immutable" }, 400);
     }
 
-    const updated = await db.updateBill(id, body);
+    const updated = await getDb(c).updateBill(id, body);
     
     // Process all payment side-effects cleanly on the API side
     try {
@@ -95,7 +95,7 @@ app.patch("/:id", async (c) => {
 app.delete("/:id", async (c) => {
   try {
     const id = c.req.param("id");
-    await db.deleteBill(id);
+    await getDb(c).deleteBill(id);
     return c.json({ success: true });
   } catch (err: any) {
     return c.json({ error: err.message }, 500);

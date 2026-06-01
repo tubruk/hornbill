@@ -4,13 +4,18 @@ import { cors } from "hono/cors";
 import { serveStatic } from "hono/bun";
 import { existsSync } from "fs";
 import { syncAllPayments } from "./services";
+import { verifyToken } from "./trailbase";
 import accounts from "./routes/accounts";
 import bills from "./routes/bills";
 import payments from "./routes/payments";
 import jobs from "./routes/jobs";
 import auth from "./routes/auth";
 
-const app = new Hono();
+type Variables = {
+  user: any;
+};
+
+const app = new Hono<{ Variables: Variables }>();
 
 // Enable CORS for frontend requests
 app.use(
@@ -21,6 +26,30 @@ app.use(
     allowHeaders: ["Content-Type", "Authorization"],
   })
 );
+
+// Enforce authentication on all API routes except auth, status, and ping
+app.use("/api/v1/*", async (c, next) => {
+  if (
+    c.req.path.startsWith("/api/v1/auth") ||
+    c.req.path === "/api/v1/status" ||
+    c.req.path === "/api/v1/ping"
+  ) {
+    return await next();
+  }
+
+  const authHeader = c.req.header("Authorization");
+  if (!authHeader) {
+    return c.json({ error: "Missing Authorization header" }, 401);
+  }
+
+  try {
+    const user = await verifyToken(authHeader);
+    c.set("user", user);
+    await next();
+  } catch (err: any) {
+    return c.json({ error: `Unauthorized: ${err.message}` }, 401);
+  }
+});
 
 // Basic healthcheck
 app.get("/", (c) => c.text("Hornbill API is flying!"));

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { db } from "../trailbase";
+import { getDb } from "../trailbase";
 import { settlePayment } from "../services";
 
 const app = new Hono();
@@ -7,7 +7,7 @@ const app = new Hono();
 app.get("/", async (c) => {
   try {
     const billId = c.req.query("billId");
-    const list = await db.listPayments(billId);
+    const list = await getDb(c).listPayments(billId);
     return c.json(list);
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
@@ -17,7 +17,7 @@ app.get("/", async (c) => {
 app.get("/:id", async (c) => {
   try {
     const id = c.req.param("id");
-    const payment = await db.getPayment(id);
+    const payment = await getDb(c).getPayment(id);
     return c.json(payment);
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
@@ -33,7 +33,7 @@ app.post("/", async (c) => {
       return c.json({ error: "Missing required fields: bill_id, due_date, amount_cents" }, 400);
     }
 
-    const newPayment = await db.createPayment({
+    const newPayment = await getDb(c).createPayment({
       id: crypto.randomUUID(),
       bill_id: body.bill_id,
       due_date: body.due_date,
@@ -75,7 +75,7 @@ app.patch("/:id", async (c) => {
       updates.paid_at = Math.floor(new Date(updates.paid_at).getTime() / 1000);
     }
     
-    const updated = await db.updatePayment(id, updates);
+    const updated = await getDb(c).updatePayment(id, updates);
     return c.json(updated);
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
@@ -85,7 +85,7 @@ app.patch("/:id", async (c) => {
 app.delete("/:id", async (c) => {
   try {
     const id = c.req.param("id");
-    await db.deletePayment(id);
+    await getDb(c).deletePayment(id);
     return c.json({ success: true });
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
