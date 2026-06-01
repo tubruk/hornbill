@@ -88,16 +88,14 @@ export function SettingsView() {
   const [showNewAccInput, setShowNewAccInput] = useState(false);
 
   // Sync form inputs when current selected account changes
-  const [prevAccount, setPrevAccount] = useState(currentAccount);
-  if (currentAccount !== prevAccount) {
-    setPrevAccount(currentAccount);
+  useEffect(() => {
     if (currentAccount) {
       setName(currentAccount.name);
       setThreshold(currentAccount.upcoming_threshold_days);
       setSelectedCurrencies(currentAccount.currencies ?? ["IDR", "USD"]);
       setDefaultCurrency(currentAccount.default_currency ?? "IDR");
     }
-  }
+  }, [currentAccount]);
 
   // Click outside listener to close search dropdown
   useEffect(() => {
