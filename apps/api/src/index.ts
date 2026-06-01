@@ -3,6 +3,7 @@ import { CONFIG } from "./config";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { logger } from "hono/logger";
+import { trimTrailingSlash } from "hono/trailing-slash";
 import { serveStatic } from "hono/bun";
 import { existsSync } from "fs";
 import { syncAllPayments } from "./services";
@@ -18,6 +19,9 @@ type Variables = {
 };
 
 const app = new Hono<{ Variables: Variables }>();
+
+// Normalize trailing slashes (e.g. /api/v1/bills/ -> /api/v1/bills)
+app.use("*", trimTrailingSlash());
 
 // Enable security headers
 app.use("*", secureHeaders());
