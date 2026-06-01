@@ -1,6 +1,7 @@
 import { expect, test, describe } from "bun:test";
 import { calculateNextDueDate, getPaymentState } from "./domain";
 import type { Bill, Payment } from "./types";
+import { AccountSchema, BillSchema, PaymentSchema } from "./types";
 
 describe("calculateNextDueDate", () => {
   // Mock bill template helper
@@ -278,4 +279,184 @@ describe("getPaymentState", () => {
     expect(state.paidLate).toBe(true);
     expect(state.paidLateByDays).toBe(3); // 18 - 15 = 3 days
   });
+
+  test("paid exactly on due date", () => {
+    const payment = basePayment();
+    // 2026-05-15T12:00:00Z
+    payment.paid_at = new Date("2026-05-15T12:00:00Z").getTime() / 1000;
+    const state = getPaymentState(payment, "2026-05-20");
+    expect(state.status).toBe("paid");
+    expect(state.paidLate).toBe(false);
+    expect(state.paidLateByDays).toBe(0);
+  });
+
+  test("paid before due date", () => {
+    const payment = basePayment();
+    // 2026-05-10
+    payment.paid_at = new Date("2026-05-10T12:00:00Z").getTime() / 1000;
+    const state = getPaymentState(payment, "2026-05-20");
+    expect(state.status).toBe("paid");
+    expect(state.paidLate).toBe(false);
+    expect(state.paidLateByDays).toBe(0);
+  });
+
+  test("custom threshold days for due_soon/upcoming status", () => {
+    const payment = basePayment(); // due 2026-05-15
+    // Today is 2026-05-05. Gap is 10 days.
+    // Threshold is 5 days. Should be upcoming.
+    const stateUpcoming = getPaymentState(payment, "2026-05-05", 5);
+    expect(stateUpcoming.status).toBe("upcoming");
+
+    // Threshold is 12 days. Should be due_soon.
+    const stateDueSoon = getPaymentState(payment, "2026-05-05", 12);
+    expect(stateDueSoon.status).toBe("due_soon");
+  });
 });
+
+describe("Schemas Validation", () => {
+  describe("AccountSchema", () => {
+    test("valid account data passes", () => {
+      const valid = {
+        id: "acc-1",
+        name: "Personal Account",
+        upcoming_threshold_days: 7,
+        currencies: ["USD", "IDR"],
+        default_currency: "USD",
+        archived: false,
+        created_at: 1717200000,
+        updated_at: 1717200000,
+      };
+      const result = AccountSchema.safeParse(valid);
+      expect(result.success).toBe(true);
+    });
+
+    test("default_currency missing from currencies list fails", () => {
+      const invalid = {
+        id: "acc-1",
+        name: "Personal Account",
+        upcoming_threshold_days: 7,
+        currencies: ["IDR"],
+        default_currency: "USD",
+        archived: false,
+        created_at: 1717200000,
+        updated_at: 1717200000,
+      };
+      const result = AccountSchema.safeParse(invalid);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.errors[0].message).toContain("Default currency must be present");
+      }
+    });
+
+    test("invalid currency code fails", () => {
+      const invalid = {
+        id: "acc-1",
+        name: "Personal Account",
+        upcoming_threshold_days: 7,
+        currencies: ["usd"], // must be uppercase
+        default_currency: "usd",
+        archived: false,
+        created_at: 1717200000,
+        updated_at: 1717200000,
+      };
+      const result = AccountSchema.safeParse(invalid);
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("BillSchema", () => {
+    test("valid bill passes", () => {
+      const valid = {
+        id: "bill-1",
+        account_id: "acc-1",
+        name: "Internet Bill",
+        currency: "USD",
+        amount_cents: 5000,
+        amount_type: "fixed",
+        recurrence: {
+          type: "monthly",
+          monthly: { day: 15 },
+        },
+        start_date: "2026-01-01",
+        active: true,
+        created_at: 1717200000,
+        updated_at: 1717200000,
+      };
+      const result = BillSchema.safeParse(valid);
+      expect(result.success).toBe(true);
+    });
+
+    test("invalid start_date format fails", () => {
+      const invalid = {
+        id: "bill-1",
+        account_id: "acc-1",
+        name: "Internet Bill",
+        currency: "USD",
+        amount_cents: 5000,
+        amount_type: "fixed",
+        recurrence: {
+          type: "monthly",
+          monthly: { day: 15 },
+        },
+        start_date: "01-01-2026", // Wrong format
+        active: true,
+        created_at: 1717200000,
+        updated_at: 1717200000,
+      };
+      const result = BillSchema.safeParse(invalid);
+      expect(result.success).toBe(false);
+    });
+
+    test("invalid monthly day fails", () => {
+      const invalid = {
+        id: "bill-1",
+        account_id: "acc-1",
+        name: "Internet Bill",
+        currency: "USD",
+        amount_cents: 5000,
+        amount_type: "fixed",
+        recurrence: {
+          type: "monthly",
+          monthly: { day: 32 }, // Out of range
+        },
+        start_date: "2026-01-01",
+        active: true,
+        created_at: 1717200000,
+        updated_at: 1717200000,
+      };
+      const result = BillSchema.safeParse(invalid);
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("PaymentSchema", () => {
+    test("valid payment passes", () => {
+      const valid = {
+        id: "pay-1",
+        bill_id: "bill-1",
+        due_date: "2026-05-15",
+        amount_cents: 2500,
+        paid_at: null,
+        created_at: 1717200000,
+        updated_at: 1717200000,
+      };
+      const result = PaymentSchema.safeParse(valid);
+      expect(result.success).toBe(true);
+    });
+
+    test("negative amount_cents fails", () => {
+      const invalid = {
+        id: "pay-1",
+        bill_id: "bill-1",
+        due_date: "2026-05-15",
+        amount_cents: -50,
+        paid_at: null,
+        created_at: 1717200000,
+        updated_at: 1717200000,
+      };
+      const result = PaymentSchema.safeParse(invalid);
+      expect(result.success).toBe(false);
+    });
+  });
+});
+

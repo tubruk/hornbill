@@ -12,6 +12,10 @@ build: install
 test:
 	@bun test
 
+# Run test coverage aggregation runner
+coverage:
+	@bun run coverage
+
 # Launch local database and BFF API development servers
 dev:
 	@./scripts/dev.sh

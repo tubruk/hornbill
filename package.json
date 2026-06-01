@@ -12,6 +12,7 @@
     "dev:api": "bun --filter api dev",
     "dev": "concurrently -n \"api,web\" -c \"blue,magenta\" \"bun run dev:api\" \"bun run dev:web\"",
     "test": "bun test --recursive",
+    "coverage": "bun scripts/coverage.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "bun --filter '*' typecheck"
