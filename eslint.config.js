@@ -69,6 +69,17 @@ export default tseslint.config(
       ],
     },
   },
+  // Strict check for any in backend packages
+  {
+    files: [
+      'apps/api/**/*.{ts,tsx,js,jsx}',
+      'packages/db/**/*.{ts,tsx,js,jsx}',
+      'packages/core/**/*.{ts,tsx,js,jsx}',
+    ],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+    },
+  },
   // Override for test files to disable no-explicit-any globally
   {
     files: [

@@ -1,10 +1,10 @@
 import { readFileSync, existsSync, mkdirSync, copyFileSync } from "fs";
 import { join } from "path";
 import { parse } from "yaml";
-import { spawn } from "child_process";
+import { spawn, type ChildProcess } from "child_process";
 
 const TRAILBASE_URL = process.env.TRAILBASE_URL || "http://127.0.0.1:4000";
-let trailProcess: any = null;
+let trailProcess: ChildProcess | null = null;
 
 async function isTrailbaseRunning(): Promise<boolean> {
   try {
@@ -78,7 +78,7 @@ function stopTrailbase() {
   }
 }
 
-function resolveRelativeDates(obj: any): any {
+function resolveRelativeDates(obj: unknown): unknown {
   if (obj === null || obj === undefined) return obj;
   if (typeof obj === "string") {
     if (/^[+-]\d+d$/.test(obj)) {
@@ -93,13 +93,46 @@ function resolveRelativeDates(obj: any): any {
     return obj.map(resolveRelativeDates);
   }
   if (typeof obj === "object") {
-    const res: any = {};
-    for (const key of Object.keys(obj)) {
-      res[key] = resolveRelativeDates(obj[key]);
+    const res: Record<string, unknown> = {};
+    const record = obj as Record<string, unknown>;
+    for (const key of Object.keys(record)) {
+      res[key] = resolveRelativeDates(record[key]);
     }
     return res;
   }
   return obj;
+}
+
+interface SeederData {
+  accounts?: {
+    id: string;
+    name: string;
+    upcoming_threshold_days?: number;
+    currencies?: string[];
+    default_currency?: string;
+    archived?: boolean;
+  }[];
+  bills?: {
+    id: string;
+    account_id: string;
+    name: string;
+    currency: string;
+    amount_cents: number;
+    amount_type: string;
+    recurrence: Record<string, unknown>;
+    start_date: string;
+    active?: boolean;
+    upcoming_threshold_days?: number | null;
+    notes?: string | null;
+  }[];
+  payments?: {
+    id: string;
+    bill_id: string;
+    amount_cents: number;
+    due_date: string;
+    paid_at?: string | number | null;
+    notes?: string | null;
+  }[];
 }
 
 // Execute the fixtures seeder logic
@@ -107,7 +140,7 @@ async function runSeeder() {
   const filePath = join(__dirname, "fixtures.yaml");
   console.log(`Loading fixtures from: ${filePath}`);
   const yamlContent = readFileSync(filePath, "utf8");
-  const data = resolveRelativeDates(parse(yamlContent));
+  const data = resolveRelativeDates(parse(yamlContent)) as SeederData;
   const apiRequest = async (path: string, options: RequestInit = {}) => {
     const res = await fetch(`${TRAILBASE_URL}${path}`, {
       ...options,
