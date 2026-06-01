@@ -99,17 +99,28 @@ app.onError((err, c) => {
   return c.json({ error: err.message || "Internal Server Error" }, status);
 });
 
-// JSON 404 handler
-app.notFound((c) => {
-  return c.json({ error: "Not Found" }, 404);
-});
-
 // Serve static files from React build directory if it exists
 if (existsSync(CONFIG.WEB_DIST_DIR)) {
   app.use("/*", serveStatic({ root: CONFIG.WEB_DIST_DIR }));
-  // Fallback to index.html for client-side routing (spa fallback)
-  app.get("*", serveStatic({ path: `${CONFIG.WEB_DIST_DIR}/index.html` }));
 }
+
+// 404 handler (API JSON 404, or SPA fallback for frontend client-side routes)
+app.notFound(async (c) => {
+  if (c.req.path.startsWith("/api/")) {
+    return c.json({ error: "Not Found" }, 404);
+  }
+
+  if (existsSync(CONFIG.WEB_DIST_DIR)) {
+    try {
+      const html = await Bun.file(`${CONFIG.WEB_DIST_DIR}/index.html`).text();
+      return c.html(html);
+    } catch (e) {
+      console.error("Failed to serve SPA index.html:", e);
+    }
+  }
+
+  return c.json({ error: "Not Found" }, 404);
+});
 
 // Background runner for periodic payment generation
 const syncIntervalMin = CONFIG.SYNC_INTERVAL_MINUTES;
