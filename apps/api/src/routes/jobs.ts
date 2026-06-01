@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { getDb } from "../trailbase";
+import { getDb, verifyAccountAccess } from "../trailbase";
 import { syncAllPayments } from "../services";
 
-const app = new Hono();
+const app = new Hono<{ Variables: { user: any; myAccountIds: Set<string> } }>();
 
 /* ---------- Global sync (admin) ---------- */
 app.post("/sync", async (c) => {
@@ -18,6 +18,11 @@ app.post("/sync", async (c) => {
 app.post("/sync/account/:accountId", async (c) => {
   try {
     const { accountId } = c.req.param();
+
+    const hasAccess = await verifyAccountAccess(c, accountId);
+    if (!hasAccess) {
+      return c.json({ error: "Forbidden: No access to this account" }, 403);
+    }
 
     const db = getDb(c);
     const account = await db.getAccount(accountId);

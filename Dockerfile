@@ -33,9 +33,8 @@ COPY --from=frontend-builder /app/apps/web/dist ./apps/web/dist
 # Install production dependencies
 RUN bun install --production
 
-# Expose API and Database ports
+# Expose API port
 EXPOSE 3000
-EXPOSE 4000
 
 # Set default envs
 ENV PORT=3000

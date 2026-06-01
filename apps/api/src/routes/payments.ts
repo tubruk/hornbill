@@ -1,30 +1,52 @@
 import { Hono } from "hono";
-import { getDb } from "../trailbase";
+import { getDb, verifyBillAccess } from "../trailbase";
 import { settlePayment } from "../services";
+import { checkBillAccess, checkPaymentAccess } from "../middleware/auth";
 
-const app = new Hono();
+const app = new Hono<{ Variables: { user: any; myAccountIds: Set<string>; payment: any; bill: any } }>();
 
 app.get("/", async (c) => {
   try {
     const billId = c.req.query("billId");
-    const list = await getDb(c).listPayments(billId);
-    return c.json(list);
+    if (billId) {
+      const hasAccess = await verifyBillAccess(c, billId);
+      if (!hasAccess) {
+        return c.json({ error: "Forbidden: No access to this bill" }, 403);
+      }
+      const list = await getDb(c).listPayments(billId);
+      return c.json(list);
+    } else {
+      const user = c.get("user");
+      const client = getDb(c);
+      const accountUsers = await client.listAccountUsers();
+      const myAccountIds = new Set(
+        accountUsers.filter((au) => au.user_id === user.sub).map((au) => au.account_id)
+      );
+      
+      const allBills = await client.listBills();
+      const myBillIds = new Set(
+        allBills.filter((bill) => myAccountIds.has(bill.account_id)).map((bill) => bill.id)
+      );
+      
+      const allPayments = await client.listPayments();
+      const myPayments = allPayments.filter((p) => myBillIds.has(p.bill_id));
+      return c.json(myPayments);
+    }
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
   }
 });
 
-app.get("/:id", async (c) => {
+app.get("/:id", checkPaymentAccess("param", "id"), async (c) => {
   try {
-    const id = c.req.param("id");
-    const payment = await getDb(c).getPayment(id);
+    const payment = c.get("payment");
     return c.json(payment);
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
   }
 });
 
-app.post("/", async (c) => {
+app.post("/", checkBillAccess("body", "bill_id"), async (c) => {
   try {
     const body = await c.req.json();
     
@@ -49,7 +71,7 @@ app.post("/", async (c) => {
   }
 });
 
-app.post("/:id/pay", async (c) => {
+app.post("/:id/pay", checkPaymentAccess("param", "id"), async (c) => {
   try {
     const id = c.req.param("id");
     const body = await c.req.json().catch(() => ({}));
@@ -65,7 +87,7 @@ app.post("/:id/pay", async (c) => {
   }
 });
 
-app.patch("/:id", async (c) => {
+app.patch("/:id", checkPaymentAccess("param", "id"), async (c) => {
   try {
     const id = c.req.param("id");
     const body = await c.req.json();
@@ -82,7 +104,7 @@ app.patch("/:id", async (c) => {
   }
 });
 
-app.delete("/:id", async (c) => {
+app.delete("/:id", checkPaymentAccess("param", "id"), async (c) => {
   try {
     const id = c.req.param("id");
     await getDb(c).deletePayment(id);

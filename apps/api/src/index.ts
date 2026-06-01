@@ -111,9 +111,21 @@ if (existsSync("./apps/web/dist")) {
 }
 
 // Background runner for periodic payment generation
-const syncIntervalMin = CONFIG.SYNC_INTERVAL_MINUTES; // Default: 24 hours (1440 mins)
+const syncIntervalMin = CONFIG.SYNC_INTERVAL_MINUTES;
 if (syncIntervalMin > 0) {
   console.log(`Auto-sync background daemon active: running every ${syncIntervalMin} minutes.`);
+  
+  // Trigger initial boot-time sync
+  (async () => {
+    try {
+      console.log("Running initial boot-time background payment sync...");
+      const stats = await syncAllPayments();
+      console.log(`Initial auto-sync complete: processed ${stats.processed} active bills, generated ${stats.generated} payments.`);
+    } catch (e) {
+      console.error("Initial auto-sync background daemon failed:", e);
+    }
+  })();
+
   setInterval(async () => {
     try {
       console.log("Running automatic background payment sync...");

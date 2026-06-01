@@ -24,9 +24,9 @@ if [ ! -d "$MIGRATIONS_SRC" ]; then
 fi
 cp -r "$MIGRATIONS_SRC" "$DATA_DIR/migrations"
 
-# Start Trailbase in the background using the data directory from environment
+# Start Trailbase in the background using the data directory from environment (loopback-only for security)
 echo "Starting Trailbase database..."
-/usr/local/bin/trail --data-dir "$DATA_DIR" run --address 0.0.0.0:4000 &
+/usr/local/bin/trail --data-dir "$DATA_DIR" run --address 127.0.0.1:4000 &
 
 # Wait for Trailbase to start (applying migrations automatically on start)
 echo "Waiting for Trailbase to be healthy..."

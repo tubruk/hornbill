@@ -14,6 +14,9 @@ describe("API Routes", () => {
   let syncAllPaymentsSpy: any;
   let handleBillUpdateSideEffectsSpy: any;
   let generateNextPaymentForBillSpy: any;
+  let verifyAccountAccessSpy: any;
+  let verifyBillAccessSpy: any;
+  let verifyPaymentAccessSpy: any;
 
   // We'll create a mock client with mocked methods
   const mockClient = {
@@ -40,13 +43,19 @@ describe("API Routes", () => {
     // Spy and mock trailbase functions
     getDbSpy = spyOn(trailbase, "getDb").mockImplementation(() => trailbase.db as any);
     verifyTokenSpy = spyOn(trailbase, "verifyToken").mockImplementation(async () => ({ sub: "user-123" }));
+    verifyAccountAccessSpy = spyOn(trailbase, "verifyAccountAccess").mockImplementation(async (c, accountId) => {
+      const authHeader = c.req.header("Authorization");
+      if (!authHeader) return true; // permit anonymous test runs that don't pass headers
+      const accountUsers = await mockClient.listAccountUsers();
+      return accountUsers.some((au) => au.user_id === "user-123" && au.account_id === accountId);
+    });
     
     // Also spy and mock services
     settlePaymentSpy = spyOn(services, "settlePayment").mockImplementation(async (id) => ({ id } as any));
     syncAllPaymentsSpy = spyOn(services, "syncAllPayments").mockImplementation(async () => ({ processed: 1, generated: 1 }));
     handleBillUpdateSideEffectsSpy = spyOn(services, "handleBillUpdateSideEffects").mockImplementation(async () => {});
     generateNextPaymentForBillSpy = spyOn(services, "generateNextPaymentForBill").mockImplementation(async () => ({}) as any);
-
+ 
     // Mock all methods on the default db client to delegate dynamically to mockClient
     spyOn(trailbase.db, "listAccounts").mockImplementation((...args) => (mockClient.listAccounts as any)(...args));
     spyOn(trailbase.db, "getAccount").mockImplementation((...args) => (mockClient.getAccount as any)(...args));
@@ -66,7 +75,7 @@ describe("API Routes", () => {
     spyOn(trailbase.db, "updatePayment").mockImplementation((...args) => (mockClient.updatePayment as any)(...args));
     spyOn(trailbase.db, "deletePayment").mockImplementation((...args) => (mockClient.deletePayment as any)(...args));
   });
-
+ 
   afterEach(() => {
     getDbSpy.mockRestore();
     verifyTokenSpy.mockRestore();
@@ -74,6 +83,7 @@ describe("API Routes", () => {
     syncAllPaymentsSpy.mockRestore();
     handleBillUpdateSideEffectsSpy.mockRestore();
     generateNextPaymentForBillSpy.mockRestore();
+    verifyAccountAccessSpy.mockRestore();
   });
 
   describe("accounts routes", () => {

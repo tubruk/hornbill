@@ -344,3 +344,64 @@ export function getDb(tokenOrContext?: string | any): TrailbaseClient {
   const authHeader = tokenOrContext.req.header("Authorization");
   return authHeader ? new TrailbaseClient(authHeader) : db;
 }
+
+export async function verifyAccountAccess(c: any, accountId: string): Promise<boolean> {
+  let user = c.get("user");
+  if (!user) {
+    const authHeader = c.req.header("Authorization");
+    if (!authHeader) return false;
+    try {
+      user = await verifyToken(authHeader);
+    } catch {
+      return false;
+    }
+  }
+  if (!user) return false;
+
+  let myAccountIds = c.get("myAccountIds") as Set<string> | undefined;
+  if (!myAccountIds) {
+    const client = getDb(c);
+    try {
+      const accountUsers = await client.listAccountUsers();
+      myAccountIds = new Set(
+        accountUsers.filter((au) => au.user_id === user.sub).map((au) => au.account_id)
+      );
+      c.set("myAccountIds", myAccountIds);
+    } catch (err) {
+      console.error("verifyAccountAccess error:", err);
+      return false;
+    }
+  }
+  return myAccountIds.has(accountId);
+}
+
+export async function verifyBillAccess(c: any, billId: string): Promise<boolean> {
+  const cachedBill = c.get("bill");
+  if (cachedBill && cachedBill.id === billId) {
+    return await verifyAccountAccess(c, cachedBill.account_id);
+  }
+  const client = getDb(c);
+  try {
+    const bill = await client.getBill(billId);
+    return await verifyAccountAccess(c, bill.account_id);
+  } catch (err) {
+    console.error("verifyBillAccess error:", err);
+    return false;
+  }
+}
+
+export async function verifyPaymentAccess(c: any, paymentId: string): Promise<boolean> {
+  const cachedPayment = c.get("payment");
+  if (cachedPayment && cachedPayment.id === paymentId) {
+    return await verifyBillAccess(c, cachedPayment.bill_id);
+  }
+  const client = getDb(c);
+  try {
+    const payment = await client.getPayment(paymentId);
+    return await verifyBillAccess(c, payment.bill_id);
+  } catch (err) {
+    console.error("verifyPaymentAccess error:", err);
+    return false;
+  }
+}
+

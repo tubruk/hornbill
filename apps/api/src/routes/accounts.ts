@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { getDb, verifyToken } from "../trailbase";
 import { DEFAULT_UPCOMING_THRESHOLD_DAYS, AccountSchema } from "@hornbill/core";
+import { checkAccountAccess } from "../middleware/auth";
 
-const app = new Hono();
+const app = new Hono<{ Variables: { user: any; myAccountIds: Set<string>; account: any } }>();
 
 async function getAuthUser(c: any): Promise<any> {
   const authHeader = c.req.header("Authorization");
@@ -16,12 +17,18 @@ app.get("/", async (c) => {
   try {
     const user = await getAuthUser(c);
     const client = getDb(c);
-    const accountUsers = await client.listAccountUsers();
-    const myAccountIds = new Set(
-      accountUsers.filter((au) => au.user_id === user.sub).map((au) => au.account_id)
-    );
+    
+    let myAccountIds = c.get("myAccountIds") as Set<string> | undefined;
+    if (!myAccountIds) {
+      const accountUsers = await client.listAccountUsers();
+      myAccountIds = new Set(
+        accountUsers.filter((au) => au.user_id === user.sub).map((au) => au.account_id)
+      );
+      c.set("myAccountIds", myAccountIds);
+    }
+    
     const allAccounts = await client.listAccounts();
-    const myAccounts = allAccounts.filter((acc) => myAccountIds.has(acc.id));
+    const myAccounts = allAccounts.filter((acc) => myAccountIds!.has(acc.id));
     return c.json(myAccounts);
   } catch (err: any) {
     const status = err.message.includes("Unauthorized") || err.message.includes("Authorization") ? 401 : 500;
@@ -69,17 +76,9 @@ app.post("/", async (c) => {
   }
 });
 
-app.get("/:id", async (c) => {
+app.get("/:id", checkAccountAccess("param", "id"), async (c) => {
   try {
-    const user = await getAuthUser(c);
-    const client = getDb(c);
-    const id = c.req.param("id");
-    const accountUsers = await client.listAccountUsers();
-    const hasAccess = accountUsers.some((au) => au.user_id === user.sub && au.account_id === id);
-    if (!hasAccess) {
-      return c.json({ error: "Forbidden: No access to this account" }, 403);
-    }
-    const account = await client.getAccount(id);
+    const account = c.get("account");
     return c.json(account);
   } catch (err: any) {
     const status = err.message.includes("Unauthorized") || err.message.includes("Authorization") ? 401 : 500;
@@ -87,18 +86,11 @@ app.get("/:id", async (c) => {
   }
 });
 
-app.patch("/:id", async (c) => {
+app.patch("/:id", checkAccountAccess("param", "id"), async (c) => {
   try {
-    const user = await getAuthUser(c);
-    const client = getDb(c);
     const id = c.req.param("id");
-    const accountUsers = await client.listAccountUsers();
-    const hasAccess = accountUsers.some((au) => au.user_id === user.sub && au.account_id === id);
-    if (!hasAccess) {
-      return c.json({ error: "Forbidden: No access to this account" }, 403);
-    }
     const body = await c.req.json();
-    const current = await client.getAccount(id);
+    const current = c.get("account");
     
     // Merge update with current record for validation
     const merged = {
@@ -111,6 +103,7 @@ app.patch("/:id", async (c) => {
       return c.json({ error: parsed.error.issues[0].message }, 400);
     }
 
+    const client = getDb(c);
     const updated = await client.updateAccount(id, {
       name: body.name,
       upcoming_threshold_days: body.upcoming_threshold_days,
@@ -125,16 +118,10 @@ app.patch("/:id", async (c) => {
   }
 });
 
-app.delete("/:id", async (c) => {
+app.delete("/:id", checkAccountAccess("param", "id"), async (c) => {
   try {
-    const user = await getAuthUser(c);
-    const client = getDb(c);
     const id = c.req.param("id");
-    const accountUsers = await client.listAccountUsers();
-    const hasAccess = accountUsers.some((au) => au.user_id === user.sub && au.account_id === id);
-    if (!hasAccess) {
-      return c.json({ error: "Forbidden: No access to this account" }, 403);
-    }
+    const client = getDb(c);
     await client.deleteAccount(id);
     return c.json({ success: true });
   } catch (err: any) {

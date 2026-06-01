@@ -1,4 +1,4 @@
-.PHONY: dev build lint typecheck test docker-build docker-up docker-down clean install db-reset db-fixtures git-hooks
+.PHONY: dev build lint typecheck coverage test docker-build docker-up docker-down clean install db-reset db-fixtures git-hooks
 
 # Install workspace dependencies
 install:

@@ -1,23 +1,40 @@
 import { Hono } from "hono";
-import { getDb } from "../trailbase";
+import { getDb, verifyAccountAccess } from "../trailbase";
 import { generateNextPaymentForBill, handleBillUpdateSideEffects } from "../services";
+import { checkAccountAccess, checkBillAccess } from "../middleware/auth";
 
-const app = new Hono();
+const app = new Hono<{ Variables: { user: any; myAccountIds: Set<string>; bill: any } }>();
 
 app.get("/", async (c) => {
   try {
     const accountId = c.req.query("accountId");
-    const list = await getDb(c).listBills(accountId);
-    return c.json(list);
+    if (accountId) {
+      const hasAccess = await verifyAccountAccess(c, accountId);
+      if (!hasAccess) {
+        return c.json({ error: "Forbidden: No access to this account" }, 403);
+      }
+      const list = await getDb(c).listBills(accountId);
+      return c.json(list);
+    } else {
+      const user = c.get("user");
+      const client = getDb(c);
+      const accountUsers = await client.listAccountUsers();
+      const myAccountIds = new Set(
+        accountUsers.filter((au) => au.user_id === user.sub).map((au) => au.account_id)
+      );
+      const allBills = await client.listBills();
+      const myBills = allBills.filter((bill) => myAccountIds.has(bill.account_id));
+      return c.json(myBills);
+    }
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
   }
 });
 
-app.get("/:id", async (c) => {
+app.get("/:id", checkBillAccess("param", "id"), async (c) => {
   try {
     const id = c.req.param("id");
-    const bill = await getDb(c).getBill(id);
+    const bill = c.get("bill");
     const payments = await getDb(c).listPayments(id);
     return c.json({ ...bill, payments });
   } catch (err: any) {
@@ -25,7 +42,7 @@ app.get("/:id", async (c) => {
   }
 });
 
-app.post("/", async (c) => {
+app.post("/", checkAccountAccess("body", "account_id"), async (c) => {
   try {
     const body = await c.req.json();
     
@@ -61,13 +78,13 @@ app.post("/", async (c) => {
   }
 });
 
-app.patch("/:id", async (c) => {
+app.patch("/:id", checkBillAccess("param", "id"), async (c) => {
   try {
     const id = c.req.param("id");
     const body = await c.req.json();
 
-    // Fetch the existing bill for validation & old state comparison
-    const oldBill = await getDb(c).getBill(id);
+    // Retrieve the authorized existing bill from context
+    const oldBill = c.get("bill");
 
     // Enforce immutability of currency & start_date
     if (body.currency !== undefined && body.currency !== oldBill.currency) {
@@ -92,7 +109,7 @@ app.patch("/:id", async (c) => {
   }
 });
 
-app.delete("/:id", async (c) => {
+app.delete("/:id", checkBillAccess("param", "id"), async (c) => {
   try {
     const id = c.req.param("id");
     await getDb(c).deleteBill(id);
