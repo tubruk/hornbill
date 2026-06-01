@@ -11,18 +11,22 @@ export const Avatar: React.FC<AvatarProps> = ({ src, email, fallback, size = 32 
   const [avatarSrc, setAvatarSrc] = useState<string | undefined>(src);
   const [hasError, setHasError] = useState(false);
 
-  useEffect(() => {
-    setAvatarSrc(src);
+  const [prevSrc, setPrevSrc] = useState(src);
+  const [prevEmail, setPrevEmail] = useState(email);
+
+  if (src !== prevSrc || email !== prevEmail) {
+    setPrevSrc(src);
+    setPrevEmail(email);
     setHasError(false);
-  }, [src]);
+    if (src) {
+      setAvatarSrc(src);
+    } else if (!email) {
+      setAvatarSrc(undefined);
+    }
+  }
 
   useEffect(() => {
-    if (src) return;
-
-    if (!email) {
-      setAvatarSrc(undefined);
-      return;
-    }
+    if (src || !email) return;
 
     const cleanEmail = email.trim().toLowerCase();
     let active = true;
