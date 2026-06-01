@@ -198,9 +198,18 @@ describe("Services Logic", () => {
         created_at: 1717200000,
         updated_at: 1717200000,
       };
+      const priorPayment: Payment = {
+        id: "pay-prior",
+        bill_id: bill.id,
+        due_date: "2025-12-15",
+        amount_cents: 1500,
+        paid_at: Math.floor(new Date("2025-12-16T12:00:00Z").getTime() / 1000),
+        created_at: 1717200000,
+        updated_at: 1717200000,
+      };
       spyOn(db, "getPayment").mockResolvedValue(payment);
       getBillSpy.mockResolvedValue(bill);
-      listPaymentsSpy.mockResolvedValue([payment]);
+      listPaymentsSpy.mockResolvedValue([priorPayment, payment]);
 
       const paidAtTime = Math.floor(new Date("2026-01-16T12:00:00Z").getTime() / 1000);
       const updatedPayment: Payment = {
@@ -232,6 +241,77 @@ describe("Services Logic", () => {
         paid_at: paidAtTime,
         amount_cents: 1600,
       });
+    });
+
+    test("throws error if paidAt is before the latest paid payment's paid_at", async () => {
+      const bill = mockBill({ start_date: "2026-01-01" });
+      const payment1: Payment = {
+        id: "pay-1",
+        bill_id: bill.id,
+        due_date: "2026-01-15",
+        amount_cents: 1500,
+        paid_at: 1768488000, // Jan 15 2026
+        created_at: 1717200000,
+        updated_at: 1717200000,
+      };
+      const payment2: Payment = {
+        id: "pay-2",
+        bill_id: bill.id,
+        due_date: "2026-02-15",
+        amount_cents: 1500,
+        paid_at: null,
+        created_at: 1717200000,
+        updated_at: 1717200000,
+      };
+      spyOn(db, "getPayment").mockResolvedValue(payment2);
+      getBillSpy.mockResolvedValue(bill);
+      listPaymentsSpy.mockResolvedValue([payment1, payment2]);
+
+      // Jan 10 2026 (before Jan 15 2026)
+      const paidAtBeforeLatest = 1768056000;
+      expect(settlePayment(payment2.id, paidAtBeforeLatest)).rejects.toThrow(
+        "Payment date cannot be before the latest payment date"
+      );
+    });
+
+    test("ignores failure when generating next payment cycle and completes settlement successfully", async () => {
+      const bill = mockBill({ start_date: "2026-01-01" });
+      const payment: Payment = {
+        id: "pay-1",
+        bill_id: bill.id,
+        due_date: "2026-01-15",
+        amount_cents: 1500,
+        paid_at: null,
+        created_at: 1717200000,
+        updated_at: 1717200000,
+      };
+      spyOn(db, "getPayment").mockResolvedValue(payment);
+      getBillSpy.mockResolvedValue(bill);
+      listPaymentsSpy.mockResolvedValue([payment]);
+
+      // Mock listPayments to succeed on first call (inside settlePayment)
+      // and fail on subsequent calls (inside generateNextPaymentForBill)
+      let callCount = 0;
+      listPaymentsSpy.mockImplementation(async () => {
+        callCount++;
+        if (callCount > 1) {
+          throw new Error("Simulated db error in generateNextPaymentForBill");
+        }
+        return [payment];
+      });
+
+      const paidAtTime = Math.floor(new Date("2026-01-16T12:00:00Z").getTime() / 1000);
+      const updatedPayment: Payment = {
+        ...payment,
+        paid_at: paidAtTime,
+      };
+      updatePaymentSpy.mockResolvedValue(updatedPayment);
+
+      const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+      const result = await settlePayment(payment.id, paidAtTime);
+      expect(result).toEqual(updatedPayment);
+      expect(consoleErrorSpy).toHaveBeenCalled();
+      consoleErrorSpy.mockRestore();
     });
   });
 
@@ -277,6 +357,34 @@ describe("Services Logic", () => {
       const stats = await syncAllPayments();
       expect(stats.processed).toBe(2); // Only active ones
       expect(stats.generated).toBe(1); // Only active-1 generated a new one
+    });
+
+    test("handles errors thrown by generateNextPaymentForBill and continues syncing other bills", async () => {
+      const activeBill1 = mockBill({ id: "active-1", active: true });
+      const activeBill2 = mockBill({ id: "active-2", active: true });
+      listBillsSpy.mockResolvedValue([activeBill1, activeBill2]);
+
+      // Mock listPayments to throw error for active-1 and return empty for active-2
+      listPaymentsSpy.mockImplementation(async (billId: string) => {
+        if (billId === "active-1") {
+          throw new Error("Database error for active-1");
+        }
+        return [];
+      });
+
+      getBillSpy.mockImplementation(async (id: string) => {
+        if (id === "active-1") return activeBill1;
+        return activeBill2;
+      });
+
+      createPaymentSpy.mockResolvedValue({} as any);
+      const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+
+      const stats = await syncAllPayments();
+      expect(stats.processed).toBe(2);
+      expect(stats.generated).toBe(1); // active-1 failed but active-2 succeeded
+      expect(consoleErrorSpy).toHaveBeenCalled();
+      consoleErrorSpy.mockRestore();
     });
   });
 

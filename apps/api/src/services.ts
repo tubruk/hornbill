@@ -74,21 +74,13 @@ export async function settlePayment(paymentId: string, paidAtVal?: number, amoun
   const latestPaid = paidPayments[0];
   if (latestPaid && latestPaid.paid_at) {
     if (paidAt < latestPaid.paid_at) {
-      const formattedLatestPaid = new Date(latestPaid.paid_at * 1000).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
+      const formattedLatestPaid = new Date(latestPaid.paid_at * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
       throw new Error(`Payment date cannot be before the latest payment date (${formattedLatestPaid})`);
     }
   } else {
     const billStartEpoch = Math.floor(new Date(bill.start_date + "T00:00:00").getTime() / 1000);
     if (paidAt < billStartEpoch) {
-      const formattedStartDate = new Date(bill.start_date + "T00:00:00").toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
+      const formattedStartDate = new Date(bill.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
       throw new Error(`Payment date cannot be before the bill start date (${formattedStartDate})`);
     }
   }
