@@ -82,6 +82,8 @@ All recurrence settings are stored in the database, and the background daemon au
 - **🤖 AI agent integration** – Integrations via CLI scripts and agent skills.
 - **🔑 OAuth login** – Secure authentication options beyond simple password login.
 - **👥 Account sharing** – Share accounts and bills with family members or other users.
+- **🔔 Reminder notifications** – Support for email, Telegram, ntfy, Gotify, webhooks, etc.
+- **💬 Telegram bot companion** – Interactive bot companion to check due dates and log payments.
 - **☁️ SaaS offering** – A hosted version of the service.
 
 ### Non-Goals
