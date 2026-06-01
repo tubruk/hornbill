@@ -15,6 +15,22 @@
 - **🖥️ Simple web UI** – clean, minimalist interface to manage bills and track payment history.
 - **🛡️ Free and open source** – released under the AGPL‑v3.
 
+## 🎯 Goals & Non-Goals
+
+### Planned / Goals
+- **🔌 API-driven automation** – E.g., webhook receiver and sender.
+- **🤖 AI agent integration** – Integrations via CLI scripts and agent skills.
+- **🔑 OAuth login** – Secure authentication options beyond simple password login.
+- **👥 Account sharing** – Share accounts and bills with family members or other users.
+- **☁️ SaaS offering** – A hosted version of the service.
+
+### Non-Goals
+- **Invoicing and Budgeting** – Not designed to generate professional client invoices or provide complex envelope-style budgeting tools.
+- **Automatic Bank Syncing** – Keeping tracking manual to avoid the complexity, fragility, and security overhead of bank API integrations.
+- **Double-Entry Bookkeeping** – Not a replacement for comprehensive personal ledger or accounting software.
+- **Direct Payment Processing** – Processing actual monetary transactions (e.g., Stripe/PayPal integrations to transfer funds).
+- **Native Mobile Apps** – A fully responsive web interface is prioritized over maintaining native iOS/Android apps.
+
 ## 📸 Screenshots
 
 [<img alt="Hornbill Dashboard" src=".github/assets/ss_hornbill_dashboard.png" height="250px">](.github/assets/ss_hornbill_dashboard.png)
