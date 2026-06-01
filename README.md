@@ -14,6 +14,11 @@ Hornbill is a **self‑hosted personal billing tool** you can run on a single Do
 - **Simple web UI** – clean interface to create accounts, bills, and view generated payments.
 - **Free and open source** – released under the AGPL‑v3.
 
+## Screenshots
+
+[<img alt="Hornbill Dashboard" src=".github/assets/ss_hornbill_dashboard.png" height="250px">](.github/assets/ss_hornbill_dashboard.png)
+[<img alt="Hornbill Bills" src=".github/assets/ss_hornbill_bills.png" height="250px">](.github/assets/ss_hornbill_bills.png)
+
 ## Quick Start (Docker)
 
 ```bash
