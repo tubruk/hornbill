@@ -2,6 +2,13 @@
 
 ![Hornbill Logo](.github/assets/hornbill_240.png)
 
+[![CI](https://github.com/chickenzord/hornbill/actions/workflows/ci.yml/badge.svg)](https://github.com/chickenzord/hornbill/actions/workflows/ci.yml)
+[![Docker Build](https://github.com/chickenzord/hornbill/actions/workflows/docker.yml/badge.svg)](https://github.com/chickenzord/hornbill/actions/workflows/docker.yml)
+[![codecov](https://codecov.io/gh/chickenzord/hornbill/graph/badge.svg)](https://codecov.io/gh/chickenzord/hornbill)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Bun](https://img.shields.io/badge/Bun-%231A202C.svg?style=flat&logo=bun&logoColor=white)](https://bun.sh)
+
+
 ## 🧐 What is Hornbill?
 
 [Hornbill](https://en.wikipedia.org/wiki/Hornbill) (known as **Rangkong** or **Enggang** in [Indonesia](https://id.wikipedia.org/wiki/Rangkong)) is a **self‑hosted personal bill tracker** you can run on a single Docker container. It helps you keep track of recurring bills, upcoming due dates, and payment history.
@@ -87,6 +94,4 @@ All recurrence settings are stored in the database, and the background daemon au
 
 Hornbill is licensed under the **GNU Affero General Public License v3** – see the [LICENSE](LICENSE) file.
 
----
 
-[![CI Status](https://github.com/chickenzord/hornbill/actions/workflows/ci.yml/badge.svg)](https://github.com/chickenzord/hornbill/actions/workflows/ci.yml)
