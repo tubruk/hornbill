@@ -227,7 +227,7 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
             <Checkbox
               label={`Override warning threshold (Account default: ${accountThreshold ?? DEFAULT_UPCOMING_THRESHOLD_DAYS} days)`}
               checked={hasThresholdOverride}
-              onChange={(e: any) => setHasThresholdOverride(e.target.checked)}
+              onChange={(e) => setHasThresholdOverride(e.target.checked)}
             />
             {hasThresholdOverride && (
               <div className="p-3 bg-surface-warm rounded-sm border border-border-warm animate-fadeIn max-w-[220px]">
@@ -292,7 +292,7 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
                   <label className="font-body text-[14px] font-semibold text-text-primary mb-1.5 block">Unit</label>
                   <select
                     value={intervalUnit}
-                    onChange={(e) => setIntervalUnit(e.target.value as any)}
+                    onChange={(e) => setIntervalUnit(e.target.value as "days" | "weeks" | "months")}
                     className="w-full bg-surface-warm rounded-sm p-3 text-[16px] font-body border border-border-warm hover:border-primary/60 focus:border-primary focus:ring-3 focus:ring-primary/12 text-text-primary h-[46px] outline-none"
                   >
                     <option value="days">Days</option>
@@ -308,7 +308,7 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
                 </label>
                 <select
                   value={intervalFrom}
-                  onChange={(e) => setIntervalFrom(e.target.value as any)}
+                  onChange={(e) => setIntervalFrom(e.target.value as "due_date" | "paid_at")}
                   className="w-full bg-surface-warm rounded-sm p-3 text-[16px] font-body border border-border-warm hover:border-primary/60 focus:border-primary focus:ring-3 focus:ring-primary/12 text-text-primary h-[46px] outline-none"
                 >
                   <option value="paid_at">Actual payment date (when paid)</option>

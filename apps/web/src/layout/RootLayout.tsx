@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Outlet, useLocation } from "@tanstack/react-router";
 import { RefreshCw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -48,7 +48,7 @@ export function RootLayout() {
   // ── Queries ──────────────────────────────────────────────────────────────
 
   const accountsQuery = useAccounts({ enabled: !!token });
-  const accounts = accountsQuery.data ?? [];
+  const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
   const isApiConnected = !accountsQuery.isError;
 
   const billsQuery = useBills(currentAccount?.id);

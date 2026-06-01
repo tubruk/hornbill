@@ -59,10 +59,10 @@ export function DashboardView() {
   const todayStr = new Date().toISOString().split("T")[0];
 
   const billsQuery = useBills(currentAccount?.id);
-  const bills = billsQuery.data ?? [];
+  const bills = useMemo(() => billsQuery.data ?? [], [billsQuery.data]);
 
   const paymentsQuery = usePayments(currentAccount?.id, billsQuery.data);
-  const payments = paymentsQuery.data ?? [];
+  const payments = useMemo(() => paymentsQuery.data ?? [], [paymentsQuery.data]);
 
   const payPaymentMut = usePayPayment();
 
@@ -144,7 +144,7 @@ export function DashboardView() {
       paymentProgressRate,
       doneBillsCount,
     };
-  }, [bills, payments, todayStr]);
+  }, [bills, payments, todayStr, currentAccount?.upcoming_threshold_days]);
 
   // ── Handle pay ───────────────────────────────────────────────────────────
 
