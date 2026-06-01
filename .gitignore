@@ -44,3 +44,6 @@ tmp/
 
 # Agent files
 /.antigravitycli/
+
+# Coverage reports
+coverage/
