@@ -99,6 +99,10 @@ All recurrence settings are stored in the database, and the background daemon au
 - **Issues** – open a GitHub issue for bugs or feature requests.
 - **Contributing** – feel free to submit pull requests; follow the guidelines in `CONTRIBUTING.md`.
 
+## 🤖 Co-Development
+
+This project is co-developed with **Gemini/Antigravity**, an agentic AI coding assistant. Features, test suites, and documentation are designed in collaborative pair-programming sessions.
+
 ## 📄 License
 
 Hornbill is licensed under the **GNU Affero General Public License v3** – see the [LICENSE](LICENSE) file.
