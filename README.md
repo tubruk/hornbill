@@ -4,6 +4,7 @@
 
 [![CI](https://github.com/chickenzord/hornbill/actions/workflows/ci.yml/badge.svg)](https://github.com/chickenzord/hornbill/actions/workflows/ci.yml)
 [![Docker Build](https://github.com/chickenzord/hornbill/actions/workflows/docker.yml/badge.svg)](https://github.com/chickenzord/hornbill/actions/workflows/docker.yml)
+[![Docker Image](https://img.shields.io/badge/docker%20image-ghcr.io-blue?logo=docker&logoColor=white)](https://github.com/chickenzord/hornbill/pkgs/container/hornbill)
 [![codecov](https://codecov.io/gh/chickenzord/hornbill/graph/badge.svg)](https://codecov.io/gh/chickenzord/hornbill)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Bun](https://img.shields.io/badge/Bun-%231A202C.svg?style=flat&logo=bun&logoColor=white)](https://bun.sh)
