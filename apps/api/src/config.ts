@@ -4,6 +4,7 @@ export const CONFIG = {
   TRAILBASE_DATA_DIR: process.env.TRAILBASE_DATA_DIR || "./data/hornbill",
   REGISTRATION_ENABLED: process.env.REGISTRATION_ENABLED !== "false",
   SYNC_INTERVAL_MINUTES: Number(process.env.SYNC_INTERVAL_MINUTES) || 60,
+  WEB_DIST_DIR: process.env.WEB_DIST_DIR || "./apps/web/dist",
   HOST: process.env.HOST || "127.0.0.1",
   PORT: Number(process.env.PORT) || 3000,
 } as const;

@@ -106,10 +106,10 @@ app.notFound((c) => {
 });
 
 // Serve static files from React build directory if it exists
-if (existsSync("./apps/web/dist")) {
-  app.use("/*", serveStatic({ root: "./apps/web/dist" }));
+if (existsSync(CONFIG.WEB_DIST_DIR)) {
+  app.use("/*", serveStatic({ root: CONFIG.WEB_DIST_DIR }));
   // Fallback to index.html for client-side routing (spa fallback)
-  app.get("*", serveStatic({ path: "./apps/web/dist/index.html" }));
+  app.get("*", serveStatic({ path: `${CONFIG.WEB_DIST_DIR}/index.html` }));
 }
 
 // Background runner for periodic payment generation
