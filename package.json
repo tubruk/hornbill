@@ -2,6 +2,7 @@
   "name": "hornbill-monorepo",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -10,10 +11,19 @@
     "dev:web": "bun --filter web dev",
     "dev:api": "bun --filter api dev",
     "dev": "concurrently -n \"api,web\" -c \"blue,magenta\" \"bun run dev:api\" \"bun run dev:web\"",
-    "test": "bun test --recursive"
+    "test": "bun test --recursive",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
     "concurrently": "^10.0.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.6.0",
+    "typescript-eslint": "^8.60.0",
     "yaml": "^2.9.0"
   }
 }

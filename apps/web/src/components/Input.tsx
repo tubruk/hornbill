@@ -9,7 +9,8 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className = "", label, helperText, error, errorText, disabled, id, ...props }, ref) => {
-    const inputId = id || React.useId();
+    const fallbackId = React.useId();
+    const inputId = id || fallbackId;
 
     // Base input classes
     let inputClasses = "w-full bg-surface-warm rounded-sm p-3 text-[16px] font-body transition-all duration-150 outline-none border border-border-warm";

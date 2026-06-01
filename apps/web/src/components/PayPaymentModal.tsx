@@ -70,7 +70,7 @@ export function PayPaymentModal({ billName, dueDate, isUpcoming, onConfirm, onCl
               Record Payment
             </h3>
             <p className="text-[13px] text-text-secondary font-semibold mt-1">
-              Mark <span className="text-primary font-bold">"{billName}"</span> as paid.
+              Mark <span className="text-primary font-bold">&quot;{billName}&quot;</span> as paid.
             </p>
           </div>
           <button
