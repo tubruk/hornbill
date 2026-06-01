@@ -110,7 +110,12 @@ app.notFound(async (c) => {
     return c.json({ error: "Not Found" }, 404);
   }
 
-  if (existsSync(CONFIG.WEB_DIST_DIR)) {
+  // Only fallback to index.html for page routes (non-assets).
+  // We check if the client accepts text/html, or if the path has no file extension.
+  const accept = c.req.header("Accept") || "";
+  const isHtmlRequest = accept.includes("text/html") || !/\.[a-zA-Z0-9]+$/.test(c.req.path);
+
+  if (isHtmlRequest && existsSync(CONFIG.WEB_DIST_DIR)) {
     try {
       const html = await Bun.file(`${CONFIG.WEB_DIST_DIR}/index.html`).text();
       return c.html(html);
