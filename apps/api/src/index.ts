@@ -65,8 +65,7 @@ app.use("/api/v1/*", async (c, next) => {
   }
 });
 
-// Basic healthcheck
-app.get("/", (c) => c.text("Hornbill API is flying!"));
+
 
 // Register routes
 const api = new Hono();
