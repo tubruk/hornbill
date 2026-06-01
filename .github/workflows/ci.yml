@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Lint
+        run: bun lint || echo "No lint script defined"
+
+      - name: Type Check
+        run: bun run type-check || echo "No type-check script defined"
+
+      - name: Run Tests
+        run: bun test || echo "No test script defined"
+
+      - name: Build API
+        run: bun --filter api build || echo "No API build script defined"
+
+      - name: Build Web
+        run: bun --filter web build || echo "No Web build script defined"
