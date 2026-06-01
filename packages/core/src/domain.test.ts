@@ -344,7 +344,7 @@ describe("Schemas Validation", () => {
       const result = AccountSchema.safeParse(invalid);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain("Default currency must be present");
+        expect(result.error.issues[0].message).toContain("Default currency must be present");
       }
     });
 

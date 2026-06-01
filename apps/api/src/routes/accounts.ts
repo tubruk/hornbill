@@ -50,7 +50,7 @@ app.post("/", async (c) => {
 
     const parsed = AccountSchema.safeParse(accountData);
     if (!parsed.success) {
-      return c.json({ error: parsed.error.errors[0].message }, 400);
+      return c.json({ error: parsed.error.issues[0].message }, 400);
     }
 
     const newAccount = await client.createAccount({
@@ -108,7 +108,7 @@ app.patch("/:id", async (c) => {
     
     const parsed = AccountSchema.safeParse(merged);
     if (!parsed.success) {
-      return c.json({ error: parsed.error.errors[0].message }, 400);
+      return c.json({ error: parsed.error.issues[0].message }, 400);
     }
 
     const updated = await client.updateAccount(id, {
