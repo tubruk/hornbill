@@ -68,5 +68,16 @@ export default tseslint.config(
         { allowConstantExport: true },
       ],
     },
+  },
+  // Override for test files to disable no-explicit-any globally
+  {
+    files: [
+      '**/*.test.{ts,tsx,js,jsx}',
+      '**/*.spec.{ts,tsx,js,jsx}',
+      '**/__tests__/**/*.{ts,tsx,js,jsx}',
+    ],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
   }
 );
