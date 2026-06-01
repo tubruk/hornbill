@@ -79,6 +79,18 @@ api.route("/auth", auth);
 
 app.route("/api/v1", api);
 
+// Centralized error handling
+app.onError((err, c) => {
+  console.error("API Unhandled Error:", err);
+  const status = err.message.includes("Unauthorized") || err.message.includes("Authorization") ? 401 : 500;
+  return c.json({ error: err.message || "Internal Server Error" }, status as any);
+});
+
+// JSON 404 handler
+app.notFound((c) => {
+  return c.json({ error: "Not Found" }, 404);
+});
+
 // Serve static files from React build directory if it exists
 if (existsSync("./apps/web/dist")) {
   app.use("/*", serveStatic({ root: "./apps/web/dist" }));
