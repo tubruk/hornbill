@@ -7,7 +7,7 @@ on:
     branches: [ main, master ]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -25,10 +25,10 @@ jobs:
         run: bun install
 
       - name: Lint
-        run: bun lint || echo "No lint script defined"
+        run: bun lint 
 
       - name: Type Check
-        run: bun run type-check || echo "No type-check script defined"
+        run: bun run typecheck
 
       - name: Run Tests with Coverage
         run: bun test --coverage --coverage-reporter=lcov
@@ -38,9 +38,3 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: chickenzord/hornbill
-
-      - name: Build API
-        run: bun --filter api build || echo "No API build script defined"
-
-      - name: Build Web
-        run: bun --filter web build || echo "No Web build script defined"
