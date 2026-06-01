@@ -1,5 +1,5 @@
 # Stage 1: Build the React frontend
-FROM oven/bun:1.1.18 AS frontend-builder
+FROM oven/bun:1.3.14 AS frontend-builder
 WORKDIR /app
 
 # Copy lockfile, configs, and packages
@@ -12,7 +12,7 @@ RUN bun install
 RUN bun run --filter web build
 
 # Stage 2: Build final runner
-FROM oven/bun:1.1.18
+FROM oven/bun:1.3.14
 WORKDIR /app
 
 # Install curl for entrypoint healthchecks
