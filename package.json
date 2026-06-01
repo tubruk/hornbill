@@ -13,16 +13,20 @@
     "dev": "concurrently -n \"api,web\" -c \"blue,magenta\" \"bun run dev:api\" \"bun run dev:web\"",
     "test": "bun test --recursive",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "typecheck": "bun --filter '*' typecheck"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
+    "@types/bun": "^1.3.14",
+    "@types/node": "^25.9.1",
     "concurrently": "^10.0.0",
     "eslint": "^9.0.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.60.0",
     "yaml": "^2.9.0"
   }

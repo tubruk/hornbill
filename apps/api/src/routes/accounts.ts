@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { db } from "../trailbase";
+import { DEFAULT_UPCOMING_THRESHOLD_DAYS } from "@hornbill/core";
 
 const app = new Hono();
 
@@ -21,6 +22,7 @@ app.post("/", async (c) => {
     const newAccount = await db.createAccount({
       id: crypto.randomUUID(),
       name: body.name,
+      upcoming_threshold_days: body.upcoming_threshold_days ?? DEFAULT_UPCOMING_THRESHOLD_DAYS,
     });
     return c.json(newAccount, 201);
   } catch (err: any) {

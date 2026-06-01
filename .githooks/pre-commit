@@ -1,10 +1,10 @@
 #!/bin/sh
-# Pre-commit hook to run linting and unit tests using Bun.
+# Pre-commit hook to run type checking and unit tests using Bun.
 # If any checks fail, the commit is aborted.
 set -e
 
-echo "Running pre-commit lint check..."
-bun run lint
+echo "Running pre-commit type check..."
+bun run typecheck
 
 echo "Running pre-commit unit tests..."
 bun test

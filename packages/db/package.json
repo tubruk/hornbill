@@ -2,5 +2,8 @@
   "name": "@hornbill/db",
   "version": "0.1.0",
   "private": true,
-  "description": "Trailbase database migrations and configuration"
+  "description": "Trailbase database migrations and configuration",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
 }
