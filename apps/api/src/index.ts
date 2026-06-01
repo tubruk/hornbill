@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { CONFIG } from "./config";
 import { cors } from "hono/cors";
 import { serveStatic } from "hono/bun";
 import { existsSync } from "fs";
@@ -29,10 +30,15 @@ const api = new Hono();
 
 api.get("/ping", (c) => c.json({ status: "ok" }));
 api.get("/status", (c) => {
-  const regEnabled = process.env.REGISTRATION_ENABLED !== "false";
+  const regEnabled = CONFIG.REGISTRATION_ENABLED;
+  const trailbaseUrl = CONFIG.TRAILBASE_URL;
+  const trailbaseToken = CONFIG.TRAILBASE_TOKEN;
   return c.json({
     status: "ok",
     registration_enabled: regEnabled,
+    data_dir: CONFIG.TRAILBASE_DATA_DIR,
+    trailbase_url: trailbaseUrl,
+    trailbase_token_exists: !!trailbaseToken,
   });
 });
 
@@ -52,7 +58,7 @@ if (existsSync("./apps/web/dist")) {
 }
 
 // Background runner for periodic payment generation
-const syncIntervalMin = Number(process.env.SYNC_INTERVAL_MINUTES) || 1440; // Default: 24 hours (1440 mins)
+const syncIntervalMin = CONFIG.SYNC_INTERVAL_MINUTES; // Default: 24 hours (1440 mins)
 if (syncIntervalMin > 0) {
   console.log(`Auto-sync background daemon active: running every ${syncIntervalMin} minutes.`);
   setInterval(async () => {
@@ -66,7 +72,7 @@ if (syncIntervalMin > 0) {
   }, syncIntervalMin * 60 * 1000);
 }
 
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = CONFIG.PORT;
 console.log(`Hornbill API is starting on port ${PORT}...`);
 
 export default {

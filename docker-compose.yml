@@ -12,9 +12,10 @@ services:
       - "4000:4000" # Expose Trailbase dashboard locally if needed (optional)
     volumes:
       # Persists SQLite database, configurations, and uploaded assets on the host
-      - ./data:/app/packages/db/traildepot
+      - ./data/hornbill:/app/data
     environment:
       - PORT=3000
       - TRAILBASE_URL=http://localhost:4000
+      - TRAILBASE_DATA_DIR=/app/data
       - SYNC_INTERVAL_MINUTES=1440 # Generates next due payments automatically (1440 min = 24 hrs)
     restart: unless-stopped

@@ -12,7 +12,7 @@ export default tseslint.config(
       '**/dist/**',
       '**/node_modules/**',
       '**/tmp/**',
-      'packages/db/traildepot/**',
+
       'data/**',
     ],
   },

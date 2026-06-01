@@ -22,7 +22,9 @@ RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 COPY --from=trailbase/trailbase:latest /app/trail /usr/local/bin/trail
 
 # Copy source and configurations
-COPY package.json bun.lockb tsconfig.json entrypoint.sh ./
+COPY package.json bun.lockb tsconfig.json ./
+COPY scripts/entrypoint.sh ./entrypoint.sh
+COPY config ./config
 COPY packages/core ./packages/core
 COPY packages/db ./packages/db
 COPY apps/api ./apps/api

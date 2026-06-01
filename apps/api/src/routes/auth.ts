@@ -1,10 +1,11 @@
 import { Hono } from "hono";
+import { CONFIG } from "../config";
 import { Database } from "bun:sqlite";
 import { existsSync } from "fs";
 import { TrailbaseClient } from "../trailbase";
 
 const app = new Hono();
-const TRAILBASE_URL = process.env.TRAILBASE_URL || "http://localhost:4000";
+const TRAILBASE_URL = CONFIG.TRAILBASE_URL;
 
 function binaryToUuidString(bin: Uint8Array): string {
   const hex = Buffer.from(bin).toString("hex");
@@ -18,12 +19,8 @@ function binaryToUuidString(bin: Uint8Array): string {
 }
 
 async function verifyAndCreateAccountInDb(email: string) {
-  const paths = [
-    "packages/db/traildepot/data/main.db",
-    "../db/traildepot/data/main.db",
-    "../../packages/db/traildepot/data/main.db",
-    "/app/packages/db/traildepot/data/main.db",
-  ];
+  const baseDir = CONFIG.TRAILBASE_DATA_DIR;
+  const paths = [`${baseDir}/data/main.db`];
   let dbPath = "";
   for (const p of paths) {
     if (existsSync(p)) {
@@ -32,7 +29,7 @@ async function verifyAndCreateAccountInDb(email: string) {
     }
   }
   if (!dbPath) {
-    console.warn("Could not find main.db for user verification & account creation");
+    console.warn("Could not find main.db for user verification & account creation. Searched paths:", paths);
     return;
   }
   try {

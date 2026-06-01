@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, mkdirSync, copyFileSync } from "fs";
 import { join } from "path";
 import { parse } from "yaml";
 import { spawn } from "child_process";
@@ -37,9 +37,21 @@ async function startTrailbase(): Promise<boolean> {
 
   const binary = getTrailbaseBinary();
   console.log(`Starting Trailbase daemon using: ${binary}`);
-  
+
+  const dataDir = process.env.TRAILBASE_DATA_DIR || "./data/hornbill";
+  // Ensure the data directory exists
+  mkdirSync(dataDir, { recursive: true });
+  // Copy Trailbase config into the data directory
+  const configSrc = join(process.cwd(), "config", "config.textproto");
+  const configDst = join(dataDir, "config.textproto");
+  try {
+    copyFileSync(configSrc, configDst);
+  } catch (e) {
+    console.warn("Config copy failed:", e);
+  }
+
   trailProcess = spawn(binary, [
-    "--data-dir", "packages/db/traildepot",
+    "--data-dir", dataDir,
     "run",
     "--address", "127.0.0.1:4000"
   ], { stdio: "inherit" });

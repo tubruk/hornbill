@@ -21,12 +21,11 @@ Hornbill is a **self‑hosted personal billing tool** you can run on a single Do
 docker build -t hornbill:latest .
 
 # Run the container (adjust env vars as needed)
-# Example: generate a random JWT secret for security.
+
 
 docker run -d \
   -p 3000:3000 -p 4000:4000 \
   -e REGISTRATION_ENABLED=false \
-  -e JWT_SECRET=$(openssl rand -hex 32) \
   --name hornbill \
   hornbill:latest
 ```
@@ -39,10 +38,9 @@ Open `http://localhost:3000` in your browser to start using Hornbill.
 |----------|-------------|---------|
 | `PORT` | Port for the web UI and API. | `3000` |
 | `TRAILBASE_URL` | URL of the embedded SQLite server. | `http://localhost:4000` |
+| `TRAILBASE_DATA_DIR` | Path to Trailbase data directory. | `./data/hornbill` |
 | `REGISTRATION_ENABLED` | Show sign‑up page (`true`) or hide it (`false`). | `false` |
 | `SYNC_INTERVAL_MINUTES` | How often the background job generates payments (minutes). | `1440` |
-| `JWT_SECRET` | Secret for signing authentication tokens – **must be set**. | *(none)* |
-| `DATABASE_URL` | Path to the SQLite file. | `./data/hornbill.db` |
 
 ## Recurrence Models
 

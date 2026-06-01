@@ -1,9 +1,10 @@
 import type { Account, Bill, Payment } from "@hornbill/core";
 import { verify } from "hono/jwt";
 import { readFileSync, existsSync } from "fs";
+import { CONFIG } from "./config";
 
-const TRAILBASE_URL = process.env.TRAILBASE_URL || "http://localhost:4000";
-const TRAILBASE_TOKEN = process.env.TRAILBASE_TOKEN || "";
+const TRAILBASE_URL = CONFIG.TRAILBASE_URL;
+const TRAILBASE_TOKEN = CONFIG.TRAILBASE_TOKEN;
 
 let publicKey: CryptoKey | null = null;
 
@@ -11,6 +12,7 @@ async function getPublicKey(): Promise<CryptoKey> {
   if (publicKey) return publicKey;
   
   const paths = [
+    `${CONFIG.TRAILBASE_DATA_DIR}/secrets/keys/public_key.pem`,
     "packages/db/traildepot/secrets/keys/public_key.pem",
     "../db/traildepot/secrets/keys/public_key.pem",
     "../../packages/db/traildepot/secrets/keys/public_key.pem",

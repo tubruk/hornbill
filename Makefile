@@ -29,9 +29,7 @@ docker-down:
 # Reset/drop local and containerized databases
 db-reset:
 	@echo "Resetting local development and Docker databases..."
-	@rm -f packages/db/traildepot/*.db packages/db/traildepot/*.db-journal packages/db/traildepot/*.db-shm packages/db/traildepot/*.db-wal
-	@rm -f packages/db/traildepot/data/*.db packages/db/traildepot/data/*.db-journal packages/db/traildepot/data/*.db-shm packages/db/traildepot/data/*.db-wal
-	@rm -rf data/
+	@rm -f ${TRAILBASE_DATA_DIR:-./data/hornbill}/*.db ${TRAILBASE_DATA_DIR:-./data/hornbill}/*.db-journal ${TRAILBASE_DATA_DIR:-./data/hornbill}/*.db-shm ${TRAILBASE_DATA_DIR:-./data/hornbill}/*.db-wal
 	@echo "Database reset complete. Next launch will run migrations from scratch."
 
 # Seed the database with yaml fixtures

@@ -21,8 +21,23 @@ echo "============================================="
 # Ensure background trail binary is stopped on exit (Ctrl+C)
 trap 'echo -e "\nStopping local Trailbase database..."; kill $(jobs -p) 2>/dev/null || true; exit 0' INT
 
-# Run trail from its packages directory
-$TRAIL_BIN --data-dir packages/db/traildepot run --address 127.0.0.1:4000 &
+# Resolve TRAILBASE_DATA_DIR to realpath and export it
+DATA_DIR="${TRAILBASE_DATA_DIR:-./data/hornbill}"
+mkdir -p "$DATA_DIR"
+export TRAILBASE_DATA_DIR=$(realpath "$DATA_DIR")
+echo "Using TRAILBASE_DATA_DIR: $TRAILBASE_DATA_DIR"
+
+# Copy Trailbase config into the data directory
+CONFIG_SRC="$(pwd)/config/config.textproto"
+CONFIG_DST="$TRAILBASE_DATA_DIR/config.textproto"
+mkdir -p "$(dirname "$CONFIG_DST")"
+cp "$CONFIG_SRC" "$CONFIG_DST"
+
+# Copy Trailbase migrations into the data directory
+cp -r "$(pwd)/packages/db/migrations" "$TRAILBASE_DATA_DIR/migrations"
+
+# Start Trailbase in the background
+$TRAIL_BIN --data-dir "$TRAILBASE_DATA_DIR" run --address 127.0.0.1:4000 &
 
 echo "Waiting for database to run migrations and start..."
 until curl -s http://127.0.0.1:4000/api/records/v1/accounts >/dev/null 2>&1; do

@@ -72,6 +72,17 @@ export function SettingsView() {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // New state for Trailbase data directory fetched from API status
+  const [dataDir, setDataDir] = useState<string>("");
+
+  // Fetch data directory on component mount
+  useEffect(() => {
+    fetch("/api/v1/status")
+      .then((res) => res.json())
+      .then((json) => setDataDir(json.data_dir || "./data/hornbill"))
+      .catch(() => setDataDir("./data/hornbill"));
+  }, []);
+
   // New account form states
   const [newAccName, setNewAccName] = useState("");
   const [showNewAccInput, setShowNewAccInput] = useState(false);
@@ -635,7 +646,7 @@ export function SettingsView() {
                 Data Directory
               </span>
               <span className="px-3 py-2 rounded-sm bg-surface-raised border border-border-warm text-[14px] text-text-primary font-mono select-all">
-                packages/db/traildepot/
+                {dataDir}
               </span>
             </div>
             <div className="flex flex-col gap-1">
