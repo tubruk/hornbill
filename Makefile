@@ -1,4 +1,4 @@
-.PHONY: dev build test docker-build docker-up docker-down clean install db-reset db-fixtures git-hooks
+.PHONY: dev build lint typecheck test docker-build docker-up docker-down clean install db-reset db-fixtures git-hooks
 
 # Install workspace dependencies
 install:
@@ -7,6 +7,14 @@ install:
 # Build all package bundles and applications
 build: install
 	@bun run --filter web build
+
+# Run linters across all packages
+lint:
+	@bun run lint
+
+# Run type checking across all packages
+typecheck:
+	@bun run typecheck
 
 # Run unit tests across all packages
 test:
