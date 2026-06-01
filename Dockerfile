@@ -49,6 +49,7 @@ COPY --from=frontend-builder /app/apps/web/dist ./apps/web/dist
 EXPOSE 3000
 
 # Set default envs
+ENV HOST=0.0.0.0
 ENV PORT=3000
 ENV TRAILBASE_URL=http://localhost:4000
 ENV NODE_ENV=production

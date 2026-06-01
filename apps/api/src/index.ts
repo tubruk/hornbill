@@ -139,10 +139,12 @@ if (syncIntervalMin > 0) {
   }, syncIntervalMin * 60 * 1000);
 }
 
+const HOST = CONFIG.HOST;
 const PORT = CONFIG.PORT;
-console.log(`Hornbill API is starting on port ${PORT}...`);
+console.log(`Hornbill API is starting on ${HOST}:${PORT}...`);
 
 export default {
   port: PORT,
+  hostname: HOST,
   fetch: app.fetch,
 };
