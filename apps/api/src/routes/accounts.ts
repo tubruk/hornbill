@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { getDb, verifyToken, type UserPayload } from "../trailbase";
-import { DEFAULT_UPCOMING_THRESHOLD_DAYS, AccountSchema, type Account } from "@hornbill/core";
+import { DEFAULT_UPCOMING_THRESHOLD_DAYS, AccountSchema, ExportPayloadSchema, type Account } from "@hornbill/core";
 import { checkAccountAccess } from "../middleware/auth";
 
 const app = new Hono<{ Variables: { user: UserPayload; myAccountIds: Set<string>; account: Account } }>();
@@ -140,6 +140,150 @@ app.delete("/:id", checkAccountAccess("param", "id"), async (c) => {
     const message = err instanceof Error ? err.message : "Failed to delete account";
     const status: ContentfulStatusCode = message.includes("Unauthorized") || message.includes("Authorization") ? 401 : 500;
     return c.json({ error: message }, status);
+  }
+});
+
+app.get("/:id/export", checkAccountAccess("param", "id"), async (c) => {
+  try {
+    const id = c.req.param("id")!;
+    const client = getDb(c);
+    const account = c.get("account");
+
+    const bills = await client.listBills(id);
+    const billIds = new Set(bills.map((b) => b.id));
+
+    const allPayments = await client.listPayments();
+    const payments = allPayments.filter((p) => billIds.has(p.bill_id));
+
+    const payload = {
+      version: 1,
+      exported_at: Math.floor(Date.now() / 1000),
+      account,
+      bills,
+      payments,
+    };
+
+    c.header(
+      "Content-Disposition",
+      `attachment; filename="hornbill-backup-${account.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()}-${payload.exported_at}.json"`
+    );
+    return c.json(payload);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to export account";
+    return c.json({ error: message }, 500);
+  }
+});
+
+app.post("/import", async (c) => {
+  try {
+    const user = await getAuthUser(c);
+    const client = getDb(c);
+    const body = await c.req.json();
+
+    const parsed = ExportPayloadSchema.safeParse(body);
+    if (!parsed.success) {
+      return c.json({ error: parsed.error.issues[0].message }, 400);
+    }
+
+    const { account, bills, payments } = parsed.data;
+    const regenerateIds = c.req.query("regenerate_ids") === "true";
+
+    let targetAccountId = account.id;
+    let targetBills = bills;
+    let targetPayments = payments;
+
+    if (!regenerateIds) {
+      // Conflict Check: check if any of the IDs already exist
+      const allAccounts = await client.listAccounts();
+      const allBills = await client.listBills();
+      const allPayments = await client.listPayments();
+
+      const conflictingAccount = allAccounts.some((a) => a.id === account.id);
+      const conflictingBills = bills.filter((b) => allBills.some((ab) => ab.id === b.id)).map((b) => b.id);
+      const conflictingPayments = payments.filter((p) => allPayments.some((ap) => ap.id === p.id)).map((p) => p.id);
+
+      if (conflictingAccount || conflictingBills.length > 0 || conflictingPayments.length > 0) {
+        return c.json(
+          {
+            error: "Conflict detected: One or more IDs in the import payload already exist.",
+            conflicts: {
+              account: conflictingAccount ? [account.id] : [],
+              bills: conflictingBills,
+              payments: conflictingPayments,
+            },
+          },
+          409
+        );
+      }
+    } else {
+      // Regenerate IDs and rewrite hierarchy
+      targetAccountId = crypto.randomUUID();
+      const billIdMap = new Map<string, string>();
+
+      targetBills = bills.map((b) => {
+        const newBillId = crypto.randomUUID();
+        billIdMap.set(b.id, newBillId);
+        return {
+          ...b,
+          id: newBillId,
+          account_id: targetAccountId,
+          created_at: Math.floor(Date.now() / 1000),
+          updated_at: Math.floor(Date.now() / 1000),
+        };
+      });
+
+      targetPayments = payments.map((p) => {
+        const newPaymentId = crypto.randomUUID();
+        const newBillId = billIdMap.get(p.bill_id);
+        if (!newBillId) {
+          throw new Error(`Orphaned payment: refers to unknown bill ${p.bill_id}`);
+        }
+        return {
+          ...p,
+          id: newPaymentId,
+          bill_id: newBillId,
+          created_at: Math.floor(Date.now() / 1000),
+          updated_at: Math.floor(Date.now() / 1000),
+        };
+      });
+    }
+
+    // Persist records
+    let createdAccount: Account | null = null;
+    try {
+      createdAccount = await client.createAccount({
+        id: targetAccountId,
+        name: regenerateIds ? `${account.name} (Imported)` : account.name,
+        upcoming_threshold_days: account.upcoming_threshold_days,
+        currencies: account.currencies,
+        default_currency: account.default_currency,
+        archived: account.archived,
+      });
+
+      await client.associateUserToAccount(targetAccountId, user.sub);
+
+      for (const bill of targetBills) {
+        await client.createBill(bill);
+      }
+
+      for (const payment of targetPayments) {
+        await client.createPayment(payment);
+      }
+
+      return c.json(createdAccount, 201);
+    } catch (dbErr) {
+      if (createdAccount) {
+        try {
+          await client.deleteAccount(targetAccountId);
+        } catch (cleanupErr) {
+          console.error("Cleanup failed after failed import:", cleanupErr);
+        }
+      }
+      throw dbErr;
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to import account";
+    return c.json({ error: message }, 500);
   }
 });
 

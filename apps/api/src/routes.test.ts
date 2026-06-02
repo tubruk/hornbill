@@ -339,6 +339,198 @@ describe("API Routes", () => {
       });
       expect(res.status).toBe(500);
     });
+
+    test("GET /:id/export - returns backup payload", async () => {
+      spyOn(mockClient, "listAccountUsers").mockResolvedValue([{ id: "1", account_id: "acc-1", user_id: "user-123" }]);
+      spyOn(mockClient, "getAccount").mockResolvedValue(mockAccounts[0]);
+
+      const mockBills: Bill[] = [
+        {
+          id: "bill-1",
+          account_id: "acc-1",
+          name: "Rent",
+          currency: "USD",
+          amount_cents: 100000,
+          amount_type: "fixed",
+          recurrence: { type: "monthly", monthly: { day: 1 } },
+          start_date: "2026-01-01",
+          active: true,
+          created_at: 0,
+          updated_at: 0,
+        },
+      ];
+      const mockPayments: Payment[] = [
+        {
+          id: "pay-1",
+          bill_id: "bill-1",
+          due_date: "2026-06-01",
+          amount_cents: 100000,
+          paid_at: null,
+          created_at: 0,
+          updated_at: 0,
+        },
+      ];
+
+      spyOn(mockClient, "listBills").mockResolvedValue(mockBills);
+      spyOn(mockClient, "listPayments").mockResolvedValue(mockPayments);
+
+      const res = await accountsApp.request("/acc-1/export", {
+        headers: { Authorization: "Bearer token" },
+      });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.version).toBe(1);
+      expect(json.account.id).toBe("acc-1");
+      expect(json.bills[0].id).toBe("bill-1");
+      expect(json.payments[0].id).toBe("pay-1");
+      expect(res.headers.get("Content-Disposition")).toContain("hornbill-backup");
+    });
+
+    test("POST /import - fails with 400 on validation error", async () => {
+      const res = await accountsApp.request("/import", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer token",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ invalid: "data" }),
+      });
+      expect(res.status).toBe(400);
+    });
+
+    test("POST /import - detects conflicts and returns 409", async () => {
+      const payload = {
+        version: 1,
+        exported_at: 123456,
+        account: mockAccounts[0],
+        bills: [],
+        payments: [],
+      };
+
+      spyOn(mockClient, "listAccounts").mockResolvedValue([mockAccounts[0]]);
+      spyOn(mockClient, "listBills").mockResolvedValue([]);
+      spyOn(mockClient, "listPayments").mockResolvedValue([]);
+
+      const res = await accountsApp.request("/import", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer token",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      expect(res.status).toBe(409);
+      const json = await res.json();
+      expect(json.error).toContain("Conflict detected");
+      expect(json.conflicts.account).toEqual(["acc-1"]);
+    });
+
+    test("POST /import - succeeds if no conflict", async () => {
+      const importedAccount = { ...mockAccounts[0], id: "new-acc-99" };
+      const payload = {
+        version: 1,
+        exported_at: 123456,
+        account: importedAccount,
+        bills: [],
+        payments: [],
+      };
+
+      spyOn(mockClient, "listAccounts").mockResolvedValue([mockAccounts[0]]);
+      spyOn(mockClient, "listBills").mockResolvedValue([]);
+      spyOn(mockClient, "listPayments").mockResolvedValue([]);
+
+      const createAccountSpy = spyOn(mockClient, "createAccount").mockResolvedValue(importedAccount);
+      const assocSpy = spyOn(mockClient, "associateUserToAccount").mockResolvedValue({} as any);
+
+      const res = await accountsApp.request("/import", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer token",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      expect(res.status).toBe(201);
+      const json = await res.json();
+      expect(json.id).toBe("new-acc-99");
+      expect(createAccountSpy).toHaveBeenCalled();
+      expect(assocSpy).toHaveBeenCalledWith("new-acc-99", "user-123");
+    });
+
+    test("POST /import - regenerates IDs if regenerate_ids is true", async () => {
+      const payload = {
+        version: 1,
+        exported_at: 123456,
+        account: mockAccounts[0],
+        bills: [
+          {
+            id: "old-bill-id",
+            account_id: "acc-1",
+            name: "Rent",
+            currency: "USD",
+            amount_cents: 100000,
+            amount_type: "fixed",
+            recurrence: { type: "monthly", monthly: { day: 1 } },
+            start_date: "2026-01-01",
+            active: true,
+            created_at: 0,
+            updated_at: 0,
+          },
+        ],
+        payments: [
+          {
+            id: "old-pay-id",
+            bill_id: "old-bill-id",
+            due_date: "2026-06-01",
+            amount_cents: 100000,
+            paid_at: null,
+            created_at: 0,
+            updated_at: 0,
+          },
+        ],
+      };
+
+      const createdAccounts: any[] = [];
+      const createdBills: any[] = [];
+      const createdPayments: any[] = [];
+
+      spyOn(mockClient, "createAccount").mockImplementation(async (acc) => {
+        createdAccounts.push(acc);
+        return acc as any;
+      });
+      spyOn(mockClient, "associateUserToAccount").mockResolvedValue({} as any);
+      spyOn(mockClient, "createBill").mockImplementation(async (bill) => {
+        createdBills.push(bill);
+        return bill as any;
+      });
+      spyOn(mockClient, "createPayment").mockImplementation(async (pay) => {
+        createdPayments.push(pay);
+        return pay as any;
+      });
+
+      const res = await accountsApp.request("/import?regenerate_ids=true", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer token",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      expect(res.status).toBe(201);
+      
+      expect(createdAccounts.length).toBe(1);
+      expect(createdAccounts[0].id).not.toBe("acc-1");
+      expect(createdAccounts[0].name).toBe("Primary (Imported)");
+
+      expect(createdBills.length).toBe(1);
+      expect(createdBills[0].id).not.toBe("old-bill-id");
+      expect(createdBills[0].account_id).toBe(createdAccounts[0].id);
+
+      expect(createdPayments.length).toBe(1);
+      expect(createdPayments[0].id).not.toBe("old-pay-id");
+      expect(createdPayments[0].bill_id).toBe(createdBills[0].id);
+    });
   });
 
   describe("bills routes", () => {
