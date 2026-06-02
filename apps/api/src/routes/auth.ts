@@ -162,4 +162,42 @@ app.post("/login", async (c) => {
   }
 });
 
+app.post("/refresh", async (c) => {
+  try {
+    const body = await c.req.json();
+    if (!body.refresh_token) {
+      return c.json({ error: "Refresh token is required" }, 400);
+    }
+
+    const response = await fetch(`${TRAILBASE_URL}/api/auth/v1/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        refresh_token: body.refresh_token,
+      }),
+    });
+
+    const data = await response.text();
+    if (!response.ok) {
+      let errJson;
+      try {
+        errJson = JSON.parse(data);
+      } catch {
+        errJson = undefined;
+      }
+      const errorMsg = errJson?.error || data || "Token refresh failed";
+      return c.json({ error: errorMsg }, response.status as ContentfulStatusCode);
+    }
+
+    try {
+      return c.json(JSON.parse(data), response.status as ContentfulStatusCode);
+    } catch {
+      return c.json({ message: data }, response.status as ContentfulStatusCode);
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Refresh failed";
+    return c.json({ error: message }, 500);
+  }
+});
+
 export default app;
