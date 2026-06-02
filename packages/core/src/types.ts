@@ -277,3 +277,14 @@ export const PaymentSchema = z.object({
 });
 
 export type Payment = z.infer<typeof PaymentSchema>;
+
+export const ExportPayloadSchema = z.object({
+  version: z.literal(1),
+  exported_at: z.number().int(),
+  account: AccountSchema,
+  bills: z.array(BillSchema),
+  payments: z.array(PaymentSchema),
+});
+
+export type ExportPayload = z.infer<typeof ExportPayloadSchema>;
+
