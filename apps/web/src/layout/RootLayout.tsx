@@ -116,7 +116,12 @@ export function RootLayout() {
   }
 
   if (!token) {
-    return <AuthView />;
+    return (
+      <>
+        <AuthView />
+        <ToastStack toasts={toasts} onDismiss={dismissToast} />
+      </>
+    );
   }
 
   // ── Route metadata ────────────────────────────────────────────────────────

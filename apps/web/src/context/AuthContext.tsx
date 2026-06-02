@@ -3,6 +3,7 @@ import {
   useContext,
   useState,
   useCallback,
+  useEffect,
   type ReactNode,
 } from "react";
 import * as api from "../api/client";
@@ -36,6 +37,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await api.loginUser(emailVal, passwordVal);
       if (res.auth_token) {
         localStorage.setItem("hb_auth_token", res.auth_token);
+        if (res.refresh_token) {
+          localStorage.setItem("hb_refresh_token", res.refresh_token);
+        }
         localStorage.setItem("hb_auth_email", emailVal);
         setToken(res.auth_token);
         setEmail(emailVal);
@@ -62,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     localStorage.removeItem("hb_auth_token");
+    localStorage.removeItem("hb_refresh_token");
     localStorage.removeItem("hb_auth_email");
     setToken(null);
     setEmail(null);
@@ -69,6 +74,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearError = useCallback(() => setError(null), []);
+
+  useEffect(() => {
+    const handleExpired = () => {
+      logout();
+      setError("Session expired. Please log in again.");
+    };
+    window.addEventListener("hb_session_expired", handleExpired);
+    return () => window.removeEventListener("hb_session_expired", handleExpired);
+  }, [logout]);
 
   return (
     <AuthContext.Provider

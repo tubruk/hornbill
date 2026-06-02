@@ -4,6 +4,47 @@ const BASE = "/api/v1";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+let refreshPromise: Promise<string | null> | null = null;
+
+async function doTokenRefresh(): Promise<string | null> {
+  const refreshToken = localStorage.getItem("hb_refresh_token");
+  if (!refreshToken) {
+    return null;
+  }
+  try {
+    const res = await fetch(`${BASE}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    if (!res.ok) {
+      throw new Error("Refresh failed");
+    }
+    const data = await res.json();
+    if (data.auth_token) {
+      localStorage.setItem("hb_auth_token", data.auth_token);
+      if (data.refresh_token) {
+        localStorage.setItem("hb_refresh_token", data.refresh_token);
+      }
+      return data.auth_token;
+    }
+    return null;
+  } catch (err) {
+    console.error("Token refresh failed:", err);
+    return null;
+  }
+}
+
+function getOrRefreshAuthToken(): Promise<string | null> {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+  refreshPromise = doTokenRefresh().finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
+}
+
 async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers || {});
   const token = localStorage.getItem("hb_auth_token");
@@ -11,10 +52,36 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const res = await fetch(`${BASE}${url}`, {
+  let res = await fetch(`${BASE}${url}`, {
     ...init,
     headers,
   });
+
+  const isAuthRoute = url.startsWith("/auth/login") || url.startsWith("/auth/register") || url.startsWith("/auth/refresh");
+
+  if (res.status === 401 && !isAuthRoute) {
+    const refreshToken = localStorage.getItem("hb_refresh_token");
+    if (refreshToken) {
+      const newToken = await getOrRefreshAuthToken();
+      if (newToken) {
+        const retryHeaders = new Headers(init?.headers || {});
+        retryHeaders.set("Authorization", `Bearer ${newToken}`);
+        res = await fetch(`${BASE}${url}`, {
+          ...init,
+          headers: retryHeaders,
+        });
+      }
+    }
+  }
+
+  if (res.status === 401 && !isAuthRoute) {
+    localStorage.removeItem("hb_auth_token");
+    localStorage.removeItem("hb_refresh_token");
+    localStorage.removeItem("hb_auth_email");
+    window.dispatchEvent(new CustomEvent("hb_session_expired"));
+    throw new Error("Session expired. Please log in again.");
+  }
+
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as any).error ?? `HTTP ${res.status}`);

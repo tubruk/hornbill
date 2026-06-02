@@ -77,6 +77,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  useEffect(() => {
+    const handleExpired = () => {
+      notify("Session expired. Please log in again.", "error");
+    };
+    window.addEventListener("hb_session_expired", handleExpired);
+    return () => window.removeEventListener("hb_session_expired", handleExpired);
+  }, [notify]);
+
   return (
     <AppContext.Provider
       value={{
