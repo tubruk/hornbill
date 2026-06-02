@@ -4,7 +4,7 @@ import {
   useQueryClient,
   type UseQueryOptions,
 } from "@tanstack/react-query";
-import type { Account, Bill, Payment } from "@hornbill/core";
+import type { Account, Bill, Payment, ExportPayload } from "@hornbill/core";
 import {
   fetchAccounts,
   createAccount,
@@ -18,6 +18,7 @@ import {
   payPayment,
 
   triggerAccountSync,
+  importAccount,
   type CreateBillPayload,
   type UpdateBillPayload,
 } from "./client";
@@ -179,6 +180,19 @@ export function useTriggerAccountSync(accountId: string) {
     onSuccess: () => {
       // After sync new payments may have been generated
       qc.invalidateQueries({ queryKey: ["payments"] });
+    },
+  });
+}
+
+// ── Export / Import ────────────────────────────────────────────────────────
+
+export function useImportAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ payload, regenerateIds }: { payload: ExportPayload; regenerateIds: boolean }) =>
+      importAccount(payload, regenerateIds),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.accounts() });
     },
   });
 }

@@ -1,4 +1,4 @@
-import type { Account, Bill, Payment } from "@hornbill/core";
+import type { Account, Bill, Payment, ExportPayload } from "@hornbill/core";
 
 const BASE = "/api/v1";
 
@@ -211,6 +211,20 @@ export function triggerSync(): Promise<{ processed: number; generated: number }>
 // Scoped sync for a specific account
 export function triggerAccountSync(accountId: string): Promise<{ processed: number; generated: number }> {
   return apiFetch(`/jobs/sync/account/${encodeURIComponent(accountId)}`, { method: "POST" });
+}
+
+// ── Export / Import ────────────────────────────────────────────────────────
+
+export function exportAccount(accountId: string): Promise<ExportPayload> {
+  return apiFetch<ExportPayload>(`/accounts/${encodeURIComponent(accountId)}/export`);
+}
+
+export function importAccount(payload: ExportPayload, regenerateIds: boolean): Promise<Account> {
+  return apiFetch<Account>(`/accounts/import?regenerate_ids=${regenerateIds}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 }
 
 
