@@ -204,6 +204,31 @@ export const ISO_4217_CURRENCIES = [
   { code: "ZWL", name: "Zimbabwean Dollar" }
 ] as const;
 
+export const NotificationProviderSchema = z.object({
+  type: z.enum(["webhook", "slack", "discord", "telegram", "console", "gotify", "ntfy"]),
+  config: z.object({
+    webhookUrl: z.string().url().optional().or(z.literal("")),
+    botToken: z.string().optional().or(z.literal("")),
+    chatId: z.string().optional().or(z.literal("")),
+    gotifyUrl: z.string().url().optional().or(z.literal("")),
+    gotifyToken: z.string().optional().or(z.literal("")),
+    ntfyUrl: z.string().url().optional().or(z.literal("")),
+    ntfyToken: z.string().optional().or(z.literal("")),
+  }),
+});
+
+export type NotificationProvider = z.infer<typeof NotificationProviderSchema>;
+
+export const NotificationReminderSchema = z.object({
+  enabled: z.boolean(),
+  days_before_due: z.number().int().nonnegative(),
+  time: z.string().regex(/^\d{2}:\d{2}$/, "Must be in HH:MM format"),
+  timezone: z.string().min(1),
+  last_reminded_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be in YYYY-MM-DD format").nullable().optional(),
+});
+
+export type NotificationReminder = z.infer<typeof NotificationReminderSchema>;
+
 export const AccountSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -211,6 +236,8 @@ export const AccountSchema = z.object({
   currencies: z.array(z.string().regex(/^[A-Z]{3}$/, "Must be a 3-character uppercase ISO 4217 code")).min(1, "At least one currency is required"),
   default_currency: z.string().regex(/^[A-Z]{3}$/, "Must be a 3-character uppercase ISO 4217 code"),
   archived: z.boolean(),
+  notification_provider: NotificationProviderSchema.default({ type: "webhook", config: {} }),
+  notification_reminder: NotificationReminderSchema.default({ enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null }),
   created_at: z.number().int(),
   updated_at: z.number().int(),
 }).refine(data => data.currencies.includes(data.default_currency), {
