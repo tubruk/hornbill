@@ -1,5 +1,5 @@
 import { expect, test, describe, spyOn, beforeEach, afterEach } from "bun:test";
-import { TrailbaseClient, db, getDb, verifyToken } from "./trailbase";
+import { TrailbaseClient, db, getDb, verifyToken, verifyAccountAccess, verifyBillAccess, verifyPaymentAccess } from "./trailbase";
 import * as fs from "fs";
 import * as jwt from "hono/jwt";
 
@@ -261,6 +261,114 @@ describe("Trailbase Integration", () => {
       const payload = await verifyToken("Bearer dummy-jwt");
       expect(payload).toEqual({ sub: "user-123" });
       expect(jwtVerifySpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("Access Verification Helpers", () => {
+    let getMap: Map<string, any>;
+    let setSpy: any;
+    let contextMock: any;
+
+    beforeEach(() => {
+      getMap = new Map();
+      setSpy = spyOn(getMap, "set");
+      contextMock = {
+        get: (key: string) => getMap.get(key),
+        set: (key: string, val: any) => getMap.set(key, val),
+        req: {
+          header: (name: string) => {
+            if (name === "Authorization") return "Bearer valid-token";
+            return null;
+          }
+        }
+      };
+    });
+
+    describe("verifyAccountAccess", () => {
+      test("succeeds with cached user and matching cached account ID", async () => {
+        getMap.set("user", { sub: "user-123" });
+        getMap.set("myAccountIds", new Set(["acc-1"]));
+        const hasAccess = await verifyAccountAccess(contextMock as any, "acc-1");
+        expect(hasAccess).toBe(true);
+      });
+
+      test("fails with cached user and non-matching cached account ID", async () => {
+        getMap.set("user", { sub: "user-123" });
+        getMap.set("myAccountIds", new Set(["acc-1"]));
+        const hasAccess = await verifyAccountAccess(contextMock as any, "acc-2");
+        expect(hasAccess).toBe(false);
+      });
+
+      test("succeeds by verifying Auth header and loading accounts from db when cache is empty", async () => {
+        const hasAccess = await verifyAccountAccess(contextMock as any, "acc-1");
+        expect(hasAccess).toBe(true);
+        expect(getMap.get("myAccountIds")).toBeInstanceOf(Set);
+        expect(getMap.get("myAccountIds").has("acc-1")).toBe(true);
+      });
+
+      test("fails when Auth header is missing and no user in cache", async () => {
+        contextMock.req.header = () => null;
+        const hasAccess = await verifyAccountAccess(contextMock as any, "acc-1");
+        expect(hasAccess).toBe(false);
+      });
+
+      test("fails when token verification throws an error", async () => {
+        jwtVerifySpy.mockRejectedValue(new Error("JWT verify error"));
+        const hasAccess = await verifyAccountAccess(contextMock as any, "acc-1");
+        expect(hasAccess).toBe(false);
+      });
+
+      test("fails when listing account users fails", async () => {
+        fetchSpy.mockResolvedValue(new Response("Db Error", { status: 500 }));
+        const hasAccess = await verifyAccountAccess(contextMock as any, "acc-1");
+        expect(hasAccess).toBe(false);
+      });
+    });
+
+    describe("verifyBillAccess", () => {
+      test("succeeds with cached bill matching the id", async () => {
+        getMap.set("user", { sub: "user-123" });
+        getMap.set("myAccountIds", new Set(["acc-1"]));
+        getMap.set("bill", { id: "bill-1", account_id: "acc-1" });
+        const hasAccess = await verifyBillAccess(contextMock as any, "bill-1");
+        expect(hasAccess).toBe(true);
+      });
+
+      test("succeeds by loading bill from db when cache is empty/mismatching", async () => {
+        getMap.set("user", { sub: "user-123" });
+        getMap.set("myAccountIds", new Set(["acc-1"]));
+        const hasAccess = await verifyBillAccess(contextMock as any, "bill-1");
+        expect(hasAccess).toBe(true);
+      });
+
+      test("fails when database load throws an error", async () => {
+        fetchSpy.mockResolvedValue(new Response("Db Error", { status: 500 }));
+        const hasAccess = await verifyBillAccess(contextMock as any, "bill-1");
+        expect(hasAccess).toBe(false);
+      });
+    });
+
+    describe("verifyPaymentAccess", () => {
+      test("succeeds with cached payment matching the id", async () => {
+        getMap.set("user", { sub: "user-123" });
+        getMap.set("myAccountIds", new Set(["acc-1"]));
+        getMap.set("payment", { id: "pay-1", bill_id: "bill-1" });
+        const hasAccess = await verifyPaymentAccess(contextMock as any, "pay-1");
+        expect(hasAccess).toBe(true);
+      });
+
+      test("succeeds by loading payment from db when cache is empty/mismatching", async () => {
+        getMap.set("user", { sub: "user-123" });
+        getMap.set("myAccountIds", new Set(["acc-1"]));
+        const hasAccess = await verifyPaymentAccess(contextMock as any, "pay-1");
+        expect(hasAccess).toBe(true);
+      });
+
+      test("fails when database load throws an error", async () => {
+        fetchSpy.mockResolvedValue(new Response("Db Error", { status: 500 }));
+        const hasAccess = await verifyPaymentAccess(contextMock as any, "pay-1");
+        expect(hasAccess).toBe(false);
+      });
     });
   });
 });

@@ -332,4 +332,380 @@ describe("Payment Reminders Service", () => {
       globalThis.Date = originalDate;
     }
   });
+
+  test("skips reminder if timezone is invalid", async () => {
+    const acc = mockAccount({
+      notification_reminder: {
+        enabled: true,
+        days_before_due: 3,
+        time: "09:00",
+        timezone: "Invalid/Timezone_Name",
+        last_reminded_date: null,
+      },
+    });
+    listAccountsSpy.mockResolvedValue([acc]);
+    await processPaymentReminders();
+    expect(listBillsSpy).not.toHaveBeenCalled();
+  });
+
+  test("skips reminders if listAccounts throws an error", async () => {
+    listAccountsSpy.mockRejectedValue(new Error("Db failure"));
+    await processPaymentReminders();
+    expect(listBillsSpy).not.toHaveBeenCalled();
+  });
+
+  test("gracefully handles errors in account reminder loop", async () => {
+    const acc = mockAccount();
+    listAccountsSpy.mockResolvedValue([acc]);
+    listBillsSpy.mockRejectedValue(new Error("Db connection lost"));
+    await processPaymentReminders();
+    // Should log and not throw
+  });
+
+  test("marks today as done and skips if no active bills", async () => {
+    const acc = mockAccount({
+      notification_reminder: {
+        enabled: true,
+        days_before_due: 3,
+        time: "08:00",
+        timezone: "UTC",
+        last_reminded_date: null,
+      },
+    });
+    const bill = mockBill({ active: false });
+    listAccountsSpy.mockResolvedValue([acc]);
+    listBillsSpy.mockResolvedValue([bill]);
+
+    const originalDate = globalThis.Date;
+    globalThis.Date = class extends originalDate {
+      constructor() {
+        super("2026-06-03T09:00:00Z");
+      }
+    } as any;
+
+    try {
+      await processPaymentReminders();
+      expect(updateAccountSpy).toHaveBeenCalledWith("acc-123", {
+        notification_reminder: {
+          enabled: true,
+          days_before_due: 3,
+          time: "08:00",
+          timezone: "UTC",
+          last_reminded_date: "2026-06-03",
+        },
+      });
+    } finally {
+      globalThis.Date = originalDate;
+    }
+  });
+
+  test("marks today as done and skips if no payments are due soon or overdue", async () => {
+    const acc = mockAccount({
+      notification_reminder: {
+        enabled: true,
+        days_before_due: 3,
+        time: "08:00",
+        timezone: "UTC",
+        last_reminded_date: null,
+      },
+    });
+    const bill = mockBill();
+    const pay = mockPayment({ due_date: "2026-06-15" });
+
+    listAccountsSpy.mockResolvedValue([acc]);
+    listBillsSpy.mockResolvedValue([bill]);
+    listPaymentsSpy.mockResolvedValue([pay]);
+
+    const originalDate = globalThis.Date;
+    globalThis.Date = class extends originalDate {
+      constructor(...args: any[]) {
+        if (args.length > 0) {
+          super(args[0]);
+        } else {
+          super("2026-06-03T09:00:00Z");
+        }
+      }
+    } as any;
+
+    try {
+      await processPaymentReminders();
+      expect(updateAccountSpy).toHaveBeenCalledWith("acc-123", {
+        notification_reminder: {
+          enabled: true,
+          days_before_due: 3,
+          time: "08:00",
+          timezone: "UTC",
+          last_reminded_date: "2026-06-03",
+        },
+      });
+    } finally {
+      globalThis.Date = originalDate;
+    }
+  });
+
+  test("sends Discord alert with overdue styling, and handles missing config & api errors", async () => {
+    // 1. Missing Webhook URL configuration
+    const accNoUrl = mockAccount({
+      notification_provider: { type: "discord", config: {} },
+    });
+    const bill = mockBill();
+    const pay = mockPayment({ due_date: "2026-06-02" }); // overdue
+
+    const originalDate = globalThis.Date;
+    globalThis.Date = class extends originalDate {
+      constructor() {
+        super("2026-06-03T09:00:00Z");
+      }
+    } as any;
+
+    try {
+      listAccountsSpy.mockResolvedValue([accNoUrl]);
+      listBillsSpy.mockResolvedValue([bill]);
+      listPaymentsSpy.mockResolvedValue([pay]);
+      await processPaymentReminders();
+      expect(fetchSpy).not.toHaveBeenCalled();
+
+      // 2. Overdue styling and API success
+      const accOk = mockAccount({
+        notification_provider: { type: "discord", config: { webhookUrl: "https://discord.com/mock" } },
+      });
+      listAccountsSpy.mockResolvedValue([accOk]);
+      fetchSpy.mockResolvedValue(new Response("ok", { status: 200 }));
+      await processPaymentReminders();
+      expect(fetchSpy).toHaveBeenCalled();
+      const [url, options] = fetchSpy.mock.calls[0];
+      expect(url).toBe("https://discord.com/mock");
+      const payload = JSON.parse(options?.body as string);
+      expect(payload.embeds[0].color).toBe(0xDC2626); // Error Red for overdue
+      expect(payload.embeds[0].fields[1].value).toContain("Overdue");
+
+      // 3. API Error response
+      fetchSpy.mockReset().mockResolvedValue(new Response("Rate limit", { status: 429 }));
+      await processPaymentReminders(); // Should log error and not crash
+    } finally {
+      globalThis.Date = originalDate;
+    }
+  });
+
+  test("sends Slack alerts, handles missing config & API error", async () => {
+    const accNoUrl = mockAccount({
+      notification_provider: { type: "slack", config: {} },
+    });
+    const bill = mockBill();
+    const pay = mockPayment({ due_date: "2026-06-02" }); // overdue
+
+    const originalDate = globalThis.Date;
+    globalThis.Date = class extends originalDate {
+      constructor() {
+        super("2026-06-03T09:00:00Z");
+      }
+    } as any;
+
+    try {
+      listAccountsSpy.mockResolvedValue([accNoUrl]);
+      listBillsSpy.mockResolvedValue([bill]);
+      listPaymentsSpy.mockResolvedValue([pay]);
+      await processPaymentReminders();
+      expect(fetchSpy).not.toHaveBeenCalled();
+
+      const accOk = mockAccount({
+        notification_provider: { type: "slack", config: { webhookUrl: "https://slack.com/mock" } },
+      });
+      listAccountsSpy.mockResolvedValue([accOk]);
+      fetchSpy.mockResolvedValue(new Response("ok", { status: 200 }));
+      await processPaymentReminders();
+      expect(fetchSpy).toHaveBeenCalled();
+      const [url, options] = fetchSpy.mock.calls[0];
+      expect(url).toBe("https://slack.com/mock");
+      const payload = JSON.parse(options?.body as string);
+      expect(payload.blocks[3].text.text).toContain("Overdue");
+
+      fetchSpy.mockReset().mockResolvedValue(new Response("Unauthorized", { status: 401 }));
+      await processPaymentReminders(); // Should log error
+    } finally {
+      globalThis.Date = originalDate;
+    }
+  });
+
+  test("sends Telegram alerts, handles missing config & API error", async () => {
+    const accNoConfig = mockAccount({
+      notification_provider: { type: "telegram", config: {} },
+    });
+    const bill = mockBill();
+    const pay = mockPayment({ due_date: "2026-06-02" }); // overdue
+
+    const originalDate = globalThis.Date;
+    globalThis.Date = class extends originalDate {
+      constructor() {
+        super("2026-06-03T09:00:00Z");
+      }
+    } as any;
+
+    try {
+      listAccountsSpy.mockResolvedValue([accNoConfig]);
+      listBillsSpy.mockResolvedValue([bill]);
+      listPaymentsSpy.mockResolvedValue([pay]);
+      await processPaymentReminders();
+      expect(fetchSpy).not.toHaveBeenCalled();
+
+      const accOk = mockAccount({
+        notification_provider: { type: "telegram", config: { botToken: "tok", chatId: "123" } },
+      });
+      listAccountsSpy.mockResolvedValue([accOk]);
+      fetchSpy.mockResolvedValue(new Response("ok", { status: 200 }));
+      await processPaymentReminders();
+      expect(fetchSpy).toHaveBeenCalled();
+      const [url, options] = fetchSpy.mock.calls[0];
+      expect(url).toBe("https://api.telegram.org/bottok/sendMessage");
+      const payload = JSON.parse(options?.body as string);
+      expect(payload.text).toContain("Overdue");
+
+      fetchSpy.mockReset().mockResolvedValue(new Response("Bad Request", { status: 400 }));
+      await processPaymentReminders(); // Should log error
+    } finally {
+      globalThis.Date = originalDate;
+    }
+  });
+
+  test("sends Webhook alerts, handles missing config & API error", async () => {
+    const accNoUrl = mockAccount({
+      notification_provider: { type: "webhook", config: {} },
+    });
+    const bill = mockBill();
+    const pay = mockPayment({ due_date: "2026-06-02" }); // overdue
+
+    const originalDate = globalThis.Date;
+    globalThis.Date = class extends originalDate {
+      constructor() {
+        super("2026-06-03T09:00:00Z");
+      }
+    } as any;
+
+    try {
+      listAccountsSpy.mockResolvedValue([accNoUrl]);
+      listBillsSpy.mockResolvedValue([bill]);
+      listPaymentsSpy.mockResolvedValue([pay]);
+      await processPaymentReminders();
+      expect(fetchSpy).not.toHaveBeenCalled();
+
+      const accOk = mockAccount({
+        notification_provider: { type: "webhook", config: { webhookUrl: "https://webhook.mock" } },
+      });
+      listAccountsSpy.mockResolvedValue([accOk]);
+      fetchSpy.mockResolvedValue(new Response("ok", { status: 200 }));
+      await processPaymentReminders();
+      expect(fetchSpy).toHaveBeenCalled();
+      const [url, options] = fetchSpy.mock.calls[0];
+      expect(url).toBe("https://webhook.mock");
+      const payload = JSON.parse(options?.body as string);
+      expect(payload.payments[0].is_overdue).toBe(true);
+
+      fetchSpy.mockReset().mockResolvedValue(new Response("Internal Error", { status: 500 }));
+      await processPaymentReminders(); // Should log error
+    } finally {
+      globalThis.Date = originalDate;
+    }
+  });
+
+  test("sends Gotify alerts, handles missing config & API error", async () => {
+    const accNoConfig = mockAccount({
+      notification_provider: { type: "gotify", config: {} },
+    });
+    const bill = mockBill();
+    const pay = mockPayment({ due_date: "2026-06-02" }); // overdue
+
+    const originalDate = globalThis.Date;
+    globalThis.Date = class extends originalDate {
+      constructor() {
+        super("2026-06-03T09:00:00Z");
+      }
+    } as any;
+
+    try {
+      listAccountsSpy.mockResolvedValue([accNoConfig]);
+      listBillsSpy.mockResolvedValue([bill]);
+      listPaymentsSpy.mockResolvedValue([pay]);
+      await processPaymentReminders();
+      expect(fetchSpy).not.toHaveBeenCalled();
+
+      const accOk = mockAccount({
+        notification_provider: { type: "gotify", config: { gotifyUrl: "https://gotify.mock", gotifyToken: "tok" } },
+      });
+      listAccountsSpy.mockResolvedValue([accOk]);
+      fetchSpy.mockResolvedValue(new Response("ok", { status: 200 }));
+      await processPaymentReminders();
+      expect(fetchSpy).toHaveBeenCalled();
+
+      fetchSpy.mockReset().mockResolvedValue(new Response("Unauthorized", { status: 401 }));
+      await processPaymentReminders(); // Should log error
+    } finally {
+      globalThis.Date = originalDate;
+    }
+  });
+
+  test("sends ntfy alerts, handles missing config & API error", async () => {
+    const accNoConfig = mockAccount({
+      notification_provider: { type: "ntfy", config: {} },
+    });
+    const bill = mockBill();
+    const pay = mockPayment({ due_date: "2026-06-02" }); // overdue
+
+    const originalDate = globalThis.Date;
+    globalThis.Date = class extends originalDate {
+      constructor() {
+        super("2026-06-03T09:00:00Z");
+      }
+    } as any;
+
+    try {
+      listAccountsSpy.mockResolvedValue([accNoConfig]);
+      listBillsSpy.mockResolvedValue([bill]);
+      listPaymentsSpy.mockResolvedValue([pay]);
+      await processPaymentReminders();
+      expect(fetchSpy).not.toHaveBeenCalled();
+
+      // ntfy without token
+      const accOkNoToken = mockAccount({
+        notification_provider: { type: "ntfy", config: { ntfyUrl: "https://ntfy.sh/mock" } },
+      });
+      listAccountsSpy.mockResolvedValue([accOkNoToken]);
+      fetchSpy.mockResolvedValue(new Response("ok", { status: 200 }));
+      await processPaymentReminders();
+      expect(fetchSpy).toHaveBeenCalled();
+      const [, options] = fetchSpy.mock.calls[0];
+      expect(options?.headers).not.toHaveProperty("Authorization");
+
+      fetchSpy.mockReset().mockResolvedValue(new Response("Internal Error", { status: 500 }));
+      await processPaymentReminders(); // Should log error
+    } finally {
+      globalThis.Date = originalDate;
+    }
+  });
+
+  test("throws error when using unsupported notification channel type", async () => {
+    const acc = mockAccount({
+      notification_provider: {
+        type: "unsupported" as any,
+        config: {},
+      },
+    });
+    const bill = mockBill();
+    const pay = mockPayment({ due_date: "2026-06-05" });
+
+    const originalDate = globalThis.Date;
+    globalThis.Date = class extends originalDate {
+      constructor() {
+        super("2026-06-03T09:00:00Z");
+      }
+    } as any;
+
+    try {
+      listAccountsSpy.mockResolvedValue([acc]);
+      listBillsSpy.mockResolvedValue([bill]);
+      listPaymentsSpy.mockResolvedValue([pay]);
+      await processPaymentReminders(); // Should log error and not crash
+    } finally {
+      globalThis.Date = originalDate;
+    }
+  });
 });
