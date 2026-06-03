@@ -20,7 +20,9 @@ import {
   useUpdateAccount,
   useDeleteAccount,
   useCreateAccount,
+  useImportAccount,
 } from "../api/queries";
+import { exportAccount } from "../api/client";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
@@ -60,6 +62,11 @@ export function SettingsView() {
   const updateAccountMut = useUpdateAccount();
   const deleteAccountMut = useDeleteAccount();
   const createAccountMut = useCreateAccount();
+  const importAccountMut = useImportAccount();
+
+  const [exporting, setExporting] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [regenerateIds, setRegenerateIds] = useState(true);
 
   // --- Active Account Configuration States ---
   const [name, setName] = useState(currentAccount?.name ?? "");
@@ -242,6 +249,72 @@ export function SettingsView() {
       },
       onError: (err: any) => notify(err.message ?? "Failed to delete account.", "error"),
     });
+  }
+
+  async function handleExport() {
+    if (!currentAccount) return;
+    setExporting(true);
+    try {
+      const payload = await exportAccount(currentAccount.id);
+      const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+        JSON.stringify(payload, null, 2)
+      )}`;
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", jsonString);
+      const safeName = currentAccount.name.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+      downloadAnchor.setAttribute("download", `hornbill-backup-${safeName}-${payload.exported_at}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      
+      notify(`Backup JSON file generated for "${currentAccount.name}"`, "success");
+    } catch (err: any) {
+      notify(err.message ?? "Failed to export account", "error");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files && e.target.files.length > 0) {
+      setSelectedFile(e.target.files[0]);
+    } else {
+      setSelectedFile(null);
+    }
+  }
+
+  async function handleImport() {
+    if (!selectedFile) return;
+    try {
+      const text = await selectedFile.text();
+      let parsedPayload: any;
+      try {
+        parsedPayload = JSON.parse(text);
+      } catch {
+        notify("Invalid JSON file format", "error");
+        return;
+      }
+      
+      importAccountMut.mutate(
+        { payload: parsedPayload, regenerateIds },
+        {
+          onSuccess: (newAccount) => {
+            notify(`Account "${newAccount.name}" successfully imported and created!`, "success");
+            setCurrentAccount(newAccount);
+            setSelectedFile(null);
+          },
+          onError: (err: any) => {
+            if (err.message && err.message.includes("Conflict")) {
+              notify("Conflict detected: Some database records matching these IDs already exist. Please check 'Regenerate IDs / Avoid Conflicts' and try again.", "error");
+            } else {
+              notify(err.message ?? "Import failed.", "error");
+            }
+          },
+        }
+      );
+    } catch (err: any) {
+      notify(`Failed to read backup file: ${err.message}`, "error");
+    }
   }
 
   // --- Currency Autocomplete Filtering ---
@@ -632,6 +705,94 @@ export function SettingsView() {
               </p>
             )}
           </Card>
+
+          {/* --- Account Backup & Portability --- */}
+          {currentAccount && (
+            <Card hoverable={false} className="p-6">
+              <h4 className="font-display font-semibold text-[20px] text-text-primary mb-2 flex items-center gap-2 pb-3 border-b border-border-warm">
+                <RefreshCw className="w-5 h-5 text-primary" />
+                Data Portability
+              </h4>
+              <p className="text-[14px] text-text-secondary mb-5 leading-relaxed">
+                Export settings, bills, and payments for the active account <span className="font-semibold text-text-primary">&quot;{currentAccount.name}&quot;</span>, or import a JSON backup file to create a new account.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 divide-y md:divide-y-0 md:divide-x divide-border-warm">
+                {/* Export Column */}
+                <div className="space-y-4 pb-4 md:pb-0">
+                  <h5 className="font-body font-semibold text-[15px] text-text-primary flex items-center gap-2">
+                    Export Account Backup
+                  </h5>
+                  <p className="text-[13px] text-text-secondary leading-relaxed">
+                    Download a secure JSON file containing all settings, bills, and payment records for this account.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="medium"
+                    onClick={handleExport}
+                    disabled={exporting}
+                    className="w-full md:w-auto gap-2"
+                  >
+                    {exporting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "Export Account Data"
+                    )}
+                  </Button>
+                </div>
+
+                {/* Import Column */}
+                <div className="space-y-4 pt-4 md:pt-0 md:pl-6">
+                  <h5 className="font-body font-semibold text-[15px] text-text-primary flex items-center gap-2">
+                    Import Account Backup
+                  </h5>
+                  <p className="text-[13px] text-text-secondary leading-relaxed">
+                    Upload a previously exported JSON backup file. This creates a new account under your profile with the imported data.
+                  </p>
+                  
+                  <div className="space-y-3">
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={handleFileChange}
+                      className="w-full text-[13px] file:mr-3 file:py-1.5 file:px-3 file:rounded-sm file:border file:border-border-warm file:bg-surface-raised file:text-text-primary file:font-semibold hover:file:bg-surface-warm file:cursor-pointer text-text-secondary font-medium"
+                    />
+
+                    <label className="flex items-start gap-2.5 cursor-pointer text-[13px] font-semibold text-text-primary select-none">
+                      <input
+                        type="checkbox"
+                        checked={regenerateIds}
+                        onChange={(e) => setRegenerateIds(e.target.checked)}
+                        className="mt-0.5 rounded-sm border-border-warm text-primary focus:ring-primary/12 cursor-pointer"
+                      />
+                      <span className="leading-tight">
+                        Regenerate IDs / Avoid Conflicts
+                        <span className="block text-[11px] font-normal text-text-secondary mt-0.5">
+                          Create as a new independent copy if the backup already exists in this database.
+                        </span>
+                      </span>
+                    </label>
+
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="medium"
+                      onClick={handleImport}
+                      disabled={importAccountMut.isPending || !selectedFile}
+                      className="w-full md:w-auto gap-2"
+                    >
+                      {importAccountMut.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        "Upload & Import Data"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* --- Manage Accounts List Pane --- */}
