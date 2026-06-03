@@ -67,6 +67,21 @@ export function SettingsView() {
   const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>(currentAccount?.currencies ?? ["IDR", "USD"]);
   const [defaultCurrency, setDefaultCurrency] = useState(currentAccount?.default_currency ?? "IDR");
 
+  // --- Notification Reminder States ---
+  const [reminderEnabled, setReminderEnabled] = useState(currentAccount?.notification_reminder?.enabled ?? false);
+  const [reminderDays, setReminderDays] = useState(currentAccount?.notification_reminder?.days_before_due ?? 3);
+  const [reminderTime, setReminderTime] = useState(currentAccount?.notification_reminder?.time ?? "09:00");
+  const [reminderTimezone, setReminderTimezone] = useState(currentAccount?.notification_reminder?.timezone ?? "UTC");
+
+  const [providerType, setProviderType] = useState(currentAccount?.notification_provider?.type ?? "webhook");
+  const [webhookUrl, setWebhookUrl] = useState(currentAccount?.notification_provider?.config?.webhookUrl ?? "");
+  const [botToken, setBotToken] = useState(currentAccount?.notification_provider?.config?.botToken ?? "");
+  const [chatId, setChatId] = useState(currentAccount?.notification_provider?.config?.chatId ?? "");
+  const [gotifyUrl, setGotifyUrl] = useState(currentAccount?.notification_provider?.config?.gotifyUrl ?? "");
+  const [gotifyToken, setGotifyToken] = useState(currentAccount?.notification_provider?.config?.gotifyToken ?? "");
+  const [ntfyUrl, setNtfyUrl] = useState(currentAccount?.notification_provider?.config?.ntfyUrl ?? "");
+  const [ntfyToken, setNtfyToken] = useState(currentAccount?.notification_provider?.config?.ntfyToken ?? "");
+
   // Autocomplete search states
   const [currencySearch, setCurrencySearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
@@ -95,6 +110,18 @@ export function SettingsView() {
     setThreshold(currentAccount?.upcoming_threshold_days ?? 7);
     setSelectedCurrencies(currentAccount?.currencies ?? ["IDR", "USD"]);
     setDefaultCurrency(currentAccount?.default_currency ?? "IDR");
+    setReminderEnabled(currentAccount?.notification_reminder?.enabled ?? false);
+    setReminderDays(currentAccount?.notification_reminder?.days_before_due ?? 3);
+    setReminderTime(currentAccount?.notification_reminder?.time ?? "09:00");
+    setReminderTimezone(currentAccount?.notification_reminder?.timezone ?? "UTC");
+    setProviderType(currentAccount?.notification_provider?.type ?? "webhook");
+    setWebhookUrl(currentAccount?.notification_provider?.config?.webhookUrl ?? "");
+    setBotToken(currentAccount?.notification_provider?.config?.botToken ?? "");
+    setChatId(currentAccount?.notification_provider?.config?.chatId ?? "");
+    setGotifyUrl(currentAccount?.notification_provider?.config?.gotifyUrl ?? "");
+    setGotifyToken(currentAccount?.notification_provider?.config?.gotifyToken ?? "");
+    setNtfyUrl(currentAccount?.notification_provider?.config?.ntfyUrl ?? "");
+    setNtfyToken(currentAccount?.notification_provider?.config?.ntfyToken ?? "");
   }
 
   // Click outside listener to close search dropdown
@@ -143,6 +170,24 @@ export function SettingsView() {
         upcoming_threshold_days: Number(threshold),
         currencies: selectedCurrencies,
         default_currency: defaultCurrency,
+        notification_reminder: {
+          enabled: reminderEnabled,
+          days_before_due: Number(reminderDays),
+          time: reminderTime,
+          timezone: reminderTimezone,
+        },
+        notification_provider: {
+          type: providerType as any,
+          config: {
+            webhookUrl: (providerType === "webhook" || providerType === "slack" || providerType === "discord") ? webhookUrl : undefined,
+            botToken: providerType === "telegram" ? botToken : undefined,
+            chatId: providerType === "telegram" ? chatId : undefined,
+            gotifyUrl: providerType === "gotify" ? gotifyUrl : undefined,
+            gotifyToken: providerType === "gotify" ? gotifyToken : undefined,
+            ntfyUrl: providerType === "ntfy" ? ntfyUrl : undefined,
+            ntfyToken: providerType === "ntfy" ? ntfyToken : undefined,
+          },
+        },
       },
       {
         onSuccess: () => {
@@ -402,6 +447,167 @@ export function SettingsView() {
                       );
                     })}
                   </select>
+                </div>
+
+                {/* --- Payment Reminders Section --- */}
+                <div className="border-t border-border-warm pt-6 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h5 className="font-display font-semibold text-[17px] text-text-primary">
+                        Due Payment Reminders
+                      </h5>
+                      <p className="text-[13px] text-text-secondary">
+                        Receive aggregated daily reminder notifications for unpaid payments.
+                      </p>
+                    </div>
+                    {/* Toggle Switch */}
+                    <label className="relative inline-flex items-center cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={reminderEnabled}
+                        onChange={(e) => setReminderEnabled(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-surface-raised rounded-full peer peer-focus:outline-none relative after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border-warm after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5 peer-checked:bg-primary"></div>
+                    </label>
+                  </div>
+
+                  {reminderEnabled && (
+                    <div className="space-y-5 animate-slideDown">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Input
+                          label="Days Before Due"
+                          placeholder="e.g. 3"
+                          type="number"
+                          min="0"
+                          value={reminderDays}
+                          onChange={(e) => setReminderDays(Number(e.target.value))}
+                          helperText="0 means remind on due date only"
+                        />
+
+                        {/* Reminder Time */}
+                        <div className="space-y-2">
+                          <label className="font-body text-[14px] font-semibold text-text-primary block">
+                            Reminder Time (HH:MM)
+                          </label>
+                          <input
+                            type="time"
+                            value={reminderTime}
+                            onChange={(e) => setReminderTime(e.target.value)}
+                            className="w-full rounded-sm px-3 py-2.5 text-[15px] font-body bg-surface-warm border border-border-warm hover:border-primary/60 focus:border-primary focus:ring-3 focus:ring-primary/12 text-text-primary outline-none transition-ember h-[46px]"
+                          />
+                        </div>
+
+                        {/* Timezone */}
+                        <div className="space-y-2">
+                          <label className="font-body text-[14px] font-semibold text-text-primary block">
+                            Timezone
+                          </label>
+                          <select
+                            value={reminderTimezone}
+                            onChange={(e) => setReminderTimezone(e.target.value)}
+                            className="w-full rounded-sm p-3 text-[15px] font-body border border-border-warm h-[46px] bg-surface-warm hover:border-primary/60 focus:border-primary focus:ring-3 focus:ring-primary/12 text-text-primary outline-none transition-ember"
+                          >
+                            <option value="UTC">UTC (Coordinated Universal Time)</option>
+                            <option value="GMT">GMT (Greenwich Time)</option>
+                            <option value="Asia/Jakarta">Asia/Jakarta (WIB)</option>
+                            <option value="Asia/Singapore">Asia/Singapore (SGT)</option>
+                            <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                            <option value="America/New_York">America/New_York (EST/EDT)</option>
+                            <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+                            <option value="America/Denver">America/Denver (MST/MDT)</option>
+                            <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+                            <option value="Europe/London">Europe/London (GMT/BST)</option>
+                            <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+                            <option value="Australia/Sydney">Australia/Sydney (AEST/AEDT)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Notification Provider */}
+                      <div className="border-t border-border-warm/50 pt-5 space-y-4">
+                        <div className="space-y-2">
+                          <label className="font-body text-[14px] font-semibold text-text-primary block">
+                            Notification Channel
+                          </label>
+                          <select
+                            value={providerType}
+                            onChange={(e) => setProviderType(e.target.value as any)}
+                            className="w-full md:w-60 rounded-sm p-3 text-[15px] font-body border border-border-warm h-[46px] bg-surface-warm hover:border-primary/60 focus:border-primary focus:ring-3 focus:ring-primary/12 text-text-primary outline-none transition-ember"
+                          >
+                            <option value="discord">Discord Webhook</option>
+                            <option value="slack">Slack Webhook</option>
+                            <option value="telegram">Telegram Bot</option>
+                            <option value="webhook">Generic Webhook</option>
+                            <option value="gotify">Gotify</option>
+                            <option value="ntfy">ntfy</option>
+                            <option value="console">Console Log</option>
+                          </select>
+                        </div>
+
+                        {providerType === "webhook" || providerType === "slack" || providerType === "discord" ? (
+                          <Input
+                            label="Webhook URL"
+                            placeholder="https://..."
+                            value={webhookUrl}
+                            onChange={(e) => setWebhookUrl(e.target.value)}
+                          />
+                        ) : providerType === "telegram" ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeIn">
+                            <Input
+                              label="Telegram Bot Token"
+                              placeholder="123456789:ABCdefGhI..."
+                              type="password"
+                              value={botToken}
+                              onChange={(e) => setBotToken(e.target.value)}
+                            />
+                            <Input
+                              label="Telegram Chat ID"
+                              placeholder="-100123456789 or @channelname"
+                              value={chatId}
+                              onChange={(e) => setChatId(e.target.value)}
+                            />
+                          </div>
+                        ) : providerType === "gotify" ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeIn">
+                            <Input
+                              label="Gotify Server URL"
+                              placeholder="https://gotify.example.com"
+                              value={gotifyUrl}
+                              onChange={(e) => setGotifyUrl(e.target.value)}
+                            />
+                            <Input
+                              label="Gotify App Token"
+                              placeholder="A1b2C3d4E5f..."
+                              type="password"
+                              value={gotifyToken}
+                              onChange={(e) => setGotifyToken(e.target.value)}
+                            />
+                          </div>
+                        ) : providerType === "ntfy" ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeIn">
+                            <Input
+                              label="ntfy Server Topic URL"
+                              placeholder="https://ntfy.sh/my-topic"
+                              value={ntfyUrl}
+                              onChange={(e) => setNtfyUrl(e.target.value)}
+                            />
+                            <Input
+                              label="ntfy Access Token (Optional)"
+                              placeholder="tk_..."
+                              type="password"
+                              value={ntfyToken}
+                              onChange={(e) => setNtfyToken(e.target.value)}
+                            />
+                          </div>
+                        ) : (
+                          <p className="text-[13px] text-text-secondary italic">
+                            Console Log provider requires no configurations. Output will be piped directly to the Hornbill API process stdout.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-2 flex items-center justify-between gap-4 border-t border-border-warm">
