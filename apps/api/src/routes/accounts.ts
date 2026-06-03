@@ -54,6 +54,8 @@ app.post("/", async (c) => {
       currencies: body.currencies ?? ["IDR", "USD"],
       default_currency: body.default_currency ?? "IDR",
       archived: false,
+      notification_provider: body.notification_provider ?? { type: "webhook", config: {} },
+      notification_reminder: body.notification_reminder ?? { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null },
       created_at: now,
       updated_at: now,
     };
@@ -70,6 +72,8 @@ app.post("/", async (c) => {
       currencies: accountData.currencies,
       default_currency: accountData.default_currency,
       archived: accountData.archived,
+      notification_provider: accountData.notification_provider,
+      notification_reminder: accountData.notification_reminder,
     });
     await client.associateUserToAccount(newAccount.id, user.sub);
     return c.json(newAccount, 201);
@@ -115,6 +119,8 @@ app.patch("/:id", checkAccountAccess("param", "id"), async (c) => {
       currencies: body.currencies,
       default_currency: body.default_currency,
       archived: body.archived,
+      notification_provider: body.notification_provider,
+      notification_reminder: body.notification_reminder,
     });
     return c.json(updated);
   } catch (err) {

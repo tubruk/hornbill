@@ -9,19 +9,19 @@ export class BunqueueService implements IQueueService {
   private queue: Bunqueue | null = null;
   private handlers = new Map<string, JobHandler>();
 
-  registerWorker<T = any>(taskName: string, handler: JobHandler<T>): void {
+  registerWorker<T = unknown>(taskName: string, handler: JobHandler<T>): void {
     if (this.handlers.has(taskName)) {
       throw new Error(`Handler for task "${taskName}" is already registered.`);
     }
-    this.handlers.set(taskName, handler);
+    this.handlers.set(taskName, handler as JobHandler);
   }
 
-  async enqueue<T = any>(taskName: string, data: T, options?: JobOptions): Promise<void> {
+  async enqueue<T = unknown>(taskName: string, data: T, options?: JobOptions): Promise<void> {
     if (!this.queue) {
       throw new Error("Queue service is not started. Call start() first.");
     }
 
-    const jobOpts: any = {};
+    const jobOpts: { delay?: number; attempts?: number } = {};
     if (options?.delay) {
       jobOpts.delay = options.delay;
     }

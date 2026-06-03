@@ -94,6 +94,8 @@ describe("API Routes", () => {
         currencies: ["USD"],
         default_currency: "USD",
         archived: false,
+        notification_provider: { type: "webhook", config: {} },
+        notification_reminder: { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null },
         created_at: 0,
         updated_at: 0,
       },

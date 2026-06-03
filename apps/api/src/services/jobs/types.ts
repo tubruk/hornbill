@@ -4,18 +4,18 @@ export interface JobOptions {
   repeatPattern?: string; // Cron pattern for recurring jobs (e.g. "*/60 * * * *")
 }
 
-export type JobHandler<T = any> = (data: T) => Promise<void> | void;
+export type JobHandler<T = unknown> = (data: T) => Promise<void> | void;
 
 export interface IQueueService {
   /**
    * Enqueue a job to be processed.
    */
-  enqueue<T = any>(taskName: string, data: T, options?: JobOptions): Promise<void>;
+  enqueue<T = unknown>(taskName: string, data: T, options?: JobOptions): Promise<void>;
 
   /**
    * Register a handler for a specific task.
    */
-  registerWorker<T = any>(taskName: string, handler: JobHandler<T>): void;
+  registerWorker<T = unknown>(taskName: string, handler: JobHandler<T>): void;
 
   /**
    * Start the background processing (in-process/embedded).

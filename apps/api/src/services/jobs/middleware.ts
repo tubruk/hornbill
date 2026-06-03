@@ -1,4 +1,3 @@
-import type { Job } from "bunqueue/client";
 import type { BunqueueMiddleware } from "bunqueue/client";
 import { logger } from "../logger";
 

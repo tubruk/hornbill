@@ -76,6 +76,8 @@ interface DbAccount {
   default_currency?: string;
   archived?: number | boolean;
   upcoming_threshold_days?: number;
+  notification_provider?: string | Record<string, unknown>;
+  notification_reminder?: string | Record<string, unknown>;
   created_at: number;
   updated_at: number;
 }
@@ -152,13 +154,35 @@ export class TrailbaseClient {
         currencies = ["IDR", "USD"];
       }
     }
+    let notification_provider = { type: "webhook" as const, config: {} };
+    if (acc.notification_provider) {
+      try {
+        notification_provider = typeof acc.notification_provider === "string"
+          ? JSON.parse(acc.notification_provider)
+          : acc.notification_provider;
+      } catch {
+        // Use default
+      }
+    }
+    let notification_reminder = { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null };
+    if (acc.notification_reminder) {
+      try {
+        notification_reminder = typeof acc.notification_reminder === "string"
+          ? JSON.parse(acc.notification_reminder)
+          : acc.notification_reminder;
+      } catch {
+        // Use default
+      }
+    }
     return {
       ...acc,
       currencies,
       default_currency: acc.default_currency ?? "IDR",
       archived: acc.archived !== undefined ? (Number(acc.archived) === 1) : false,
       upcoming_threshold_days: acc.upcoming_threshold_days ?? 7,
-    };
+      notification_provider,
+      notification_reminder,
+    } as Account;
   }
 
   async listAccounts(): Promise<Account[]> {
@@ -179,6 +203,8 @@ export class TrailbaseClient {
       currencies: JSON.stringify(account.currencies ?? ["IDR", "USD"]),
       default_currency: account.default_currency ?? "IDR",
       archived: account.archived ? 1 : 0,
+      notification_provider: JSON.stringify(account.notification_provider ?? { type: "webhook", config: {} }),
+      notification_reminder: JSON.stringify(account.notification_reminder ?? { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null }),
       created_at: now,
       updated_at: now,
     };
@@ -193,6 +219,8 @@ export class TrailbaseClient {
       currencies: account.currencies ?? ["IDR", "USD"],
       default_currency: account.default_currency ?? "IDR",
       archived: account.archived ?? false,
+      notification_provider: account.notification_provider ?? { type: "webhook", config: {} },
+      notification_reminder: account.notification_reminder ?? { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null },
       created_at: now,
       updated_at: now,
     };
@@ -200,7 +228,7 @@ export class TrailbaseClient {
 
   async updateAccount(id: string, updates: Partial<Omit<Account, "id" | "created_at" | "updated_at">>): Promise<Account> {
     const now = Math.floor(Date.now() / 1000);
-    const payload: Partial<Omit<DbAccount, "id" | "created_at" | "updated_at">> & { currencies?: string; archived?: number; updated_at: number } = {
+    const payload: Partial<Omit<DbAccount, "id" | "created_at" | "updated_at">> & { currencies?: string; archived?: number; notification_provider?: string; notification_reminder?: string; updated_at: number } = {
       updated_at: now,
     };
     if (updates.name !== undefined) payload.name = updates.name;
@@ -211,6 +239,12 @@ export class TrailbaseClient {
     }
     if (updates.archived !== undefined) {
       payload.archived = updates.archived ? 1 : 0;
+    }
+    if (updates.notification_provider !== undefined) {
+      payload.notification_provider = JSON.stringify(updates.notification_provider);
+    }
+    if (updates.notification_reminder !== undefined) {
+      payload.notification_reminder = JSON.stringify(updates.notification_reminder);
     }
     await this.request<unknown>(`/api/records/v1/accounts/${id}`, {
       method: "PATCH",

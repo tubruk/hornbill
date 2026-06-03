@@ -151,6 +151,16 @@ registerJobWorkers();
         }
       );
     }
+
+    // Register repeatable cron job for daily reminders (every 15 minutes)
+    logger.info("Registering daily reminder check cron job (every 15 minutes)...");
+    await queueService.enqueue(
+      "daily-reminders",
+      {},
+      {
+        repeatPattern: "*/15 * * * *",
+      }
+    );
   } catch (err) {
     logger.error(err, "Failed to start background job queue service");
   }
