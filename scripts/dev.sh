@@ -34,7 +34,8 @@ mkdir -p "$(dirname "$CONFIG_DST")"
 cp "$CONFIG_SRC" "$CONFIG_DST"
 
 # Copy Trailbase migrations into the data directory
-cp -r "$(pwd)/packages/db/migrations" "$TRAILBASE_DATA_DIR/migrations"
+mkdir -p "$TRAILBASE_DATA_DIR/migrations"
+cp $(pwd)/packages/db/migrations/*.sql "$TRAILBASE_DATA_DIR/migrations/"
 
 # Start Trailbase in the background
 $TRAIL_BIN --data-dir "$TRAILBASE_DATA_DIR" run --address 127.0.0.1:4000 &

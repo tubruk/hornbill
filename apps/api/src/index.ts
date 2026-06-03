@@ -6,7 +6,7 @@ import { logger } from "hono/logger";
 import { trimTrailingSlash } from "hono/trailing-slash";
 import { serveStatic } from "hono/bun";
 import { existsSync } from "fs";
-import { syncAllPayments } from "./services";
+import { queueService, registerJobWorkers } from "./services/jobs";
 import accounts from "./routes/accounts";
 import bills from "./routes/bills";
 import payments from "./routes/payments";
@@ -127,32 +127,43 @@ app.notFound(async (c) => {
   return c.json({ error: "Not Found" }, 404);
 });
 
-// Background runner for periodic payment generation
-const syncIntervalMin = CONFIG.SYNC_INTERVAL_MINUTES;
-if (syncIntervalMin > 0) {
-  console.log(`Auto-sync background daemon active: running every ${syncIntervalMin} minutes.`);
-  
-  // Trigger initial boot-time sync
-  (async () => {
-    try {
-      console.log("Running initial boot-time background payment sync...");
-      const stats = await syncAllPayments();
-      console.log(`Initial auto-sync complete: processed ${stats.processed} active bills, generated ${stats.generated} payments.`);
-    } catch (e) {
-      console.error("Initial auto-sync background daemon failed:", e);
-    }
-  })();
+// Initialize and start background job queue
+registerJobWorkers();
+(async () => {
+  try {
+    await queueService.start();
+    console.log("Background job queue service started successfully.");
 
-  setInterval(async () => {
-    try {
-      console.log("Running automatic background payment sync...");
-      const stats = await syncAllPayments();
-      console.log(`Auto-sync complete: processed ${stats.processed} active bills, generated ${stats.generated} payments.`);
-    } catch (e) {
-      console.error("Auto-sync background daemon failed:", e);
+    // Enqueue initial boot-time sync
+    console.log("Enqueueing initial boot-time payment sync job...");
+    await queueService.enqueue("periodic-sync", {});
+
+    // Register repeatable cron job for automatic sync
+    const syncIntervalMin = CONFIG.SYNC_INTERVAL_MINUTES;
+    if (syncIntervalMin > 0) {
+      console.log(`Registering periodic sync cron job (every ${syncIntervalMin} minutes)...`);
+      await queueService.enqueue(
+        "periodic-sync",
+        {},
+        {
+          repeatPattern: `*/${syncIntervalMin} * * * *`,
+        }
+      );
     }
-  }, syncIntervalMin * 60 * 1000);
-}
+  } catch (err) {
+    console.error("Failed to start background job queue service:", err);
+  }
+})();
+
+// Graceful shutdown of queue service on process termination
+const handleShutdown = async () => {
+  console.log("Shutting down Hornbill API server and queue service...");
+  await queueService.shutdown();
+  process.exit(0);
+};
+
+process.on("SIGTERM", handleShutdown);
+process.on("SIGINT", handleShutdown);
 
 const HOST = CONFIG.HOST;
 const PORT = CONFIG.PORT;
