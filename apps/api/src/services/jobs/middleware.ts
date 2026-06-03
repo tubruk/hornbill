@@ -1,17 +1,27 @@
 import type { Job } from "bunqueue/client";
 import type { BunqueueMiddleware } from "bunqueue/client";
+import { logger } from "../logger";
 
 export const jobLoggingMiddleware: BunqueueMiddleware = async (job, next) => {
   const startTime = Date.now();
-  console.log(`[Job Queue] 🚀 Starting job "${job.name}" (ID: ${job.id}, Attempt: ${job.attemptsMade + 1})`);
+  logger.info(
+    { jobId: job.id, jobName: job.name, attempt: job.attemptsMade + 1 },
+    `[Job Queue] 🚀 Starting job "${job.name}"`
+  );
   try {
     const result = await next();
     const duration = Date.now() - startTime;
-    console.log(`[Job Queue] ✅ Completed job "${job.name}" (ID: ${job.id}) in ${duration}ms`);
+    logger.info(
+      { jobId: job.id, jobName: job.name, durationMs: duration },
+      `[Job Queue] ✅ Completed job "${job.name}" in ${duration}ms`
+    );
     return result;
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(`[Job Queue] ❌ Failed job "${job.name}" (ID: ${job.id}) after ${duration}ms. Error:`, error);
+    logger.error(
+      { jobId: job.id, jobName: job.name, durationMs: duration, err: error },
+      `[Job Queue] ❌ Failed job "${job.name}" after ${duration}ms`
+    );
     throw error;
   }
 };

@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { CONFIG } from "./config";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
-import { logger } from "hono/logger";
+import { requestLogger } from "./middleware/requestLogger";
+import { logger } from "./services/logger";
 import { trimTrailingSlash } from "hono/trailing-slash";
 import { serveStatic } from "hono/bun";
 import { existsSync } from "fs";
@@ -28,7 +29,7 @@ app.use("*", trimTrailingSlash());
 app.use("*", secureHeaders());
 
 // Enable request logging
-app.use("*", logger());
+app.use("*", requestLogger());
 
 // Enable CORS for frontend requests
 app.use(
@@ -94,7 +95,7 @@ app.route("/api/v1", api);
 
 // Centralized error handling
 app.onError((err, c) => {
-  console.error("API Unhandled Error:", err);
+  logger.error(err, "API Unhandled Error");
   const status: ContentfulStatusCode = err.message.includes("Unauthorized") || err.message.includes("Authorization") ? 401 : 500;
   return c.json({ error: err.message || "Internal Server Error" }, status);
 });
@@ -120,7 +121,7 @@ app.notFound(async (c) => {
       const html = await Bun.file(`${CONFIG.WEB_DIST_DIR}/index.html`).text();
       return c.html(html);
     } catch (e) {
-      console.error("Failed to serve SPA index.html:", e);
+      logger.error(e, "Failed to serve SPA index.html");
     }
   }
 
@@ -132,16 +133,16 @@ registerJobWorkers();
 (async () => {
   try {
     await queueService.start();
-    console.log("Background job queue service started successfully.");
+    logger.info("Background job queue service started successfully.");
 
     // Enqueue initial boot-time sync
-    console.log("Enqueueing initial boot-time payment sync job...");
+    logger.info("Enqueueing initial boot-time payment sync job...");
     await queueService.enqueue("periodic-sync", {});
 
     // Register repeatable cron job for automatic sync
     const syncIntervalMin = CONFIG.SYNC_INTERVAL_MINUTES;
     if (syncIntervalMin > 0) {
-      console.log(`Registering periodic sync cron job (every ${syncIntervalMin} minutes)...`);
+      logger.info(`Registering periodic sync cron job (every ${syncIntervalMin} minutes)...`);
       await queueService.enqueue(
         "periodic-sync",
         {},
@@ -151,13 +152,13 @@ registerJobWorkers();
       );
     }
   } catch (err) {
-    console.error("Failed to start background job queue service:", err);
+    logger.error(err, "Failed to start background job queue service");
   }
 })();
 
 // Graceful shutdown of queue service on process termination
 const handleShutdown = async () => {
-  console.log("Shutting down Hornbill API server and queue service...");
+  logger.info("Shutting down Hornbill API server and queue service...");
   await queueService.shutdown();
   process.exit(0);
 };
@@ -167,7 +168,7 @@ process.on("SIGINT", handleShutdown);
 
 const HOST = CONFIG.HOST;
 const PORT = CONFIG.PORT;
-console.log(`Hornbill API is starting on ${HOST}:${PORT}...`);
+logger.info(`Hornbill API is starting on ${HOST}:${PORT}...`);
 
 export default {
   port: PORT,

@@ -1,5 +1,6 @@
 import { BunqueueService } from "./bunqueue";
 import { syncAllPayments } from "../../services";
+import { logger } from "../logger";
 
 export * from "./types";
 
@@ -11,8 +12,8 @@ export const queueService = new BunqueueService();
 export function registerJobWorkers(): void {
   // Periodic payment sync (runs on all accounts)
   queueService.registerWorker("periodic-sync", async () => {
-    console.log(`[Job Worker] Running periodic payment sync (all accounts)...`);
+    logger.info(`[Job Worker] Running periodic payment sync (all accounts)...`);
     const stats = await syncAllPayments();
-    console.log(`[Job Worker] Sync complete. Processed: ${stats.processed}, Generated: ${stats.generated}`);
+    logger.info(`[Job Worker] Sync complete. Processed: ${stats.processed}, Generated: ${stats.generated}`);
   });
 }
