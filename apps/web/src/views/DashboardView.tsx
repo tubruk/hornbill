@@ -169,7 +169,7 @@ export function DashboardView() {
           setPayingPayment(null);
         },
         onError: (err: any) =>
-          notify(err.message ?? "Could not pay payment.", "error"),
+          notify(err.message ?? "Could not mark payment as paid.", "error"),
       }
     );
   }
@@ -315,7 +315,7 @@ export function DashboardView() {
                 Attention Required
               </h3>
               <p className="text-[14px] text-text-secondary font-semibold mt-0.5">
-                {overduePayments.length} bill{overduePayments.length > 1 ? "s are" : " is"} overdue. Review and pay to stay on track.
+                {overduePayments.length} bill{overduePayments.length > 1 ? "s are" : " is"} overdue. Review and mark as paid to stay on track.
               </p>
             </div>
           </div>
@@ -433,7 +433,7 @@ export function DashboardView() {
                         {isPaying ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
-                          "Pay"
+                          "Mark Paid"
                         )}
                       </Button>
                     </div>

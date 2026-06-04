@@ -269,7 +269,7 @@ export function PaymentsView() {
                           )
                         }
                       >
-                        {isPaying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Pay"}
+                        {isPaying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Mark Paid"}
                       </Button>
                     )}
                   </div>

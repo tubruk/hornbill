@@ -249,7 +249,7 @@ export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, cu
               type="submit"
               disabled={isSubmitting}
             >
-              Confirm Payment
+              Mark as Paid
             </Button>
           </div>
         </form>
