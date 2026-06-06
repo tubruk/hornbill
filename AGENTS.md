@@ -1,6 +1,9 @@
+> [!NOTE]
+> This file is strictly reserved for non-obvious project-scoped rules, architecture boundaries, and database quirks that cannot be easily inferred from code or configuration files alone.
+
 # Hornbill Developer & Agent Guidelines
 
-This document details the non-obvious project-scoped rules, architecture boundaries, and database quirks for the Hornbill monorepo. All modifications must comply with these guidelines.
+This document details the non-obvious rules for the Hornbill monorepo. All modifications must comply with these guidelines.
 
 ---
 
@@ -13,6 +16,7 @@ All code contributions must follow these strict commit message rules:
 - **Short Subject**: Keep the subject line under 50 characters, starting with a lowercase verb in the imperative mood.
 - **Brief Description Body**: If a description is needed, separate it from the subject line by a blank line and briefly explain the *why* and *what*, rather than *how*.
 - **No External References**: Do not include Jira tickets, GitHub issue numbers (e.g., `Closes #123`), or other external issue tracking references.
+- **Git Pre-commit Hook**: Always ensure git hooks are installed (run `make git-hooks` to set up). Never bypass pre-commit hooks (such as using `--no-verify` or bypassing during development) unless absolutely necessary.
 
 *Example:*
 ```
@@ -52,4 +56,12 @@ Trailbase runs SQLite in `STRICT` mode. This introduces several critical quirks:
 ## 4. Design System & Styling Rules
 
 All UI components, colors, typography, spacing, border radii, shadows, and layout rules must strictly follow the specifications detailed in [DESIGN.md](file:///home/akhy/Projects/github.com/chickenzord/hornbill/DESIGN.md). Always consult [DESIGN.md](file:///home/akhy/Projects/github.com/chickenzord/hornbill/DESIGN.md) before styling or creating new views and components.
+
+---
+
+## 5. CI & Lint Rules
+
+- **No `any` in Source Files**: Avoid using the `any` type in source code files. This rule is strictly enforced by the ESLint configuration and the Git pre-commit hook.
+- **Codecov Threshold**: Codecov is configured to fail if overall project coverage falls below `90%`, but individual status drops on patches are set to `off` (meaning patch coverage changes are allowed as long as the overall percentage remains at or above 90%).
+
 
