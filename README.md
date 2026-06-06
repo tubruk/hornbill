@@ -14,12 +14,15 @@
 
 [Hornbill](https://en.wikipedia.org/wiki/Hornbill) (known as **Rangkong** or **Enggang** in [Indonesia](https://id.wikipedia.org/wiki/Rangkong)) is a **self‑hosted personal bill tracker** you can run on a single Docker container. It helps you keep track of recurring bills, upcoming due dates, and payment history.
 
-## 💡 Why use it?
+## 💡 Key Features
 
 - **🔒 Your data stays with you** – stored in a local SQLite database (powered by [Trailbase](https://trailbase.io/)).
 - **🐋 Docker-based setup** – simple to run via Docker or docker-compose.
 - **💱 Multi-currency** – supports tracking bills in multiple currencies.
 - **📅 Flexible recurrence** – configure monthly, yearly, or custom intervals.
+- **🔔 Reminder notifications** – daily checks and alert notifications via Discord, Slack, Telegram, ntfy, Gotify, or generic Webhooks.
+- **🔑 API Access & Personal Tokens** – manage Personal Access Tokens (API keys) and build integrations.
+- **📂 Data Portability** – export and import your complete profile, bills, and payment records in JSON format at any time.
 - **🖥️ Simple web UI** – clean, minimalist interface to manage bills and track payment history.
 - **🛡️ Free and open source** – released under the AGPL‑v3.
 
@@ -61,6 +64,7 @@ Open `http://localhost:3000` in your browser to start using Hornbill.
 | `TRAILBASE_DATA_DIR` | Path to Trailbase data directory. | `./data/hornbill` |
 | `REGISTRATION_ENABLED` | Show sign‑up page (`true`) or hide it (`false`). | `false` |
 | `SYNC_INTERVAL_MINUTES` | How often the background job generates payments (minutes). | `1440` |
+| `LOG_LEVEL` | Level of logging (`debug`, `info`, `warn`, `error`). | `info` |
 
 ## 🔁 Recurrence Models
 
@@ -70,19 +74,18 @@ When creating a bill you can select one of the following recurrence options:
 - **Monthly** – billed on a specific day each month (the date is clamped to the last valid day if the month is shorter).
 - **Yearly** – billed on a specific month and day once a year (handles leap‑year dates gracefully).
 - **Custom Interval** – repeat every **N** days, weeks, or months. You can choose the anchoring strategy:
-  - **From Due Date** – the next due date is calculated from the previous due date plus the interval.
-  - **From Paid Date** – the next due date is calculated from the actual payment date (`paid_at`) plus the interval, so the schedule shifts based on when you pay.
+- **From Due Date** – the next due date is calculated from the previous due date plus the interval.
+- **From Paid Date** – the next due date is calculated from the actual payment date (`paid_at`) plus the interval, so the schedule shifts based on when you pay.
 
 All recurrence settings are stored in the database, and the background daemon automatically creates the corresponding payment entries at the configured interval.
 
 ## 🎯 Goals & Non-Goals
 
 ### Planned / Goals
-- **🔌 API-driven automation** – E.g., webhook receiver and sender.
+- **🔌 Webhook Dispatcher** – Send automated webhook payloads when bills are due or paid.
 - **🤖 AI agent integration** – Integrations via CLI scripts and agent skills.
 - **🔑 OAuth login** – Secure authentication options beyond simple password login.
 - **👥 Account sharing** – Share accounts and bills with family members or other users.
-- **🔔 Reminder notifications** – Support for email, Telegram, ntfy, Gotify, webhooks, etc.
 - **💬 Telegram bot companion** – Interactive bot companion to check due dates and log payments.
 - **☁️ SaaS offering** – A hosted version of the service.
 
@@ -96,6 +99,7 @@ All recurrence settings are stored in the database, and the background daemon au
 ## 🤝 Getting Help
 
 - **Documentation** – see the `docs/` folder for a quick user guide.
+- **API Reference** – interactive Scalar API documentation is served at `/docs` (or view raw spec at `/api/v1/openapi.json`).
 - **Issues** – open a GitHub issue for bugs or feature requests.
 - **Contributing** – feel free to submit pull requests; follow the guidelines in `CONTRIBUTING.md`.
 
