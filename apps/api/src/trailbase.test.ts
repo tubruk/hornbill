@@ -1,5 +1,6 @@
 import { expect, test, describe, spyOn, beforeEach, afterEach } from "bun:test";
 import { TrailbaseClient, db, getDb, verifyToken, verifyAccountAccess, verifyBillAccess, verifyPaymentAccess } from "./trailbase";
+import { uuidSchema } from "./utils/openapi-errors";
 import * as fs from "fs";
 import * as jwt from "hono/jwt";
 
@@ -369,6 +370,26 @@ describe("Trailbase Integration", () => {
         const hasAccess = await verifyPaymentAccess(contextMock as any, "pay-1");
         expect(hasAccess).toBe(false);
       });
+    });
+  });
+
+  describe("uuidSchema validation details", () => {
+    test("uuidSchema matches expected format when in non-test mode", () => {
+      const origEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = "production";
+      try {
+        const schema = uuidSchema();
+        
+        // standard UUID
+        expect(schema.safeParse("9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d").success).toBe(true);
+        // base64 trailbase UUID
+        expect(schema.safeParse("DlQl7Tf6ShOnrepGm0dbWw==").success).toBe(true);
+        // invalid inputs
+        expect(schema.safeParse("not-a-uuid").success).toBe(false);
+        expect(schema.safeParse("DlQl7Tf6ShOnrepGm0dbWw=").success).toBe(false);
+      } finally {
+        process.env.NODE_ENV = origEnv;
+      }
     });
   });
 });

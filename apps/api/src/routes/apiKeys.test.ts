@@ -178,4 +178,54 @@ describe("API Keys Routes", () => {
       expect(deleteApiKeySpy).toHaveBeenCalledWith("key-1");
     });
   });
+
+  describe("Error branches", () => {
+    test("fails middleware with 401 when verifyToken throws string or non-Error", async () => {
+      verifyTokenSpy.mockRejectedValue("Unexpected error object" as never);
+      const res = await apiKeysApp.request("/", {
+        method: "GET",
+        headers: { Authorization: "Bearer bad-token" },
+      });
+      expect(res.status).toBe(401);
+      const json = await res.json();
+      expect(json.error).toBe("Unauthorized: Invalid token");
+    });
+
+    test("fails GET / with 500 when listApiKeys throws Error", async () => {
+      listApiKeysSpy.mockRejectedValue(new Error("Db read error"));
+      const res = await apiKeysApp.request("/", {
+        method: "GET",
+        headers: { Authorization: "Bearer token-123" },
+      });
+      expect(res.status).toBe(500);
+      const json = await res.json();
+      expect(json.error).toBe("Db read error");
+    });
+
+    test("fails POST / with 500 when createApiKey throws Error", async () => {
+      createApiKeySpy.mockRejectedValue(new Error("Db write error"));
+      const res = await apiKeysApp.request("/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer token-123",
+        },
+        body: JSON.stringify({ name: "CI Pipeline" }),
+      });
+      expect(res.status).toBe(500);
+      const json = await res.json();
+      expect(json.error).toBe("Db write error");
+    });
+
+    test("fails DELETE /:id with 500 when deleteApiKey throws Error", async () => {
+      deleteApiKeySpy.mockRejectedValue(new Error("Db delete error"));
+      const res = await apiKeysApp.request("/key-1", {
+        method: "DELETE",
+        headers: { Authorization: "Bearer token-123" },
+      });
+      expect(res.status).toBe(500);
+      const json = await res.json();
+      expect(json.error).toBe("Db delete error");
+    });
+  });
 });

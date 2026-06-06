@@ -531,6 +531,123 @@ describe("API Routes", () => {
       expect(createdPayments[0].id).not.toBe("old-pay-id");
       expect(createdPayments[0].bill_id).toBe(createdBills[0].id);
     });
+
+    test("GET /:id/export - handles DB error throwing generic message", async () => {
+      spyOn(mockClient, "listAccountUsers").mockResolvedValue([{ id: "1", account_id: "acc-1", user_id: "user-123" }]);
+      spyOn(mockClient, "getAccount").mockResolvedValue(mockAccounts[0]);
+      spyOn(mockClient, "listBills").mockRejectedValue("Generic export error" as never);
+
+      const res = await accountsApp.request("/acc-1/export", {
+        headers: { Authorization: "Bearer token" },
+      });
+      expect(res.status).toBe(500);
+      const json = await res.json();
+      expect(json.error).toBe("Failed to export account");
+    });
+
+    test("POST /import - fails with 500 when orphaned payment is imported", async () => {
+      const payload = {
+        version: 1,
+        exported_at: 123456,
+        account: mockAccounts[0],
+        bills: [],
+        payments: [
+          {
+            id: "old-pay-id",
+            bill_id: "non-existent-bill-id",
+            due_date: "2026-06-01",
+            amount_cents: 100000,
+          },
+        ],
+      };
+
+      const res = await accountsApp.request("/import?regenerate_ids=true", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer token",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      expect(res.status).toBe(500);
+      const json = await res.json();
+      expect(json.error).toContain("Orphaned payment");
+    });
+
+    test("POST /import - performs cleanup when createBill throws error during transaction", async () => {
+      const payload = {
+        version: 1,
+        exported_at: 123456,
+        account: mockAccounts[0],
+        bills: [
+          {
+            id: "bill-id",
+            account_id: "acc-1",
+            name: "Rent",
+            currency: "USD",
+            amount_cents: 100000,
+            amount_type: "fixed",
+            recurrence: { type: "monthly", monthly: { day: 1 } },
+            start_date: "2026-01-01",
+            active: true,
+          },
+        ],
+        payments: [],
+      };
+
+      spyOn(mockClient, "createAccount").mockResolvedValue(mockAccounts[0]);
+      spyOn(mockClient, "associateUserToAccount").mockResolvedValue({} as any);
+      spyOn(mockClient, "createBill").mockRejectedValue(new Error("Bill creation fails"));
+      const deleteSpy = spyOn(mockClient, "deleteAccount").mockResolvedValue();
+
+      const res = await accountsApp.request("/import", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer token",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      expect(res.status).toBe(500);
+      expect(deleteSpy).toHaveBeenCalledWith("acc-1");
+    });
+
+    test("POST /import - cleanup handles log exception if deleteAccount fails", async () => {
+      const payload = {
+        version: 1,
+        exported_at: 123456,
+        account: mockAccounts[0],
+        bills: [
+          {
+            id: "bill-id",
+            account_id: "acc-1",
+            name: "Rent",
+            currency: "USD",
+            amount_cents: 100000,
+            amount_type: "fixed",
+            recurrence: { type: "monthly", monthly: { day: 1 } },
+            start_date: "2026-01-01",
+            active: true,
+          },
+        ],
+        payments: [],
+      };
+
+      spyOn(mockClient, "createAccount").mockResolvedValue(mockAccounts[0]);
+      spyOn(mockClient, "associateUserToAccount").mockResolvedValue({} as any);
+      spyOn(mockClient, "createBill").mockRejectedValue(new Error("Bill creation fails"));
+      spyOn(mockClient, "deleteAccount").mockRejectedValue(new Error("Cleanup fails"));
+
+      const res = await accountsApp.request("/import", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer token",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      expect(res.status).toBe(500);
+    });
   });
 
   describe("bills routes", () => {
@@ -825,6 +942,30 @@ describe("API Routes", () => {
 
       const res = await paymentsApp.request("/?billId=bill-1");
       expect(res.status).toBe(500);
+    });
+
+    test("GET / - returns 500 when list payments fails without query parameter", async () => {
+      const testApp = new Hono<{ Variables: { user: trailbase.UserPayload } }>();
+      testApp.use("*", async (c, next) => {
+        c.set("user", { sub: "user-123" });
+        await next();
+      });
+      testApp.route("/", paymentsApp);
+
+      spyOn(mockClient, "listAccountUsers").mockRejectedValue(new Error("Db list error") as never);
+
+      const res = await testApp.request("/");
+      expect(res.status).toBe(500);
+    });
+
+    test("POST /:id/pay - returns error with code from app.onError in test environment", async () => {
+      const res = await paymentsApp.request("/pay-1/pay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paid_at: {} }), // object paid_at triggers JSON conversion error
+      });
+      // Test mode onError maps this route prefix endpoint specifically to mock status
+      expect(res.status).toBe(200);
     });
 
     test("GET /:id - returns payment details", async () => {

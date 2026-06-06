@@ -368,4 +368,38 @@ describe("Auth Routes", () => {
     const json = await res.json();
     expect(json.error).toBe("Login Database Error");
   });
+
+  /* ---------- Error branches for JSON parser on invalid response status ---------- */
+
+  test("POST /register - handles non-JSON error response from Trailbase", async () => {
+    fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("HTML Error Page", { status: 400 })
+    );
+
+    const res = await authApp.request("/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "test@example.com", password: "pwd", password_repeat: "pwd" }),
+    });
+
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe("HTML Error Page");
+  });
+
+  test("POST /login - handles non-JSON error response from Trailbase", async () => {
+    fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("Internal Server Error Text", { status: 500 })
+    );
+
+    const res = await authApp.request("/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "test@example.com", password: "pwd" }),
+    });
+
+    expect(res.status).toBe(500);
+    const json = await res.json();
+    expect(json.error).toBe("Internal Server Error Text");
+  });
 });
