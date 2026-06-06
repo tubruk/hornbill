@@ -1,0 +1,643 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Hornbill API",
+    "description": "Self-hosted personal bill tracker API. Supports JWT Bearer session tokens or static developer API keys.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "API Base Path"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    },
+    {
+      "BearerAuth": []
+    }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "summary": "User Login",
+        "description": "Authenticates user credentials and returns session tokens.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string" }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "auth_token": { "type": "string" },
+                    "refresh_token": { "type": "string" },
+                    "csrf_token": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Invalid payload" },
+          "401": { "description": "Unauthorized / Bad credentials" }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "summary": "User Registration",
+        "description": "Registers a new user account if registration is enabled.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string" },
+                  "password_repeat": { "type": "string" }
+                },
+                "required": ["email", "password", "password_repeat"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Bad request" },
+          "403": { "description": "Registration disabled" }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "summary": "Refresh Session Token",
+        "description": "Renews an expired access token using a refresh token.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refresh_token": { "type": "string" }
+                },
+                "required": ["refresh_token"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token refreshed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "auth_token": { "type": "string" },
+                    "csrf_token": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Missing token" },
+          "401": { "description": "Invalid / Expired refresh token" }
+        }
+      }
+    },
+    "/api-keys": {
+      "get": {
+        "summary": "List API Keys",
+        "description": "Retrieves active Personal Access Tokens created by the user.",
+        "responses": {
+          "200": {
+            "description": "List of API keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/ApiKey" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create API Key",
+        "description": "Generates a new Personal Access Token. Renders the raw token string exactly once in the response.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "example": "Home Assistant Key" }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Key created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiKey" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "token": { "type": "string", "description": "The raw API key string (e.g., `hb_pat_...`). Save it now; it cannot be retrieved again.", "example": "hb_pat_1a2b3c4d5e6f7g8h9i0j..." }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "description": "Invalid input" }
+        }
+      }
+    },
+    "/api-keys/{id}": {
+      "delete": {
+        "summary": "Revoke API Key",
+        "description": "Deletes and revokes an active API Key.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Key revoked successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true }
+                  }
+                }
+              }
+            }
+          },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Key not found" }
+        }
+      }
+    },
+    "/bills": {
+      "get": {
+        "summary": "List Bills",
+        "description": "Retrieves the list of active/inactive bills. Optional query `accountId` filters results to a specific account tenant.",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of bills",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Bill" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Bill",
+        "description": "Creates a new bill entry and automatically registers its initial payment cycle.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "account_id": { "type": "string", "format": "uuid" },
+                  "name": { "type": "string", "example": "Spotify Premium" },
+                  "currency": { "type": "string", "example": "USD" },
+                  "amount_cents": { "type": "integer", "minimum": 0, "example": 1099 },
+                  "amount_type": { "type": "string", "enum": ["fixed", "variable"], "example": "fixed" },
+                  "start_date": { "type": "string", "format": "date", "example": "2026-06-01" },
+                  "active": { "type": "boolean", "default": true },
+                  "recurrence": { "$ref": "#/components/schemas/Recurrence" },
+                  "notes": { "type": "string", "nullable": true }
+                },
+                "required": ["account_id", "name", "currency", "amount_cents", "amount_type", "start_date", "recurrence"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Bill created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Bill" }
+              }
+            }
+          },
+          "400": { "description": "Missing parameters" }
+        }
+      }
+    },
+    "/bills/{id}": {
+      "get": {
+        "summary": "Get Bill Details",
+        "description": "Returns full details of a bill along with its associated payment history.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bill details with payments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Bill" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "payments": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/Payment" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": { "description": "Bill not found" }
+        }
+      },
+      "patch": {
+        "summary": "Update Bill",
+        "description": "Updates details of an existing bill. Updates the amount or due date on any active outstanding payments automatically.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "amount_cents": { "type": "integer", "minimum": 0 },
+                  "amount_type": { "type": "string", "enum": ["fixed", "variable"] },
+                  "active": { "type": "boolean" },
+                  "recurrence": { "$ref": "#/components/schemas/Recurrence" },
+                  "notes": { "type": "string", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bill updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Bill" }
+              }
+            }
+          },
+          "400": { "description": "Attempt to update immutable fields (currency, start_date)" }
+        }
+      },
+      "delete": {
+        "summary": "Delete Bill",
+        "description": "Permanently deletes a bill and cascades to remove its payment history.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payments": {
+      "get": {
+        "summary": "List Payments",
+        "description": "Retrieves the list of payment logs. Allows optional filters for specific bills or settlement status.",
+        "parameters": [
+          {
+            "name": "billId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["unpaid", "settled"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of payments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Payment" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payments/{id}/settle": {
+      "post": {
+        "summary": "Settle Payment",
+        "description": "Marks an outstanding payment cycle as paid/settled, and automatically schedules the next cycle.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "paid_at": { "type": "integer", "description": "Epoch timestamp in seconds. Defaults to current server time.", "example": 1717142400 },
+                  "amount_cents": { "type": "integer", "description": "Actual payment amount in cents if different from bill configuration.", "example": 1099 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment marked paid",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Payment" }
+              }
+            }
+          },
+          "400": { "description": "Payment already settled, or payment date before bill start date" },
+          "404": { "description": "Payment not found" }
+        }
+      }
+    },
+    "/jobs/sync": {
+      "post": {
+        "summary": "Synchronize All Payments (Admin)",
+        "description": "Runs the global payments sync daemon checking all active bills across all accounts. Triggers creation of missing payment cycles.",
+        "responses": {
+          "200": {
+            "description": "Sync finished",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "processed": { "type": "integer", "example": 12 },
+                    "generated": { "type": "integer", "example": 2 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/sync/account/{accountId}": {
+      "post": {
+        "summary": "Synchronize Account Payments",
+        "description": "Runs the payments sync daemon on active bills belonging specifically to one account.",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sync finished",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "processed": { "type": "integer", "example": 5 },
+                    "generated": { "type": "integer", "example": 0 }
+                  }
+                }
+              }
+            }
+          },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Account not found" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "Developer static token. Format: `ApiKey hb_pat_<token>`."
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Standard session JWT. Format: `Bearer <token>`."
+      }
+    },
+    "schemas": {
+      "ApiKey": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "user_id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string", "example": "Home Assistant Key" },
+          "token_hash": { "type": "string", "description": "SHA-256 hash stored in DB (hex)" },
+          "created_at": { "type": "integer", "description": "Epoch seconds timestamp", "example": 1717142400 },
+          "last_used_at": { "type": "integer", "description": "Epoch seconds timestamp of last usage", "example": 1717228800, "nullable": true }
+        }
+      },
+      "Bill": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "account_id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string", "example": "Netflix Premium" },
+          "currency": { "type": "string", "example": "USD" },
+          "amount_cents": { "type": "integer", "example": 1549 },
+          "amount_type": { "type": "string", "enum": ["fixed", "variable"] },
+          "active": { "type": "boolean", "default": true },
+          "start_date": { "type": "string", "format": "date", "example": "2026-06-01" },
+          "upcoming_threshold_days": { "type": "integer", "nullable": true, "description": "Warning window override in days" },
+          "notes": { "type": "string", "nullable": true },
+          "recurrence": { "$ref": "#/components/schemas/Recurrence" },
+          "created_at": { "type": "integer" },
+          "updated_at": { "type": "integer" }
+        }
+      },
+      "Payment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "bill_id": { "type": "string", "format": "uuid" },
+          "due_date": { "type": "string", "format": "date", "example": "2026-06-15" },
+          "amount_cents": { "type": "integer", "example": 1549 },
+          "paid_at": { "type": "integer", "nullable": true, "description": "Epoch seconds timestamp of payment settlement" },
+          "notes": { "type": "string", "nullable": true },
+          "created_at": { "type": "integer" },
+          "updated_at": { "type": "integer" }
+        }
+      },
+      "Recurrence": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["monthly", "yearly", "interval"] }
+        },
+        "required": ["type"],
+        "discriminator": {
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "type": { "type": "string", "enum": ["monthly"] },
+              "monthly": {
+                "type": "object",
+                "properties": {
+                  "day": { "type": "integer", "minimum": 1, "maximum": 31, "example": 15 }
+                },
+                "required": ["day"]
+              }
+            }
+          },
+          {
+            "properties": {
+              "type": { "type": "string", "enum": ["yearly"] },
+              "yearly": {
+                "type": "object",
+                "properties": {
+                  "month": { "type": "integer", "minimum": 1, "maximum": 12, "example": 6 },
+                  "day": { "type": "integer", "minimum": 1, "maximum": 31, "example": 10 }
+                },
+                "required": ["month", "day"]
+              }
+            }
+          },
+          {
+            "properties": {
+              "type": { "type": "string", "enum": ["interval"] },
+              "interval": {
+                "type": "object",
+                "properties": {
+                  "every": { "type": "integer", "minimum": 1, "example": 2 },
+                  "unit": { "type": "string", "enum": ["days", "weeks", "months"], "example": "weeks" },
+                  "from": { "type": "string", "enum": ["due_date", "paid_at"], "default": "paid_at" }
+                },
+                "required": ["every", "unit"]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

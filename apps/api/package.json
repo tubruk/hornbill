@@ -1,5 +1,5 @@
 {
-  "name": "api",
+  "name": "hornbill-api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@hornbill/core": "workspace:*",
+    "@scalar/hono-api-reference": "^0.10.20",
     "bunqueue": "^2.8.3",
     "hono": "^4.4.2",
     "pino": "^10.3.1",

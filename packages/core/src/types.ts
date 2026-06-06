@@ -288,3 +288,21 @@ export const ExportPayloadSchema = z.object({
 
 export type ExportPayload = z.infer<typeof ExportPayloadSchema>;
 
+export const ApiKeySchema = z.object({
+  id: z.string().min(1),
+  user_id: z.string().min(1),
+  name: z.string().min(1),
+  token_hash: z.string().min(1),
+  created_at: z.number().int(),
+  last_used_at: z.number().int().nullable().optional(),
+});
+
+export type ApiKey = z.infer<typeof ApiKeySchema>;
+
+export const CreateApiKeySchema = z.object({
+  name: z.string().min(1, "Name must be at least 1 character"),
+});
+
+export type CreateApiKeyPayload = z.infer<typeof CreateApiKeySchema>;
+
+

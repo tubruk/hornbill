@@ -1,4 +1,4 @@
-import type { Account, Bill, Payment } from "@hornbill/core";
+import type { Account, Bill, Payment, ApiKey } from "@hornbill/core";
 import { verify } from "hono/jwt";
 import { readFileSync, existsSync } from "fs";
 import type { Context } from "hono";
@@ -112,6 +112,15 @@ interface DbAccountUser {
   id: string;
   account_id: string | { id: string };
   user_id: string | { id: string };
+}
+
+interface DbApiKey {
+  id: string;
+  user_id: string | { id: string };
+  name: string;
+  token_hash: string;
+  created_at: number;
+  last_used_at: number | null;
 }
 
 export class TrailbaseClient {
@@ -417,6 +426,76 @@ export class TrailbaseClient {
         user_id: userId,
       }),
     });
+  }
+
+  // --- API Keys CRUD ---
+
+  private mapDbApiKey(key: DbApiKey): ApiKey {
+    return {
+      ...key,
+      user_id: typeof key.user_id === "object" && key.user_id !== null ? key.user_id.id : key.user_id,
+      last_used_at: key.last_used_at ?? null,
+    } as ApiKey;
+  }
+
+  async listApiKeys(userId?: string): Promise<ApiKey[]> {
+    const res = await this.request<TrailbaseListResponse<DbApiKey>>("/api/records/v1/api_keys?limit=1000");
+    const keys = res.records.map(k => this.mapDbApiKey(k));
+    if (!userId) return keys;
+    return keys.filter(k => k.user_id === userId);
+  }
+
+  async getApiKey(id: string): Promise<ApiKey> {
+    const key = await this.request<DbApiKey>(`/api/records/v1/api_keys/${id}`);
+    return this.mapDbApiKey(key);
+  }
+
+  async createApiKey(key: Omit<ApiKey, "created_at" | "last_used_at">): Promise<ApiKey> {
+    const now = Math.floor(Date.now() / 1000);
+    const payload = {
+      ...key,
+      created_at: now,
+      last_used_at: null,
+    };
+    await this.request<unknown>("/api/records/v1/api_keys", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    return {
+      ...key,
+      created_at: now,
+      last_used_at: null,
+    };
+  }
+
+  async updateApiKeyLastUsed(id: string): Promise<void> {
+    const now = Math.floor(Date.now() / 1000);
+    await this.request<unknown>(`/api/records/v1/api_keys/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        last_used_at: now,
+      }),
+    });
+  }
+
+  async deleteApiKey(id: string): Promise<void> {
+    await this.request<void>(`/api/records/v1/api_keys/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async verifyApiKeyHash(hash: string): Promise<UserPayload | null> {
+    const res = await this.request<TrailbaseListResponse<DbApiKey>>("/api/records/v1/api_keys?limit=1000");
+    const key = res.records.find(k => k.token_hash === hash);
+    if (!key) return null;
+
+    const keyId = key.id;
+    this.updateApiKeyLastUsed(keyId).catch(err => {
+      console.error(`Failed to update last_used_at for api_key ${keyId}:`, err);
+    });
+
+    const userId = typeof key.user_id === "object" && key.user_id !== null ? key.user_id.id : key.user_id;
+    return { sub: userId };
   }
 }
 

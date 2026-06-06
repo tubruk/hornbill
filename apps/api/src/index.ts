@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 import { CONFIG } from "./config";
+import { apiReference } from "@scalar/hono-api-reference";
+import openapiSpec from "./openapi.json";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { requestLogger } from "./middleware/requestLogger";
@@ -13,7 +15,8 @@ import bills from "./routes/bills";
 import payments from "./routes/payments";
 import jobs from "./routes/jobs";
 import auth from "./routes/auth";
-import { verifyToken, type UserPayload } from "./trailbase";
+import apiKeys from "./routes/apiKeys";
+import { verifyToken, getDb, type UserPayload } from "./trailbase";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 type Variables = {
@@ -46,7 +49,8 @@ app.use("/api/v1/*", async (c, next) => {
   if (
     c.req.path.startsWith("/api/v1/auth") ||
     c.req.path === "/api/v1/status" ||
-    c.req.path === "/api/v1/ping"
+    c.req.path === "/api/v1/ping" ||
+    c.req.path === "/api/v1/openapi.json"
   ) {
     return await next();
   }
@@ -57,11 +61,28 @@ app.use("/api/v1/*", async (c, next) => {
   }
 
   try {
-    const user = await verifyToken(authHeader);
+    let user: UserPayload;
+    if (authHeader.startsWith("ApiKey ")) {
+      const rawToken = authHeader.substring(7);
+      if (!rawToken.startsWith("hb_pat_")) {
+        return c.json({ error: "Unauthorized: Invalid API Key format" }, 401);
+      }
+      const { createHash } = await import("node:crypto");
+      const hash = createHash("sha256").update(rawToken).digest("hex");
+      const dbInstance = getDb(c);
+      const matchedUser = await dbInstance.verifyApiKeyHash(hash);
+      if (!matchedUser) {
+        return c.json({ error: "Unauthorized: Invalid API Key" }, 401);
+      }
+      user = matchedUser;
+    } else {
+      user = await verifyToken(authHeader);
+    }
+
     c.set("user", user);
     await next();
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Invalid token";
+    const message = err instanceof Error ? err.message : "Invalid credentials";
     return c.json({ error: `Unauthorized: ${message}` }, 401);
   }
 });
@@ -72,6 +93,7 @@ app.use("/api/v1/*", async (c, next) => {
 const api = new Hono();
 
 api.get("/ping", (c) => c.json({ status: "ok" }));
+api.get("/openapi.json", (c) => c.json(openapiSpec));
 api.get("/status", (c) => {
   const regEnabled = CONFIG.REGISTRATION_ENABLED;
   const trailbaseUrl = CONFIG.TRAILBASE_URL;
@@ -90,8 +112,20 @@ api.route("/bills", bills);
 api.route("/payments", payments);
 api.route("/jobs", jobs);
 api.route("/auth", auth);
+api.route("/api-keys", apiKeys);
 
 app.route("/api/v1", api);
+
+// Serve interactive API documentation (Scalar UI)
+app.get(
+  "/docs",
+  apiReference({
+    spec: {
+      url: "/api/v1/openapi.json",
+    },
+    theme: "mars",
+  })
+);
 
 // Centralized error handling
 app.onError((err, c) => {
