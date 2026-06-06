@@ -117,6 +117,21 @@ api.route("/api-keys", apiKeys);
 
 app.route("/api/v1", api);
 
+// Register security schemes
+app.openAPIRegistry.registerComponent("securitySchemes", "ApiKeyAuth", {
+  type: "apiKey",
+  in: "header",
+  name: "Authorization",
+  description: "API Key authentication. Format: ApiKey <hb_pat_...>",
+});
+
+app.openAPIRegistry.registerComponent("securitySchemes", "BearerAuth", {
+  type: "http",
+  scheme: "bearer",
+  bearerFormat: "JWT",
+  description: "JWT authentication. Format: Bearer <token>",
+});
+
 // Serve the dynamically generated OpenAPI specification
 app.doc("/api/v1/openapi.json", {
   openapi: "3.1.0",
@@ -129,6 +144,14 @@ app.doc("/api/v1/openapi.json", {
     {
       url: "http://localhost:3000",
       description: "Local development server",
+    },
+  ],
+  security: [
+    {
+      ApiKeyAuth: [],
+    },
+    {
+      BearerAuth: [],
     },
   ],
 });
