@@ -159,12 +159,65 @@ app.doc("/api/v1/openapi.json", {
 // Serve interactive API documentation (Scalar UI)
 app.get(
   "/docs",
-  apiReference({
-    spec: {
-      url: "/api/v1/openapi.json",
-    },
-    theme: "mars",
-  })
+  async (c, next) => {
+    const handler = apiReference({
+      spec: {
+        url: "/api/v1/openapi.json",
+      },
+      theme: "mars",
+    });
+    const res = await (handler as (ctx: unknown, nxt: unknown) => Promise<Response | undefined | void>)(c, next);
+    const response = res || c.res;
+    if (response instanceof Response) {
+      const html = await response.text();
+      const script = `
+<script>
+(function() {
+  const originalFetch = window.fetch;
+  window.fetch = async function(input, init) {
+    let url = "";
+    if (typeof input === "string") {
+      url = input;
+    } else if (input instanceof URL) {
+      url = input.toString();
+    } else if (input && typeof input === "object" && "url" in input) {
+      url = input.url;
+    }
+
+    let newInit = init || {};
+    if (window.__api_bearer_token && url.includes("/api/")) {
+      newInit = { ...newInit };
+      const headers = new Headers(newInit.headers || {});
+      if (!headers.has("Authorization")) {
+        headers.set("Authorization", "Bearer " + window.__api_bearer_token);
+      }
+      newInit.headers = headers;
+    }
+
+    const response = await originalFetch(input, newInit);
+
+    if (url.includes("/api/v1/auth/login") && response.ok) {
+      try {
+        const clone = response.clone();
+        const json = await clone.json();
+        if (json && json.auth_token) {
+          window.__api_bearer_token = json.auth_token;
+          console.log("Captured authentication token for subsequent requests:", json.auth_token);
+        }
+      } catch (e) {
+        console.error("Error capturing login token:", e);
+      }
+    }
+
+    return response;
+  };
+})();
+</script>
+`;
+      return c.html(html.replace("</body>", `${script}</body>`));
+    }
+    return response;
+  }
 );
 
 // Centralized error handling
