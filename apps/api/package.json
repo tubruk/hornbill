@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hono/zod-openapi": "^1.4.0",
     "@hornbill/core": "workspace:*",
     "@scalar/hono-api-reference": "^0.10.20",
     "bunqueue": "^2.8.3",

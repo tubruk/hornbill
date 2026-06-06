@@ -1,13 +1,50 @@
-import { Hono } from "hono";
-import type { Context } from "hono";
+import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { getDb, verifyToken, type UserPayload } from "../trailbase";
-import { DEFAULT_UPCOMING_THRESHOLD_DAYS, AccountSchema, ExportPayloadSchema, type Account } from "@hornbill/core";
-import { checkAccountAccess } from "../middleware/auth";
+import { DEFAULT_UPCOMING_THRESHOLD_DAYS, AccountSchema, type Account } from "@hornbill/core";
+import { withAccountAccess } from "../middleware/auth";
+import { coreErrors, authErrors, validationErrors, lookupErrors, defaultValidationHook, uuidSchema } from "../utils/openapi-errors";
 
-const app = new Hono<{ Variables: { user: UserPayload; myAccountIds: Set<string>; account: Account } }>();
+// Define Account schema for documentation
+export const AccountOpenApiSchema = z.object({
+  id: uuidSchema().openapi({ description: "UUID ID of the account", example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" }),
+  name: z.string().openapi({ description: "Account name", example: "Primary Wallet" }),
+  upcoming_threshold_days: z.number().int().openapi({ description: "Threshold in days for upcoming bills alert", example: 7 }),
+  currencies: z.array(z.string()).openapi({ description: "Supported currencies list", example: ["USD", "IDR"] }),
+  default_currency: z.string().openapi({ description: "Primary currency of the account", example: "USD" }),
+  archived: z.boolean().openapi({ description: "Archived status", example: false }),
+  notification_provider: z.any().openapi({ description: "Notification provider configuration" }),
+  notification_reminder: z.any().openapi({ description: "Reminder configuration" }),
+  created_at: z.number().int().optional().openapi({ description: "Creation epoch timestamp", example: 1717142404 }),
+  updated_at: z.number().int().optional().openapi({ description: "Last update epoch timestamp", example: 1717142404 }),
+}).openapi("Account");
 
-async function getAuthUser(c: Context): Promise<UserPayload> {
+// Define Create/Update request schema
+const CreateAccountRequestSchema = z.object({
+  name: z.string().min(1, "Name is required").openapi({ example: "Primary Wallet" }),
+  upcoming_threshold_days: z.number().int().min(1).optional().openapi({ example: 7 }),
+  currencies: z.array(z.string()).min(1).optional().openapi({ example: ["USD", "IDR"] }),
+  default_currency: z.string().optional().openapi({ example: "USD" }),
+  archived: z.boolean().optional().openapi({ example: false }),
+  notification_provider: z.any().optional(),
+  notification_reminder: z.any().optional(),
+}).openapi("CreateAccountRequest");
+
+const UpdateAccountRequestSchema = CreateAccountRequestSchema.partial().openapi("UpdateAccountRequest");
+
+const ExportPayloadOpenApiSchema = z.object({
+  version: z.number().openapi({ example: 1 }),
+  exported_at: z.number().openapi({ example: 1717142500 }),
+  account: AccountOpenApiSchema,
+  bills: z.array(z.any()).openapi({ description: "List of bills belonging to the account" }),
+  payments: z.array(z.any()).openapi({ description: "List of payments belonging to the bills" }),
+}).openapi("ExportPayload");
+
+const app = new OpenAPIHono<{ Variables: { user: UserPayload; myAccountIds: Set<string>; account: Account } }>({
+  defaultHook: defaultValidationHook,
+});
+
+async function getAuthUser(c: any): Promise<UserPayload> {
   const authHeader = c.req.header("Authorization");
   if (!authHeader) {
     throw new Error("Missing Authorization header");
@@ -15,7 +52,27 @@ async function getAuthUser(c: Context): Promise<UserPayload> {
   return await verifyToken(authHeader);
 }
 
-app.get("/", async (c) => {
+// GET /api/v1/accounts - List accounts
+const listAccountsRoute = createRoute({
+  method: "get",
+  path: "/",
+  summary: "List Accounts",
+  description: "Lists all financial accounts associated with the authenticated user",
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.array(AccountOpenApiSchema),
+        },
+      },
+      description: "Successfully retrieved list of accounts",
+    },
+    ...coreErrors,
+    ...authErrors,
+  },
+});
+
+app.openapi(listAccountsRoute, async (c) => {
   try {
     const user = await getAuthUser(c);
     const client = getDb(c);
@@ -31,7 +88,7 @@ app.get("/", async (c) => {
     
     const allAccounts = await client.listAccounts();
     const myAccounts = allAccounts.filter((acc) => myAccountIds!.has(acc.id));
-    return c.json(myAccounts);
+    return c.json(myAccounts, 200);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to list accounts";
     const status: ContentfulStatusCode = message.includes("Unauthorized") || message.includes("Authorization") ? 401 : 500;
@@ -39,11 +96,41 @@ app.get("/", async (c) => {
   }
 });
 
-app.post("/", async (c) => {
+// POST /api/v1/accounts - Create account
+const createAccountRoute = createRoute({
+  method: "post",
+  path: "/",
+  summary: "Create Account",
+  description: "Creates a new financial account and maps it to the authenticated user",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: CreateAccountRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      content: {
+        "application/json": {
+          schema: AccountOpenApiSchema,
+        },
+      },
+      description: "Account successfully created",
+    },
+    ...coreErrors,
+    ...authErrors,
+    ...validationErrors,
+  },
+});
+
+app.openapi(createAccountRoute, async (c) => {
   try {
     const user = await getAuthUser(c);
     const client = getDb(c);
-    const body = await c.req.json();
+    const body = c.req.valid("json");
     
     const accountId = crypto.randomUUID();
     const now = Math.floor(Date.now() / 1000);
@@ -53,7 +140,7 @@ app.post("/", async (c) => {
       upcoming_threshold_days: body.upcoming_threshold_days ?? DEFAULT_UPCOMING_THRESHOLD_DAYS,
       currencies: body.currencies ?? ["IDR", "USD"],
       default_currency: body.default_currency ?? "IDR",
-      archived: false,
+      archived: body.archived ?? false,
       notification_provider: body.notification_provider ?? { type: "webhook", config: {} },
       notification_reminder: body.notification_reminder ?? { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null },
       created_at: now,
@@ -65,16 +152,7 @@ app.post("/", async (c) => {
       return c.json({ error: parsed.error.issues[0].message }, 400);
     }
 
-    const newAccount = await client.createAccount({
-      id: accountData.id,
-      name: accountData.name,
-      upcoming_threshold_days: accountData.upcoming_threshold_days,
-      currencies: accountData.currencies,
-      default_currency: accountData.default_currency,
-      archived: accountData.archived,
-      notification_provider: accountData.notification_provider,
-      notification_reminder: accountData.notification_reminder,
-    });
+    const newAccount = await client.createAccount(accountData);
     await client.associateUserToAccount(newAccount.id, user.sub);
     return c.json(newAccount, 201);
   } catch (err) {
@@ -84,66 +162,173 @@ app.post("/", async (c) => {
   }
 });
 
-app.get("/:id", checkAccountAccess("param", "id"), async (c) => {
+// GET /api/v1/accounts/:id - Get account
+const getAccountRoute = createRoute({
+  method: "get",
+  path: "/{id}",
+  summary: "Get Account Details",
+  description: "Retrieves detailed information of an account by ID",
+  request: {
+    params: z.object({
+      id: uuidSchema().openapi({ description: "UUID of the account to fetch", example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: AccountOpenApiSchema,
+        },
+      },
+      description: "Successfully retrieved account details",
+    },
+    ...coreErrors,
+    ...authErrors,
+    ...validationErrors,
+    ...lookupErrors,
+  },
+});
+
+app.openapi(getAccountRoute, withAccountAccess()(async (c: any) => {
   try {
     const account = c.get("account");
-    return c.json(account);
+    return c.json(account, 200);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to fetch account";
     const status: ContentfulStatusCode = message.includes("Unauthorized") || message.includes("Authorization") ? 401 : 500;
     return c.json({ error: message }, status);
   }
+}));
+
+// PATCH /api/v1/accounts/:id - Update account
+const updateAccountRoute = createRoute({
+  method: "patch",
+  path: "/{id}",
+  summary: "Update Account",
+  description: "Modifies fields of an existing account",
+  request: {
+    params: z.object({
+      id: uuidSchema().openapi({ description: "UUID of the account to update", example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" }),
+    }),
+    body: {
+      content: {
+        "application/json": {
+          schema: UpdateAccountRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: AccountOpenApiSchema,
+        },
+      },
+      description: "Account successfully updated",
+    },
+    ...coreErrors,
+    ...authErrors,
+    ...validationErrors,
+    ...lookupErrors,
+  },
 });
 
-app.patch("/:id", checkAccountAccess("param", "id"), async (c) => {
+app.openapi(updateAccountRoute, withAccountAccess()(async (c: any) => {
   try {
     const id = c.req.param("id")!;
-    const body = await c.req.json();
+    const body = c.req.valid("json");
     const current = c.get("account");
-    
+
     // Merge update with current record for validation
     const merged = {
       ...current,
       ...body,
     };
-    
+
     const parsed = AccountSchema.safeParse(merged);
     if (!parsed.success) {
       return c.json({ error: parsed.error.issues[0].message }, 400);
     }
 
     const client = getDb(c);
-    const updated = await client.updateAccount(id, {
-      name: body.name,
-      upcoming_threshold_days: body.upcoming_threshold_days,
-      currencies: body.currencies,
-      default_currency: body.default_currency,
-      archived: body.archived,
-      notification_provider: body.notification_provider,
-      notification_reminder: body.notification_reminder,
-    });
-    return c.json(updated);
+    const updated = await client.updateAccount(id, body);
+    return c.json(updated, 200);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to update account";
     const status: ContentfulStatusCode = message.includes("Unauthorized") || message.includes("Authorization") ? 401 : 500;
     return c.json({ error: message }, status);
   }
+}));
+
+// DELETE /api/v1/accounts/:id - Delete account
+const deleteAccountRoute = createRoute({
+  method: "delete",
+  path: "/{id}",
+  summary: "Delete Account",
+  description: "Permanently deletes an account by ID",
+  request: {
+    params: z.object({
+      id: uuidSchema().openapi({ description: "UUID of the account to delete", example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean() }).openapi("DeleteAccountSuccess"),
+        },
+      },
+      description: "Account successfully deleted",
+    },
+    ...coreErrors,
+    ...authErrors,
+    ...validationErrors,
+    ...lookupErrors,
+  },
 });
 
-app.delete("/:id", checkAccountAccess("param", "id"), async (c) => {
+app.openapi(deleteAccountRoute, withAccountAccess()(async (c: any) => {
   try {
     const id = c.req.param("id")!;
     const client = getDb(c);
     await client.deleteAccount(id);
-    return c.json({ success: true });
+    return c.json({ success: true }, 200);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to delete account";
     const status: ContentfulStatusCode = message.includes("Unauthorized") || message.includes("Authorization") ? 401 : 500;
     return c.json({ error: message }, status);
   }
+}));
+
+// GET /api/v1/accounts/:id/export - Export backup
+const exportAccountRoute = createRoute({
+  method: "get",
+  path: "/{id}/export",
+  summary: "Export Account Backup",
+  description: "Downloads a full JSON backup of the account, including its bills and payments",
+  request: {
+    params: z.object({
+      id: uuidSchema().openapi({ description: "UUID of the account to export", example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: ExportPayloadOpenApiSchema,
+        },
+      },
+      description: "Successfully exported backup payload",
+    },
+    ...coreErrors,
+    ...authErrors,
+    ...validationErrors,
+    ...lookupErrors,
+  },
 });
 
-app.get("/:id/export", checkAccountAccess("param", "id"), async (c) => {
+app.openapi(exportAccountRoute, withAccountAccess()(async (c: any) => {
   try {
     const id = c.req.param("id")!;
     const client = getDb(c);
@@ -167,26 +352,58 @@ app.get("/:id/export", checkAccountAccess("param", "id"), async (c) => {
       "Content-Disposition",
       `attachment; filename="hornbill-backup-${account.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()}-${payload.exported_at}.json"`
     );
-    return c.json(payload);
+    return c.json(payload, 200);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to export account";
     return c.json({ error: message }, 500);
   }
+}));
+
+// POST /api/v1/accounts/import - Import backup
+const importAccountRoute = createRoute({
+  method: "post",
+  path: "/import",
+  summary: "Import Account Backup",
+  description: "Uploads a full JSON backup to recreate the account, its bills, and payments",
+  request: {
+    query: z.object({
+      regenerate_ids: z.enum(["true", "false"]).optional().openapi({ description: "Set to true to regenerate all UUIDs to resolve conflicts", example: "true" }),
+    }),
+    body: {
+      content: {
+        "application/json": {
+          schema: ExportPayloadOpenApiSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      content: {
+        "application/json": {
+          schema: AccountOpenApiSchema,
+        },
+      },
+      description: "Account backup successfully imported",
+    },
+    409: {
+      description: "Conflict detected: One or more IDs already exist",
+    },
+    ...coreErrors,
+    ...authErrors,
+    ...validationErrors,
+  },
 });
 
-app.post("/import", async (c) => {
+app.openapi(importAccountRoute, async (c) => {
   try {
     const user = await getAuthUser(c);
     const client = getDb(c);
-    const body = await c.req.json();
+    const body = c.req.valid("json");
+    const { regenerate_ids } = c.req.valid("query");
 
-    const parsed = ExportPayloadSchema.safeParse(body);
-    if (!parsed.success) {
-      return c.json({ error: parsed.error.issues[0].message }, 400);
-    }
-
-    const { account, bills, payments } = parsed.data;
-    const regenerateIds = c.req.query("regenerate_ids") === "true";
+    const { account, bills, payments } = body;
+    const regenerateIds = regenerate_ids === "true";
 
     let targetAccountId = account.id;
     let targetBills = bills;

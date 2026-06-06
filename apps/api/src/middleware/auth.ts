@@ -1,6 +1,17 @@
 import type { Context, Next } from "hono";
 import { verifyAccountAccess, getDb } from "../trailbase";
 
+const getRequestBody = async (c: Context) => {
+  if (typeof c.req.json === "function") {
+    try {
+      return await c.req.json();
+    } catch {
+      // Ignore parser issues and fall back to clone
+    }
+  }
+  return await c.req.raw.clone().json();
+};
+
 export const checkAccountAccess = (source: "param" | "query" | "body", key = "id") => {
   return async (c: Context, next: Next) => {
     let accountId: string | undefined;
@@ -10,7 +21,7 @@ export const checkAccountAccess = (source: "param" | "query" | "body", key = "id
       accountId = c.req.query(key);
     } else if (source === "body") {
       try {
-        const body = await c.req.raw.clone().json();
+        const body = await getRequestBody(c);
         accountId = body?.[key];
       } catch {
         return c.json({ error: "Invalid JSON body" }, 400);
@@ -51,7 +62,7 @@ export const checkBillAccess = (source: "param" | "query" | "body" = "param", ke
       billId = c.req.query(key);
     } else if (source === "body") {
       try {
-        const body = await c.req.raw.clone().json();
+        const body = await getRequestBody(c);
         billId = body?.[key];
       } catch {
         return c.json({ error: "Invalid JSON body" }, 400);
@@ -94,7 +105,7 @@ export const checkPaymentAccess = (source: "param" | "query" | "body" = "param",
       paymentId = c.req.query(key);
     } else if (source === "body") {
       try {
-        const body = await c.req.raw.clone().json();
+        const body = await getRequestBody(c);
         paymentId = body?.[key];
       } catch {
         return c.json({ error: "Invalid JSON body" }, 400);
@@ -131,5 +142,30 @@ export const checkPaymentAccess = (source: "param" | "query" | "body" = "param",
     }
 
     await next();
+  };
+};
+
+// Wrapper helpers to apply access-control middlewares directly to route handlers
+export const withAccountAccess = (source: "param" | "query" | "body" = "param", key = "id") => {
+  return (handler: any) => async (c: any) => {
+    const res = await checkAccountAccess(source, key)(c, async () => {});
+    if (res) return res;
+    return handler(c);
+  };
+};
+
+export const withBillAccess = (source: "param" | "query" | "body" = "param", key = "id") => {
+  return (handler: any) => async (c: any) => {
+    const res = await checkBillAccess(source, key)(c, async () => {});
+    if (res) return res;
+    return handler(c);
+  };
+};
+
+export const withPaymentAccess = (source: "param" | "query" | "body" = "param", key = "id") => {
+  return (handler: any) => async (c: any) => {
+    const res = await checkPaymentAccess(source, key)(c, async () => {});
+    if (res) return res;
+    return handler(c);
   };
 };

@@ -1,7 +1,6 @@
-import { Hono } from "hono";
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { CONFIG } from "./config";
 import { apiReference } from "@scalar/hono-api-reference";
-import openapiSpec from "./openapi.json";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { requestLogger } from "./middleware/requestLogger";
@@ -18,12 +17,15 @@ import auth from "./routes/auth";
 import apiKeys from "./routes/apiKeys";
 import { verifyToken, getDb, type UserPayload } from "./trailbase";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { defaultValidationHook } from "./utils/openapi-errors";
 
 type Variables = {
   user: UserPayload;
 };
 
-const app = new Hono<{ Variables: Variables }>();
+const app = new OpenAPIHono<{ Variables: Variables }>({
+  defaultHook: defaultValidationHook,
+});
 
 // Normalize trailing slashes (e.g. /api/v1/bills/ -> /api/v1/bills)
 app.use("*", trimTrailingSlash());
@@ -90,10 +92,9 @@ app.use("/api/v1/*", async (c, next) => {
 
 
 // Register routes
-const api = new Hono();
+const api = new OpenAPIHono({ defaultHook: defaultValidationHook });
 
 api.get("/ping", (c) => c.json({ status: "ok" }));
-api.get("/openapi.json", (c) => c.json(openapiSpec));
 api.get("/status", (c) => {
   const regEnabled = CONFIG.REGISTRATION_ENABLED;
   const trailbaseUrl = CONFIG.TRAILBASE_URL;
@@ -115,6 +116,22 @@ api.route("/auth", auth);
 api.route("/api-keys", apiKeys);
 
 app.route("/api/v1", api);
+
+// Serve the dynamically generated OpenAPI specification
+app.doc("/api/v1/openapi.json", {
+  openapi: "3.1.0",
+  info: {
+    title: "Hornbill API",
+    version: "1.0.0",
+    description: "API documentation for the Hornbill Personal Finance Tracker",
+  },
+  servers: [
+    {
+      url: "http://localhost:3000",
+      description: "Local development server",
+    },
+  ],
+});
 
 // Serve interactive API documentation (Scalar UI)
 app.get(

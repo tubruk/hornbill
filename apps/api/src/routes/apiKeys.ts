@@ -1,9 +1,50 @@
-import { Hono } from "hono";
+import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { randomBytes, createHash } from "node:crypto";
 import { getDb, verifyToken, type UserPayload } from "../trailbase";
-import { CreateApiKeySchema } from "@hornbill/core";
+import { coreErrors, authErrors, validationErrors, lookupErrors, defaultValidationHook } from "../utils/openapi-errors";
 
-const app = new Hono<{ Variables: { user: UserPayload } }>();
+// Decoupled OpenAPI schemas with descriptions and examples for the documentation UI
+export const ApiKeyResponseSchema = z.object({
+  id: z.string().openapi({
+    description: "Unique UUID identifier of the API key",
+    example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+  }),
+  user_id: z.string().openapi({
+    description: "Owner user ID",
+    example: "user_2a3f5b8c",
+  }),
+  name: z.string().openapi({
+    description: "Human-readable name of the token",
+    example: "Home Assistant Key",
+  }),
+  created_at: z.number().openapi({
+    description: "Creation timestamp in Unix epoch seconds",
+    example: 1717142404,
+  }),
+  last_used_at: z.number().nullable().optional().openapi({
+    description: "Last usage timestamp in Unix epoch seconds, or null if never used",
+    example: 1717142500,
+  }),
+}).openapi("ApiKeyResponse");
+
+export const CreateApiKeyRequestSchema = z.object({
+  name: z.string().min(1, "Name is required").openapi({
+    description: "Descriptive name for the new API key",
+    example: "Home Assistant Key",
+  }),
+}).openapi("CreateApiKey");
+
+const ApiKeyWithRawSchema = ApiKeyResponseSchema.extend({
+  token: z.string().openapi({
+    description: "The raw personal access token. Shown only once upon creation.",
+    example: "hb_pat_17a4b8df9c8e23f01ab234c56789def0",
+  }),
+}).openapi("ApiKeyWithRaw");
+
+// Set up OpenAPIHono instance with custom validation hook
+const app = new OpenAPIHono<{ Variables: { user: UserPayload } }>({
+  defaultHook: defaultValidationHook,
+});
 
 // Auth middleware for the API Keys sub-router
 app.use("*", async (c, next) => {
@@ -22,12 +63,31 @@ app.use("*", async (c, next) => {
 });
 
 // GET /api/v1/api-keys - List keys for the current user
-app.get("/", async (c) => {
+const listKeysRoute = createRoute({
+  method: "get",
+  path: "/",
+  summary: "List API Keys",
+  description: "Lists active API personal access tokens for the authenticated user",
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.array(ApiKeyResponseSchema).openapi("ApiKeyList"),
+        },
+      },
+      description: "Successfully retrieved active API keys",
+    },
+    ...coreErrors,
+    ...authErrors,
+  },
+});
+
+app.openapi(listKeysRoute, async (c) => {
   try {
     const user = c.get("user");
     const client = getDb(c);
     const keys = await client.listApiKeys(user.sub);
-    return c.json(keys);
+    return c.json(keys, 200);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to list API keys";
     return c.json({ error: message }, 500);
@@ -35,14 +95,38 @@ app.get("/", async (c) => {
 });
 
 // POST /api/v1/api-keys - Create a new key
-app.post("/", async (c) => {
-  try {
-    const body = await c.req.json();
-    const result = CreateApiKeySchema.safeParse(body);
-    if (!result.success) {
-      return c.json({ error: result.error.issues[0]?.message || "Invalid input" }, 400);
-    }
+const createKeyRoute = createRoute({
+  method: "post",
+  path: "/",
+  summary: "Create API Key",
+  description: "Generates a new raw personal access token and registers its hash",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: CreateApiKeyRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      content: {
+        "application/json": {
+          schema: ApiKeyWithRawSchema,
+        },
+      },
+      description: "Successfully created API key",
+    },
+    ...coreErrors,
+    ...authErrors,
+    ...validationErrors,
+  },
+});
 
+app.openapi(createKeyRoute, async (c) => {
+  try {
+    const body = c.req.valid("json");
     const user = c.get("user");
     const client = getDb(c);
 
@@ -57,7 +141,7 @@ app.post("/", async (c) => {
     const newKey = await client.createApiKey({
       id: keyId,
       user_id: user.sub,
-      name: result.data.name,
+      name: body.name,
       token_hash: tokenHash,
     });
 
@@ -72,9 +156,35 @@ app.post("/", async (c) => {
 });
 
 // DELETE /api/v1/api-keys/:id - Revoke a key
-app.delete("/:id", async (c) => {
+const deleteKeyRoute = createRoute({
+  method: "delete",
+  path: "/{id}",
+  summary: "Revoke API Key",
+  description: "Deletes and revokes a personal access token by ID",
+  request: {
+    params: z.object({
+      id: z.string().openapi({ description: "ID of the API key to revoke", example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean() }).openapi("RevokeKeySuccess"),
+        },
+      },
+      description: "API key successfully revoked",
+    },
+    ...coreErrors,
+    ...authErrors,
+    ...validationErrors,
+    ...lookupErrors,
+  },
+});
+
+app.openapi(deleteKeyRoute, async (c) => {
   try {
-    const id = c.req.param("id");
+    const { id } = c.req.valid("param");
     const user = c.get("user");
     const client = getDb(c);
 
@@ -91,7 +201,7 @@ app.delete("/:id", async (c) => {
     }
 
     await client.deleteApiKey(id);
-    return c.json({ success: true });
+    return c.json({ success: true }, 200);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to revoke API key";
     return c.json({ error: message }, 500);

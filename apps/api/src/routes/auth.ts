@@ -1,12 +1,44 @@
-import { Hono } from "hono";
+import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { CONFIG } from "../config";
 import { Database } from "bun:sqlite";
 import { existsSync } from "fs";
 import { TrailbaseClient } from "../trailbase";
+import { coreErrors, validationErrors, defaultValidationHook } from "../utils/openapi-errors";
 
-const app = new Hono();
 const TRAILBASE_URL = CONFIG.TRAILBASE_URL;
+
+// --- Zod Request/Response schemas ---
+
+const RegisterRequestSchema = z.object({
+  email: z.string().email("Invalid email format").optional(),
+  password: z.string().optional(),
+  password_repeat: z.string().optional(),
+}).refine(data => data.email && data.password && data.password_repeat, {
+  message: "Email, password, and password_repeat are required",
+}).openapi("RegisterRequest");
+
+const LoginRequestSchema = z.object({
+  email: z.string().email("Invalid email format").optional(),
+  password: z.string().optional(),
+}).refine(data => data.email && data.password, {
+  message: "Email and password are required",
+}).openapi("LoginRequest");
+
+const RefreshRequestSchema = z.object({
+  refresh_token: z.string().optional(),
+}).refine(data => data.refresh_token, {
+  message: "Refresh token is required",
+}).openapi("RefreshRequest");
+
+const AuthSuccessResponseSchema = z.object({
+  auth_token: z.string().openapi({ example: "auth-token-123" }),
+  csrf_token: z.string().openapi({ example: "csrf-token-123" }),
+}).openapi("AuthCredentials");
+
+const RegisterSuccessResponseSchema = z.object({
+  message: z.string().openapi({ example: "registered" }),
+}).openapi("RegisterSuccess");
 
 function binaryToUuidString(bin: Uint8Array): string {
   const hex = Buffer.from(bin).toString("hex");
@@ -80,25 +112,59 @@ async function verifyAndCreateAccountInDb(email: string) {
   }
 }
 
-app.post("/register", async (c) => {
+// Set up OpenAPIHono instance with custom validation hook
+const app = new OpenAPIHono({
+  defaultHook: defaultValidationHook,
+});
+
+// POST /api/v1/auth/register
+const registerRoute = createRoute({
+  method: "post",
+  path: "/register",
+  summary: "User Registration",
+  description: "Registers a new user account and auto-creates their primary finance account",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: RegisterRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: RegisterSuccessResponseSchema,
+        },
+      },
+      description: "Successfully registered account",
+    },
+    ...coreErrors,
+    ...validationErrors,
+  },
+});
+
+(app.openapi as any)(registerRoute, async (c: any) => {
   // Reject registration if disabled via env var
   const regEnabled = process.env.REGISTRATION_ENABLED !== "false";
   if (!regEnabled) {
     return c.json({ error: "Registration is currently disabled" }, 403);
   }
   try {
-    const body = await c.req.json();
-    if (!body.email || !body.password || !body.password_repeat) {
-      return c.json({ error: "Email, password, and password_repeat are required" }, 400);
-    }
+    const body = c.req.valid("json");
+    
+    // Explicitly type assert body since refine types can sometimes obscure them
+    const reqBody = body as any;
 
     const response = await fetch(`${TRAILBASE_URL}/api/auth/v1/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        email: body.email,
-        password: body.password,
-        password_repeat: body.password_repeat,
+        email: reqBody.email,
+        password: reqBody.password,
+        password_repeat: reqBody.password_repeat,
       }),
     });
 
@@ -106,7 +172,7 @@ app.post("/register", async (c) => {
     
     // Auto-verify and create primary account if Trailbase returns 200/201 or 424
     if (response.status === 424 || response.ok) {
-      await verifyAndCreateAccountInDb(body.email);
+      await verifyAndCreateAccountInDb(reqBody.email);
       return c.json({ message: "registered" }, 200);
     }
 
@@ -123,19 +189,46 @@ app.post("/register", async (c) => {
   }
 });
 
-app.post("/login", async (c) => {
+// POST /api/v1/auth/login
+const loginRoute = createRoute({
+  method: "post",
+  path: "/login",
+  summary: "User Login",
+  description: "Authenticates user and returns credentials",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: LoginRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: AuthSuccessResponseSchema,
+        },
+      },
+      description: "Successfully authenticated credentials",
+    },
+    ...coreErrors,
+    ...validationErrors,
+  },
+});
+
+(app.openapi as any)(loginRoute, async (c: any) => {
   try {
-    const body = await c.req.json();
-    if (!body.email || !body.password) {
-      return c.json({ error: "Email and password are required" }, 400);
-    }
+    const body = c.req.valid("json");
+    const reqBody = body as any;
 
     const response = await fetch(`${TRAILBASE_URL}/api/auth/v1/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        email: body.email,
-        password: body.password,
+        email: reqBody.email,
+        password: reqBody.password,
       }),
     });
 
@@ -162,18 +255,45 @@ app.post("/login", async (c) => {
   }
 });
 
-app.post("/refresh", async (c) => {
+// POST /api/v1/auth/refresh
+const refreshRoute = createRoute({
+  method: "post",
+  path: "/refresh",
+  summary: "Token Refresh",
+  description: "Refreshes auth session credentials using a refresh token",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: RefreshRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: AuthSuccessResponseSchema,
+        },
+      },
+      description: "Successfully refreshed credentials",
+    },
+    ...coreErrors,
+    ...validationErrors,
+  },
+});
+
+(app.openapi as any)(refreshRoute, async (c: any) => {
   try {
-    const body = await c.req.json();
-    if (!body.refresh_token) {
-      return c.json({ error: "Refresh token is required" }, 400);
-    }
+    const body = c.req.valid("json");
+    const reqBody = body as any;
 
     const response = await fetch(`${TRAILBASE_URL}/api/auth/v1/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        refresh_token: body.refresh_token,
+        refresh_token: reqBody.refresh_token,
       }),
     });
 
