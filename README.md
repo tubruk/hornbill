@@ -17,14 +17,15 @@
 ## 💡 Key Features
 
 - **🔒 Your data stays with you** – stored in a local SQLite database (powered by [Trailbase](https://trailbase.io/)).
-- **🐋 Docker-based setup** – simple to run via Docker or docker-compose.
-- **💱 Multi-currency** – supports tracking bills in multiple currencies.
 - **📅 Flexible recurrence** – configure monthly, yearly, or custom intervals.
+- **💱 Multi-currency** – supports tracking bills in multiple currencies.
 - **🔔 Reminder notifications** – daily checks and alert notifications via Discord, Slack, Telegram, ntfy, Gotify, or generic Webhooks.
-- **🔑 API Access & Personal Tokens** – manage Personal Access Tokens (API keys) and build integrations.
-- **📂 Data Portability** – export and import your complete profile, bills, and payment records in JSON format at any time.
-- **🖥️ Simple web UI** – clean, minimalist interface to manage bills and track payment history.
+- **📂 Data Export/Import** – export and import your complete profile, bills, and payment records in JSON format at any time.
 - **🛡️ Free and open source** – released under the AGPL‑v3.
+
+Hornbill is built for simple self-hosting with a Docker-based setup and a clean, minimalist web UI. It also provides a REST API for integrating with your own services and tools.
+
+
 
 ## 📸 Screenshots
 
@@ -55,6 +56,10 @@ docker compose up -d
 
 Open `http://localhost:3000` in your browser to start using Hornbill.
 
+> [!NOTE]
+> Hornbill does not manage or provision SSL certificates directly. To run Hornbill securely over HTTPS, it is highly recommended to deploy it behind a reverse proxy. See the [Reverse Proxy & SSL Setup](docs/reverse-proxy.md) guide for Caddy and Nginx configuration templates.
+
+
 ## ⚙️ Configuration (Environment Variables)
 
 | Variable | Description | Default |
@@ -74,27 +79,37 @@ When creating a bill you can select one of the following recurrence options:
 - **Monthly** – billed on a specific day each month (the date is clamped to the last valid day if the month is shorter).
 - **Yearly** – billed on a specific month and day once a year (handles leap‑year dates gracefully).
 - **Custom Interval** – repeat every **N** days, weeks, or months. You can choose the anchoring strategy:
-- **From Due Date** – the next due date is calculated from the previous due date plus the interval.
-- **From Paid Date** – the next due date is calculated from the actual payment date (`paid_at`) plus the interval, so the schedule shifts based on when you pay.
+  - **From Due Date** – the next due date is calculated from the previous due date plus the interval.
+  - **From Paid Date** – the next due date is calculated from the actual payment date (`paid_at`) plus the interval, so the schedule shifts based on when you pay.
 
-All recurrence settings are stored in the database, and the background daemon automatically creates the corresponding payment entries at the configured interval.
+A background service automatically generates the upcoming payment entries based on these recurrence settings.
 
-## 🎯 Goals & Non-Goals
+## 🎯 Project Vision & Goals
 
-### Planned / Goals
-- **🔌 Webhook Dispatcher** – Send automated webhook payloads when bills are due or paid.
-- **🤖 AI agent integration** – Integrations via CLI scripts and agent skills.
-- **🔑 OAuth login** – Secure authentication options beyond simple password login.
-- **👥 Account sharing** – Share accounts and bills with family members or other users.
-- **💬 Telegram bot companion** – Interactive bot companion to check due dates and log payments.
-- **☁️ SaaS offering** – A hosted version of the service.
+### Core Principles
+- **🛡️ Privacy & Simplicity First** – We focus strictly on tracking recurring bills and payment history. Core features must remain lightweight and private.
+- **🔌 Extensible Architecture** – Instead of bloating the core app with integrations, we expose a clean REST API so you can connect your own tools, scripts, and agents.
+- **🐋 Single-Process Self-Hosting** – Deployment must remain dead-simple. We avoid introducing heavy infrastructure or external database dependencies, keeping Hornbill easy to run in a single container.
+
+
+### Planned Features
+- **Webhook Dispatcher** – Send automated webhook payloads when bills are due or paid.
+- **AI agent integration** – Integrations via CLI scripts and agent skills.
+- **OAuth login** – Secure authentication options beyond simple password login.
+- **Account sharing** – Share accounts and bills with family members or other users.
+- **Telegram bot companion** – Interactive bot companion to check due dates and log payments.
+
+
+
 
 ### Non-Goals
-- **Invoicing and Budgeting** – Not designed to generate professional client invoices or provide complex envelope-style budgeting tools.
-- **Automatic Bank Syncing** – Keeping tracking manual to avoid the complexity, fragility, and security overhead of bank API integrations.
-- **Double-Entry Bookkeeping** – Not a replacement for comprehensive personal ledger or accounting software.
-- **Direct Payment Processing** – Processing actual monetary transactions (e.g., Stripe/PayPal integrations to transfer funds).
-- **Native Mobile Apps** – A fully responsive web interface is prioritized over maintaining native iOS/Android apps.
+- **Full Expense & Budget Tracking** – It is not a complete personal finance manager (like YNAB or Firefly III) for tracking daily transactions, envelope budgets, or account balances.
+- **Automatic Bank Syncing** – Tracking is entirely manual; there are no bank integrations to automatically pull transaction history.
+- **Bill Payment Processing** – Hornbill does not initiate or process actual monetary transactions to pay your bills.
+
+However, since Hornbill provides a comprehensive REST API, you are welcome to build custom integrations (e.g., bank syncing or payment automation) on top of it.
+
+
 
 ## 🤝 Getting Help
 
