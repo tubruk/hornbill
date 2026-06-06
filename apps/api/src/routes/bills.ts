@@ -6,13 +6,13 @@ import { withAccountAccess, withBillAccess } from "../middleware/auth";
 import { coreErrors, authErrors, validationErrors, lookupErrors, defaultValidationHook, uuidSchema } from "../utils/openapi-errors";
 
 export const BillOpenApiSchema = z.object({
-  id: z.string().uuid().openapi({ description: "UUID of the bill", example: "d3b07384-d113-4bf6-a5cc-9c60dfd667fb" }),
-  account_id: z.string().uuid().openapi({ description: "Account owner UUID", example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" }),
+  id: uuidSchema().openapi({ description: "UUID of the bill", example: "d3b07384-d113-4bf6-a5cc-9c60dfd667fb" }),
+  account_id: uuidSchema().openapi({ description: "Account owner UUID", example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" }),
   name: z.string().openapi({ description: "Name/description of the bill", example: "Netflix Subscription" }),
   currency: z.string().openapi({ description: "Currency code", example: "USD" }),
   amount_cents: z.number().int().openapi({ description: "Billing amount in cents", example: 1599 }),
   amount_type: z.enum(["fixed", "variable"]).openapi({ description: "Whether amount is fixed or variable", example: "fixed" }),
-  recurrence: z.any().openapi({ description: "Recurrence strategy details" }),
+  recurrence: z.record(z.string(), z.unknown()).openapi({ description: "Recurrence strategy details" }),
   start_date: z.string().openapi({ description: "Start date of billing schedule (YYYY-MM-DD)", example: "2026-06-01" }),
   active: z.boolean().openapi({ description: "Whether billing schedule is active", example: true }),
   upcoming_threshold_days: z.number().int().nullable().optional().openapi({ description: "Days before due to flag alert, or null to inherit", example: 3 }),
@@ -22,7 +22,7 @@ export const BillOpenApiSchema = z.object({
 }).openapi("Bill");
 
 const BillWithPaymentsOpenApiSchema = BillOpenApiSchema.extend({
-  payments: z.array(z.any()).openapi({ description: "History of payments associated with the bill" }),
+  payments: z.array(z.record(z.string(), z.unknown())).openapi({ description: "History of payments associated with the bill" }),
 }).openapi("BillWithPayments");
 
 const CreateBillRequestSchema = z.object({
@@ -31,7 +31,7 @@ const CreateBillRequestSchema = z.object({
   currency: z.string().optional().openapi({ example: "USD" }),
   amount_cents: z.number().int().optional().openapi({ example: 1599 }),
   amount_type: z.enum(["fixed", "variable"]).optional().openapi({ example: "fixed" }),
-  recurrence: z.any().optional().openapi({ description: "Recurrence configuration" }),
+  recurrence: z.record(z.string(), z.unknown()).optional().openapi({ description: "Recurrence configuration" }),
   start_date: z.string().optional().openapi({ example: "2026-06-01" }),
   active: z.boolean().optional().openapi({ example: true }),
   upcoming_threshold_days: z.number().int().nullable().optional(),
@@ -124,7 +124,7 @@ const getBillRoute = createRoute({
   },
 });
 
-app.openapi(getBillRoute, withBillAccess()(async (c: any) => {
+app.openapi(getBillRoute, withBillAccess()(async (c) => {
   try {
     const id = c.req.param("id");
     const bill = c.get("bill");
@@ -166,7 +166,7 @@ const createBillRoute = createRoute({
   },
 });
 
-app.openapi(createBillRoute, withAccountAccess("body", "account_id")(async (c: any) => {
+app.openapi(createBillRoute, withAccountAccess("body", "account_id")(async (c) => {
   try {
     const body = c.req.valid("json");
     
@@ -182,7 +182,7 @@ app.openapi(createBillRoute, withAccountAccess("body", "account_id")(async (c: a
       currency: body.currency,
       amount_cents: Number(body.amount_cents) || 0,
       amount_type: body.amount_type || "fixed",
-      recurrence: body.recurrence,
+      recurrence: body.recurrence as unknown as Bill["recurrence"],
       start_date: body.start_date,
       active: body.active !== false,
       upcoming_threshold_days: body.upcoming_threshold_days !== undefined ? (body.upcoming_threshold_days === null ? null : Number(body.upcoming_threshold_days)) : null,
@@ -237,7 +237,7 @@ const updateBillRoute = createRoute({
   },
 });
 
-app.openapi(updateBillRoute, withBillAccess()(async (c: any) => {
+app.openapi(updateBillRoute, withBillAccess()(async (c) => {
   try {
     const id = c.req.param("id")!;
     const body = c.req.valid("json");
@@ -253,7 +253,11 @@ app.openapi(updateBillRoute, withBillAccess()(async (c: any) => {
       return c.json({ error: "start_date is immutable" }, 400);
     }
 
-    const updated = await getDb(c).updateBill(id, body);
+    const updates: Partial<Bill> = {
+      ...body,
+      recurrence: body.recurrence as unknown as Bill["recurrence"] | undefined,
+    };
+    const updated = await getDb(c).updateBill(id, updates);
     
     // Process all payment side-effects cleanly on the API side
     try {
@@ -296,7 +300,7 @@ const deleteBillRoute = createRoute({
   },
 });
 
-app.openapi(deleteBillRoute, withBillAccess()(async (c: any) => {
+app.openapi(deleteBillRoute, withBillAccess()(async (c) => {
   try {
     const id = c.req.param("id")!;
     await getDb(c).deleteBill(id);

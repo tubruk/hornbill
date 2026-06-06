@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import type { Context } from "hono";
 
 // Standard JSON error response schema
 export const ErrorResponseSchema = z.object({
@@ -6,7 +7,7 @@ export const ErrorResponseSchema = z.object({
     description: "Brief error message description",
     example: "Unauthorized",
   }),
-  details: z.any().optional().openapi({
+  details: z.unknown().optional().openapi({
     description: "Detailed error validation messages or context if applicable",
   }),
 });
@@ -67,7 +68,10 @@ export const lookupErrors = {
   },
 };
 
-export const defaultValidationHook = (result: any, c: any) => {
+export const defaultValidationHook = (
+  result: { success: boolean; error?: { issues: { message: string }[] } },
+  c: Context
+) => {
   if (!result.success) {
     // Settle payment endpoint tolerates malformed JSON by design in tests, return mock success response
     if (process.env.NODE_ENV === "test" && c.req.path.endsWith("/pay")) {
@@ -75,7 +79,7 @@ export const defaultValidationHook = (result: any, c: any) => {
       return c.json({ id }, 200);
     }
 
-    const issue = result.error.issues[0];
+    const issue = result.error?.issues[0];
     const errorMsg = issue?.message || "Invalid input";
     
     // Prefix if it doesn't already have one to match test expectations
@@ -94,8 +98,21 @@ export const defaultValidationHook = (result: any, c: any) => {
   }
 };
 
-// A helper that relaxes UUID validation during tests to support mock IDs
+// Base64-encoded binary UUID as returned by TrailBase (16 raw bytes → 24 base64 chars with padding)
+const BASE64_UUID_REGEX = /^[A-Za-z0-9+/]{22}==$/;
+
+// Accepts both standard hyphenated UUIDs and TrailBase's base64-encoded binary UUIDs.
+// Tests get a plain z.string() to support arbitrary mock IDs.
 export const uuidSchema = () => {
-  return process.env.NODE_ENV === "test" ? z.string() : z.string().uuid();
+  if (process.env.NODE_ENV === "test") return z.string();
+  return z.string().refine(
+    (v) => {
+      // Standard UUID (e.g. "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d")
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) return true;
+      // TrailBase base64 binary UUID (e.g. "DlQl7Tf6ShOnrepGm0dbWw==")
+      return BASE64_UUID_REGEX.test(v);
+    },
+    { message: "Invalid UUID" }
+  );
 };
 

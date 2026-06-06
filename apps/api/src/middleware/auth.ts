@@ -1,4 +1,5 @@
-import type { Context, Next } from "hono";
+import type { Context, Next, Env } from "hono";
+import type { RouteHandler, RouteConfig } from "@hono/zod-openapi";
 import { verifyAccountAccess, getDb } from "../trailbase";
 
 const getRequestBody = async (c: Context) => {
@@ -146,26 +147,29 @@ export const checkPaymentAccess = (source: "param" | "query" | "body" = "param",
 };
 
 // Wrapper helpers to apply access-control middlewares directly to route handlers
-export const withAccountAccess = (source: "param" | "query" | "body" = "param", key = "id") => {
-  return (handler: any) => async (c: any) => {
-    const res = await checkAccountAccess(source, key)(c, async () => {});
-    if (res) return res;
-    return handler(c);
-  };
-};
+export const withAccountAccess = (source: "param" | "query" | "body" = "param", key = "id") =>
+  <R extends RouteConfig, E extends Env = Env>(handler: RouteHandler<R, E>): RouteHandler<R, E> =>
+    (async (c: Context, next: Next) => {
+      const mw = checkAccountAccess(source, key);
+      const maybeResp = await mw(c, async () => {});
+      if (maybeResp) return maybeResp;
+      return handler(c, next);
+    }) as unknown as RouteHandler<R, E>;
 
-export const withBillAccess = (source: "param" | "query" | "body" = "param", key = "id") => {
-  return (handler: any) => async (c: any) => {
-    const res = await checkBillAccess(source, key)(c, async () => {});
-    if (res) return res;
-    return handler(c);
-  };
-};
+export const withBillAccess = (source: "param" | "query" | "body" = "param", key = "id") =>
+  <R extends RouteConfig, E extends Env = Env>(handler: RouteHandler<R, E>): RouteHandler<R, E> =>
+    (async (c: Context, next: Next) => {
+      const mw = checkBillAccess(source, key);
+      const maybeResp = await mw(c, async () => {});
+      if (maybeResp) return maybeResp;
+      return handler(c, next);
+    }) as unknown as RouteHandler<R, E>;
 
-export const withPaymentAccess = (source: "param" | "query" | "body" = "param", key = "id") => {
-  return (handler: any) => async (c: any) => {
-    const res = await checkPaymentAccess(source, key)(c, async () => {});
-    if (res) return res;
-    return handler(c);
-  };
-};
+export const withPaymentAccess = (source: "param" | "query" | "body" = "param", key = "id") =>
+  <R extends RouteConfig, E extends Env = Env>(handler: RouteHandler<R, E>): RouteHandler<R, E> =>
+    (async (c: Context, next: Next) => {
+      const mw = checkPaymentAccess(source, key);
+      const maybeResp = await mw(c, async () => {});
+      if (maybeResp) return maybeResp;
+      return handler(c, next);
+    }) as unknown as RouteHandler<R, E>;

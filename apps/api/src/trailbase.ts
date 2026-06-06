@@ -4,6 +4,7 @@ import { readFileSync, existsSync } from "fs";
 import type { Context } from "hono";
 import { CONFIG } from "./config";
 
+
 const TRAILBASE_URL = CONFIG.TRAILBASE_URL;
 const TRAILBASE_TOKEN = CONFIG.TRAILBASE_TOKEN;
 

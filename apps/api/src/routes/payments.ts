@@ -6,8 +6,8 @@ import { withBillAccess, withPaymentAccess } from "../middleware/auth";
 import { coreErrors, authErrors, validationErrors, lookupErrors, defaultValidationHook, uuidSchema } from "../utils/openapi-errors";
 
 export const PaymentOpenApiSchema = z.object({
-  id: z.string().uuid().openapi({ description: "UUID of the payment cycle", example: "3b2f9a7d-3b7d-4bad-9bdd-2b0d7b3dcb6d" }),
-  bill_id: z.string().uuid().openapi({ description: "UUID of the associated bill", example: "d3b07384-d113-4bf6-a5cc-9c60dfd667fb" }),
+  id: uuidSchema().openapi({ description: "UUID of the payment cycle", example: "3b2f9a7d-3b7d-4bad-9bdd-2b0d7b3dcb6d" }),
+  bill_id: uuidSchema().openapi({ description: "UUID of the associated bill", example: "d3b07384-d113-4bf6-a5cc-9c60dfd667fb" }),
   due_date: z.string().openapi({ description: "Scheduled due date (YYYY-MM-DD)", example: "2026-06-01" }),
   amount_cents: z.number().int().openapi({ description: "Payment amount in cents", example: 1599 }),
   paid_at: z.number().int().nullable().optional().openapi({ description: "Settle epoch timestamp, or null if unpaid", example: 1717142500 }),
@@ -136,7 +136,7 @@ const getPaymentRoute = createRoute({
   },
 });
 
-app.openapi(getPaymentRoute, withPaymentAccess()(async (c: any) => {
+app.openapi(getPaymentRoute, withPaymentAccess()(async (c) => {
   try {
     const payment = c.get("payment");
     return c.json(payment, 200);
@@ -176,7 +176,7 @@ const createPaymentRoute = createRoute({
   },
 });
 
-app.openapi(createPaymentRoute, withBillAccess("body", "bill_id")(async (c: any) => {
+app.openapi(createPaymentRoute, withBillAccess("body", "bill_id")(async (c) => {
   try {
     const body = c.req.valid("json");
     
@@ -236,7 +236,7 @@ const payPaymentRoute = createRoute({
   },
 });
 
-app.openapi(payPaymentRoute, withPaymentAccess()(async (c: any) => {
+app.openapi(payPaymentRoute, withPaymentAccess()(async (c) => {
   try {
     const id = c.req.param("id")!;
     const body = c.req.valid("json");
@@ -287,15 +287,26 @@ const updatePaymentRoute = createRoute({
   },
 });
 
-app.openapi(updatePaymentRoute, withPaymentAccess()(async (c: any) => {
+app.openapi(updatePaymentRoute, withPaymentAccess()(async (c) => {
   try {
     const id = c.req.param("id")!;
     const body = c.req.valid("json");
     
-    const updates: any = { ...body };
-    if (typeof updates.paid_at === "string") {
-      updates.paid_at = Math.floor(new Date(updates.paid_at).getTime() / 1000);
+    let paidAtValue: number | null | undefined = undefined;
+    if (body.paid_at !== undefined) {
+      if (typeof body.paid_at === "string") {
+        paidAtValue = Math.floor(new Date(body.paid_at).getTime() / 1000);
+      } else {
+        paidAtValue = body.paid_at;
+      }
     }
+
+    const updates: Partial<Payment> = {
+      due_date: body.due_date,
+      amount_cents: body.amount_cents,
+      paid_at: paidAtValue,
+      notes: body.notes,
+    };
     
     const updated = await getDb(c).updatePayment(id, updates);
     return c.json(updated, 200);
@@ -332,7 +343,7 @@ const deletePaymentRoute = createRoute({
   },
 });
 
-app.openapi(deletePaymentRoute, withPaymentAccess()(async (c: any) => {
+app.openapi(deletePaymentRoute, withPaymentAccess()(async (c) => {
   try {
     const id = c.req.param("id")!;
     await getDb(c).deletePayment(id);

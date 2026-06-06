@@ -1,7 +1,8 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { getDb, verifyToken, type UserPayload } from "../trailbase";
-import { DEFAULT_UPCOMING_THRESHOLD_DAYS, AccountSchema, type Account } from "@hornbill/core";
+import { DEFAULT_UPCOMING_THRESHOLD_DAYS, AccountSchema, type Account, type Bill, type Payment } from "@hornbill/core";
 import { withAccountAccess } from "../middleware/auth";
 import { coreErrors, authErrors, validationErrors, lookupErrors, defaultValidationHook, uuidSchema } from "../utils/openapi-errors";
 
@@ -13,8 +14,8 @@ export const AccountOpenApiSchema = z.object({
   currencies: z.array(z.string()).openapi({ description: "Supported currencies list", example: ["USD", "IDR"] }),
   default_currency: z.string().openapi({ description: "Primary currency of the account", example: "USD" }),
   archived: z.boolean().openapi({ description: "Archived status", example: false }),
-  notification_provider: z.any().openapi({ description: "Notification provider configuration" }),
-  notification_reminder: z.any().openapi({ description: "Reminder configuration" }),
+  notification_provider: z.record(z.string(), z.unknown()).openapi({ description: "Notification provider configuration" }),
+  notification_reminder: z.record(z.string(), z.unknown()).openapi({ description: "Reminder configuration" }),
   created_at: z.number().int().optional().openapi({ description: "Creation epoch timestamp", example: 1717142404 }),
   updated_at: z.number().int().optional().openapi({ description: "Last update epoch timestamp", example: 1717142404 }),
 }).openapi("Account");
@@ -26,8 +27,8 @@ const CreateAccountRequestSchema = z.object({
   currencies: z.array(z.string()).min(1).optional().openapi({ example: ["USD", "IDR"] }),
   default_currency: z.string().optional().openapi({ example: "USD" }),
   archived: z.boolean().optional().openapi({ example: false }),
-  notification_provider: z.any().optional(),
-  notification_reminder: z.any().optional(),
+  notification_provider: z.record(z.string(), z.unknown()).optional(),
+  notification_reminder: z.record(z.string(), z.unknown()).optional(),
 }).openapi("CreateAccountRequest");
 
 const UpdateAccountRequestSchema = CreateAccountRequestSchema.partial().openapi("UpdateAccountRequest");
@@ -36,15 +37,15 @@ const ExportPayloadOpenApiSchema = z.object({
   version: z.number().openapi({ example: 1 }),
   exported_at: z.number().openapi({ example: 1717142500 }),
   account: AccountOpenApiSchema,
-  bills: z.array(z.any()).openapi({ description: "List of bills belonging to the account" }),
-  payments: z.array(z.any()).openapi({ description: "List of payments belonging to the bills" }),
+  bills: z.array(z.record(z.string(), z.unknown())).openapi({ description: "List of bills belonging to the account" }),
+  payments: z.array(z.record(z.string(), z.unknown())).openapi({ description: "List of payments belonging to the bills" }),
 }).openapi("ExportPayload");
 
 const app = new OpenAPIHono<{ Variables: { user: UserPayload; myAccountIds: Set<string>; account: Account } }>({
   defaultHook: defaultValidationHook,
 });
 
-async function getAuthUser(c: any): Promise<UserPayload> {
+async function getAuthUser(c: Context): Promise<UserPayload> {
   const authHeader = c.req.header("Authorization");
   if (!authHeader) {
     throw new Error("Missing Authorization header");
@@ -141,8 +142,8 @@ app.openapi(createAccountRoute, async (c) => {
       currencies: body.currencies ?? ["IDR", "USD"],
       default_currency: body.default_currency ?? "IDR",
       archived: body.archived ?? false,
-      notification_provider: body.notification_provider ?? { type: "webhook", config: {} },
-      notification_reminder: body.notification_reminder ?? { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null },
+      notification_provider: (body.notification_provider ?? { type: "webhook", config: {} }) as unknown as Account["notification_provider"],
+      notification_reminder: (body.notification_reminder ?? { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null }) as unknown as Account["notification_reminder"],
       created_at: now,
       updated_at: now,
     };
@@ -189,7 +190,7 @@ const getAccountRoute = createRoute({
   },
 });
 
-app.openapi(getAccountRoute, withAccountAccess()(async (c: any) => {
+app.openapi(getAccountRoute, withAccountAccess()(async (c) => {
   try {
     const account = c.get("account");
     return c.json(account, 200);
@@ -234,7 +235,7 @@ const updateAccountRoute = createRoute({
   },
 });
 
-app.openapi(updateAccountRoute, withAccountAccess()(async (c: any) => {
+app.openapi(updateAccountRoute, withAccountAccess()(async (c) => {
   try {
     const id = c.req.param("id")!;
     const body = c.req.valid("json");
@@ -252,7 +253,7 @@ app.openapi(updateAccountRoute, withAccountAccess()(async (c: any) => {
     }
 
     const client = getDb(c);
-    const updated = await client.updateAccount(id, body);
+    const updated = await client.updateAccount(id, parsed.data);
     return c.json(updated, 200);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to update account";
@@ -288,7 +289,7 @@ const deleteAccountRoute = createRoute({
   },
 });
 
-app.openapi(deleteAccountRoute, withAccountAccess()(async (c: any) => {
+app.openapi(deleteAccountRoute, withAccountAccess()(async (c) => {
   try {
     const id = c.req.param("id")!;
     const client = getDb(c);
@@ -328,7 +329,7 @@ const exportAccountRoute = createRoute({
   },
 });
 
-app.openapi(exportAccountRoute, withAccountAccess()(async (c: any) => {
+app.openapi(exportAccountRoute, withAccountAccess()(async (c) => {
   try {
     const id = c.req.param("id")!;
     const client = getDb(c);
@@ -402,7 +403,7 @@ app.openapi(importAccountRoute, async (c) => {
     const body = c.req.valid("json");
     const { regenerate_ids } = c.req.valid("query");
 
-    const { account, bills, payments } = body;
+    const { account, bills, payments } = body as unknown as { account: Account; bills: Omit<Bill, "created_at">[]; payments: Omit<Payment, "created_at" | "updated_at">[] };
     const regenerateIds = regenerate_ids === "true";
 
     let targetAccountId = account.id;
