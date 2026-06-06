@@ -44,7 +44,7 @@ Trailbase runs SQLite in `STRICT` mode. This introduces several critical quirks:
 ## 3. Tech Stack & Monorepo Boundaries
 
 - **No Local Docker**: Local development must run on host binary processes (e.g. running the local `trail` database engine and Bun app servers via `make dev`). Docker is strictly reserved for packaging and production distribution.
-- **Bun Workspaces**: Dependencies and script runs should utilize Bun workspace filters (e.g., `bun --filter web build` or `bun --filter api dev`).
+- **Bun Workspaces**: Dependencies and script runs should utilize Bun workspace filters (e.g., `bun --filter hornbill-web build` or `bun --filter hornbill-api dev`).
 - **Single-Image Distribution**: In production, the Hono API server serves static assets directly from `apps/web/dist`. Avoid creating API dependencies that break this single-process serving strategy.
 
 ---

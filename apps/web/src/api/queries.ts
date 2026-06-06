@@ -4,7 +4,7 @@ import {
   useQueryClient,
   type UseQueryOptions,
 } from "@tanstack/react-query";
-import type { Account, Bill, Payment, ExportPayload } from "@hornbill/core";
+import type { Account, Bill, Payment, ExportPayload, ApiKey } from "@hornbill/core";
 import {
   fetchAccounts,
   createAccount,
@@ -19,6 +19,9 @@ import {
 
   triggerAccountSync,
   importAccount,
+  fetchApiKeys,
+  createApiKey,
+  deleteApiKey,
   type CreateBillPayload,
   type UpdateBillPayload,
 } from "./client";
@@ -30,6 +33,7 @@ export const qk = {
   accounts: () => ["accounts"] as const,
   bills: (accountId: string | undefined) => ["bills", accountId] as const,
   payments: (accountId: string | undefined) => ["payments", accountId] as const,
+  apiKeys: () => ["apiKeys"] as const,
 } as const;
 
 // ── Enriched payment type ──────────────────────────────────────────────────
@@ -193,6 +197,38 @@ export function useImportAccount() {
       importAccount(payload, regenerateIds),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.accounts() });
+    },
+  });
+}
+
+// ── API Keys ───────────────────────────────────────────────────────────────
+
+export function useApiKeys(options?: Partial<UseQueryOptions<ApiKey[]>>) {
+  return useQuery<ApiKey[]>({
+    queryKey: qk.apiKeys(),
+    queryFn: fetchApiKeys,
+    staleTime: 30_000,
+    retry: 1,
+    ...options,
+  });
+}
+
+export function useCreateApiKey() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => createApiKey(name),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.apiKeys() });
+    },
+  });
+}
+
+export function useDeleteApiKey() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteApiKey(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.apiKeys() });
     },
   });
 }

@@ -1,4 +1,4 @@
-import type { Account, Bill, Payment, ExportPayload } from "@hornbill/core";
+import type { Account, Bill, Payment, ExportPayload, ApiKey } from "@hornbill/core";
 
 const BASE = "/api/v1";
 
@@ -227,4 +227,20 @@ export function importAccount(payload: ExportPayload, regenerateIds: boolean): P
   });
 }
 
+// ── API Keys ───────────────────────────────────────────────────────────────
 
+export function fetchApiKeys(): Promise<ApiKey[]> {
+  return apiFetch<ApiKey[]>("/api-keys");
+}
+
+export function createApiKey(name: string): Promise<ApiKey & { token: string }> {
+  return apiFetch<ApiKey & { token: string }>("/api-keys", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function deleteApiKey(id: string): Promise<void> {
+  return apiFetch<void>(`/api-keys/${id}`, { method: "DELETE" });
+}

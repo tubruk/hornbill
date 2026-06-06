@@ -15,7 +15,7 @@ RUN bun install --frozen-lockfile
 # Copy source code and build frontend
 COPY packages/core ./packages/core
 COPY apps/web ./apps/web
-RUN bun run --filter web build
+RUN bun run --filter hornbill-web build
 
 # Stage 2: Build final runner
 FROM oven/bun:1.3.14
