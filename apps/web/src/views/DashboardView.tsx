@@ -168,8 +168,8 @@ export function DashboardView() {
           notify(`"${payingPayment.name}" marked as paid.`, "success");
           setPayingPayment(null);
         },
-        onError: (err: any) =>
-          notify(err.message ?? "Could not mark payment as paid.", "error"),
+        onError: (err: unknown) =>
+          notify(err instanceof Error ? err.message : "Could not mark payment as paid.", "error"),
       }
     );
   }
@@ -389,7 +389,7 @@ export function DashboardView() {
                 const { status } = getPaymentState(p, todayStr, threshold);
                 const isPaying =
                   payPaymentMut.isPending &&
-                  (payPaymentMut.variables as any)?.paymentId === p.id;
+                  payPaymentMut.variables?.paymentId === p.id;
 
                 return (
                   <div

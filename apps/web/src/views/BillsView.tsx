@@ -51,8 +51,8 @@ export function BillsView() {
             `"${bill.name}" ${next ? "activated" : "deactivated"}.`,
             "success"
           ),
-        onError: (err: any) =>
-          notify(err.message ?? "Failed to update bill.", "error"),
+        onError: (err: unknown) =>
+          notify(err instanceof Error ? err.message : "Failed to update bill.", "error"),
       }
     );
   }
@@ -64,8 +64,8 @@ export function BillsView() {
       { id, accountId: currentAccount.id },
       {
         onSuccess: () => notify(`"${name}" removed.`, "success"),
-        onError: (err: any) =>
-          notify(err.message ?? "Failed to delete.", "error"),
+        onError: (err: unknown) =>
+          notify(err instanceof Error ? err.message : "Failed to delete.", "error"),
       }
     );
   }
@@ -151,10 +151,10 @@ export function BillsView() {
             {bills.map((bill) => {
               const isToggling =
                 updateBillMut.isPending &&
-                (updateBillMut.variables as any)?.id === bill.id;
+                updateBillMut.variables?.id === bill.id;
               const isDeleting =
                 deleteBillMut.isPending &&
-                (deleteBillMut.variables as any)?.id === bill.id;
+                deleteBillMut.variables?.id === bill.id;
               const isBusy = isToggling || isDeleting;
 
               return (
@@ -297,8 +297,8 @@ export function BillsView() {
               });
               setEditingBill(null);
               notify(`"${payload.name}" updated.`, "success");
-            } catch (err: any) {
-              notify(err.message ?? "Failed to update bill.", "error");
+            } catch (err: unknown) {
+              notify(err instanceof Error ? err.message : "Failed to update bill.", "error");
             }
           }}
           onClose={() => setEditingBill(null)}

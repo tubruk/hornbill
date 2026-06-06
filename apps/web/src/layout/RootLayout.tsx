@@ -92,8 +92,9 @@ export function RootLayout() {
         closeAddModal();
         notify("Bill added successfully.", "success");
       },
-      onError: (err: any) => {
-        notify(err.message ?? "Failed to add bill.", "error");
+      onError: (err: unknown) => {
+        const message = err instanceof Error ? err.message : "Failed to add bill.";
+        notify(message, "error");
       },
     });
   }

@@ -46,8 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         throw new Error("Invalid response from server");
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to log in");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to log in";
+      setError(message);
       throw err;
     }
   }, []);
@@ -58,8 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await api.registerUser(emailVal, passwordVal, passwordRepeatVal);
       // Automatically log in after registration
       await login(emailVal, passwordVal);
-    } catch (err: any) {
-      setError(err.message || "Failed to register");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to register";
+      setError(message);
       throw err;
     }
   }, [login]);

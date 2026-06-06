@@ -27,7 +27,7 @@ import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { useAuth } from "../context/AuthContext";
-import { ISO_4217_CURRENCIES, type Account } from "@hornbill/core";
+import { ISO_4217_CURRENCIES, type Account, type ExportPayload } from "@hornbill/core";
 
 function getCurrencyFlag(code: string): string {
   const flags: Record<string, string> = {
@@ -80,7 +80,7 @@ export function SettingsView() {
   const [reminderTime, setReminderTime] = useState(currentAccount?.notification_reminder?.time ?? "09:00");
   const [reminderTimezone, setReminderTimezone] = useState(currentAccount?.notification_reminder?.timezone ?? "UTC");
 
-  const [providerType, setProviderType] = useState(currentAccount?.notification_provider?.type ?? "webhook");
+  const [providerType, setProviderType] = useState<Account["notification_provider"]["type"]>(currentAccount?.notification_provider?.type ?? "webhook");
   const [webhookUrl, setWebhookUrl] = useState(currentAccount?.notification_provider?.config?.webhookUrl ?? "");
   const [botToken, setBotToken] = useState(currentAccount?.notification_provider?.config?.botToken ?? "");
   const [chatId, setChatId] = useState(currentAccount?.notification_provider?.config?.chatId ?? "");
@@ -150,7 +150,7 @@ export function SettingsView() {
           `Sync complete. Processed ${stats.processed} bills, generated ${stats.generated} payments.`,
           "success"
         ),
-      onError: (err: any) => notify(err.message ?? "Sync failed.", "error"),
+      onError: (err: unknown) => notify(err instanceof Error ? err.message : "Sync failed.", "error"),
     });
   }
 
@@ -184,7 +184,7 @@ export function SettingsView() {
           timezone: reminderTimezone,
         },
         notification_provider: {
-          type: providerType as any,
+          type: providerType,
           config: {
             webhookUrl: (providerType === "webhook" || providerType === "slack" || providerType === "discord") ? webhookUrl : undefined,
             botToken: providerType === "telegram" ? botToken : undefined,
@@ -200,7 +200,7 @@ export function SettingsView() {
         onSuccess: () => {
           notify(`Account configurations saved successfully.`, "success");
         },
-        onError: (err: any) => notify(err.message ?? "Failed to save configurations.", "error"),
+        onError: (err: unknown) => notify(err instanceof Error ? err.message : "Failed to save configurations.", "error"),
       }
     );
   }
@@ -215,7 +215,7 @@ export function SettingsView() {
         setShowNewAccInput(false);
         notify(`Account "${trimmedName}" created.`, "success");
       },
-      onError: (err: any) => notify(err.message ?? "Failed to create account.", "error"),
+      onError: (err: unknown) => notify(err instanceof Error ? err.message : "Failed to create account.", "error"),
     });
   }
 
@@ -232,7 +232,7 @@ export function SettingsView() {
             "success"
           );
         },
-        onError: (err: any) => notify(err.message ?? "Action failed.", "error"),
+        onError: (err: unknown) => notify(err instanceof Error ? err.message : "Action failed.", "error"),
       }
     );
   }
@@ -247,7 +247,7 @@ export function SettingsView() {
       onSuccess: () => {
         notify(`Account "${acc.name}" deleted.`, "success");
       },
-      onError: (err: any) => notify(err.message ?? "Failed to delete account.", "error"),
+        onError: (err: unknown) => notify(err instanceof Error ? err.message : "Failed to delete account.", "error"),
     });
   }
 
@@ -268,8 +268,8 @@ export function SettingsView() {
       downloadAnchor.remove();
       
       notify(`Backup JSON file generated for "${currentAccount.name}"`, "success");
-    } catch (err: any) {
-      notify(err.message ?? "Failed to export account", "error");
+    } catch (err: unknown) {
+      notify(err instanceof Error ? err.message : "Failed to export account", "error");
     } finally {
       setExporting(false);
     }
@@ -287,9 +287,9 @@ export function SettingsView() {
     if (!selectedFile) return;
     try {
       const text = await selectedFile.text();
-      let parsedPayload: any;
+      let parsedPayload: ExportPayload;
       try {
-        parsedPayload = JSON.parse(text);
+        parsedPayload = JSON.parse(text) as ExportPayload;
       } catch {
         notify("Invalid JSON file format", "error");
         return;
@@ -303,17 +303,18 @@ export function SettingsView() {
             setCurrentAccount(newAccount);
             setSelectedFile(null);
           },
-          onError: (err: any) => {
-            if (err.message && err.message.includes("Conflict")) {
+          onError: (err: unknown) => {
+            const message = err instanceof Error ? err.message : "";
+            if (message.includes("Conflict")) {
               notify("Conflict detected: Some database records matching these IDs already exist. Please check 'Regenerate IDs / Avoid Conflicts' and try again.", "error");
             } else {
-              notify(err.message ?? "Import failed.", "error");
+              notify(message || "Import failed.", "error");
             }
           },
         }
       );
-    } catch (err: any) {
-      notify(`Failed to read backup file: ${err.message}`, "error");
+    } catch (err: unknown) {
+      notify(`Failed to read backup file: ${err instanceof Error ? err.message : "unknown error"}`, "error");
     }
   }
 
@@ -605,7 +606,7 @@ export function SettingsView() {
                           </label>
                           <select
                             value={providerType}
-                            onChange={(e) => setProviderType(e.target.value as any)}
+                             onChange={(e) => setProviderType(e.target.value as Account["notification_provider"]["type"])}
                             className="w-full md:w-60 rounded-sm p-3 text-[15px] font-body border border-border-warm h-[46px] bg-surface-warm hover:border-primary/60 focus:border-primary focus:ring-3 focus:ring-primary/12 text-text-primary outline-none transition-ember"
                           >
                             <option value="discord">Discord Webhook</option>

@@ -84,7 +84,7 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as any).error ?? `HTTP ${res.status}`);
+    throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`);
   }
   return res.json() as Promise<T>;
 }
@@ -99,8 +99,8 @@ export function loginUser(email: string, password: string): Promise<{ auth_token
   });
 }
 
-export function registerUser(email: string, password: string, password_repeat: string): Promise<any> {
-  return apiFetch<any>("/auth/register", {
+export function registerUser(email: string, password: string, password_repeat: string): Promise<unknown> {
+  return apiFetch<unknown>("/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password, password_repeat }),
@@ -192,7 +192,7 @@ export function fetchPayments(billId?: string): Promise<Payment[]> {
 }
 
 export function payPayment(id: string, paidAt?: string | number, amountCents?: number): Promise<Payment> {
-  const body: Record<string, any> = {};
+  const body: { paid_at?: string | number; amount_cents?: number } = {};
   if (paidAt !== undefined) body.paid_at = paidAt;
   if (amountCents !== undefined) body.amount_cents = amountCents;
   return apiFetch<Payment>(`/payments/${id}/pay`, {

@@ -69,10 +69,11 @@ export default tseslint.config(
       ],
     },
   },
-  // Strict check for any in backend packages
+  // Strict check for any in backend and web packages
   {
     files: [
       'apps/api/**/*.{ts,tsx,js,jsx}',
+      'apps/web/**/*.{ts,tsx,js,jsx}',
       'packages/db/**/*.{ts,tsx,js,jsx}',
       'packages/core/**/*.{ts,tsx,js,jsx}',
     ],

@@ -89,7 +89,7 @@ export function PaymentsView() {
           notify(`"${payingPayment.name}" marked as paid.`, "success");
           setPayingPayment(null);
         },
-        onError: (err: any) => notify(err.message ?? "Failed to mark as paid.", "error"),
+        onError: (err: unknown) => notify(err instanceof Error ? err.message : "Failed to mark as paid.", "error"),
       }
     );
   }
@@ -196,7 +196,7 @@ export function PaymentsView() {
               const { status } = getPaymentState(p, todayStr, threshold);
               const isPaying =
                 payMut.isPending &&
-                (payMut.variables as any)?.paymentId === p.id;
+                payMut.variables?.paymentId === p.id;
 
               return (
                 <div key={p.id} className="py-3.5 flex items-center justify-between gap-4 first:pt-0 last:pb-0">
