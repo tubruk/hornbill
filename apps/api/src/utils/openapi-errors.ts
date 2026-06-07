@@ -99,7 +99,7 @@ export const defaultValidationHook = (
 };
 
 // Base64-encoded binary UUID as returned by TrailBase (16 raw bytes → 24 base64 chars with padding)
-const BASE64_UUID_REGEX = /^[A-Za-z0-9+/]{22}==$/;
+const BASE64_UUID_REGEX = /^[A-Za-z0-9+/_-]{22}==$/;
 
 // Accepts both standard hyphenated UUIDs and TrailBase's base64-encoded binary UUIDs.
 // Tests get a plain z.string() to support arbitrary mock IDs.
