@@ -718,6 +718,44 @@ describe("API Routes", () => {
       expect(generateNextPaymentForBillSpy).toHaveBeenCalledWith(mockBillItem.id);
     });
 
+    test("POST / - creates bill with last_payment_date, sets start_date, and auto-creates paid payment", async () => {
+      spyOn(trailbase.db, "createBill").mockResolvedValue({
+        ...mockBillItem,
+        start_date: "2026-05-01",
+      });
+      const createPaymentSpy = spyOn(mockClient, "createPayment").mockResolvedValue({} as any);
+
+      const res = await billsApp.request("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account_id: "acc-1",
+          name: "Rent",
+          currency: "USD",
+          recurrence: { type: "monthly", monthly: { day: 1 } },
+          last_payment_date: "2026-05-01",
+        }),
+      });
+
+      expect(res.status).toBe(201);
+
+      // Verify createBill was called with start_date set to last_payment_date
+      expect(trailbase.db.createBill).toHaveBeenCalled();
+      const createBillCalls = (trailbase.db.createBill as any).mock.calls;
+      const createBillCall = createBillCalls[createBillCalls.length - 1][0];
+      expect(createBillCall.start_date).toBe("2026-05-01");
+
+      // Verify createPayment was called
+      expect(createPaymentSpy).toHaveBeenCalled();
+      const createPaymentCalls = createPaymentSpy.mock.calls;
+      const createPaymentCall = createPaymentCalls[createPaymentCalls.length - 1][0];
+      expect(createPaymentCall.due_date).toBe("2026-05-01");
+      expect(createPaymentCall.paid_at).toBe(Math.floor(new Date("2026-05-01T00:00:00").getTime() / 1000));
+      expect(createPaymentCall.notes).toBeNull();
+
+      expect(generateNextPaymentForBillSpy).toHaveBeenCalledWith(mockBillItem.id);
+    });
+
     test("POST / - fails with 400 on missing fields", async () => {
       const res = await billsApp.request("/", {
         method: "POST",

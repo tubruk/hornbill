@@ -33,6 +33,7 @@ const CreateBillRequestSchema = z.object({
   amount_type: z.enum(["fixed", "variable"]).optional().openapi({ example: "fixed" }),
   recurrence: z.record(z.string(), z.unknown()).optional().openapi({ description: "Recurrence configuration" }),
   start_date: z.string().optional().openapi({ example: "2026-06-01" }),
+  last_payment_date: z.string().optional().openapi({ example: "2026-05-01" }),
   active: z.boolean().optional().openapi({ example: true }),
   upcoming_threshold_days: z.number().int().nullable().optional(),
   notes: z.string().nullable().optional(),
@@ -170,8 +171,10 @@ app.openapi(createBillRoute, withAccountAccess("body", "account_id")(async (c) =
   try {
     const body = c.req.valid("json");
     
+    const startDate = body.last_payment_date || body.start_date;
+
     // Scaffolding validation
-    if (!body.account_id || !body.name || !body.currency || !body.recurrence || !body.start_date) {
+    if (!body.account_id || !body.name || !body.currency || !body.recurrence || !startDate) {
       return c.json({ error: "Missing required fields: account_id, name, currency, recurrence, start_date" }, 400);
     }
 
@@ -183,17 +186,34 @@ app.openapi(createBillRoute, withAccountAccess("body", "account_id")(async (c) =
       amount_cents: Number(body.amount_cents) || 0,
       amount_type: body.amount_type || "fixed",
       recurrence: body.recurrence as unknown as Bill["recurrence"],
-      start_date: body.start_date,
+      start_date: startDate,
       active: body.active !== false,
       upcoming_threshold_days: body.upcoming_threshold_days !== undefined ? (body.upcoming_threshold_days === null ? null : Number(body.upcoming_threshold_days)) : null,
       notes: body.notes || null,
     });
 
-    // Automatically trigger generating the initial payment cycle
+    // If last_payment_date is provided, create the first paid payment
+    if (body.last_payment_date) {
+      const lastPaymentEpoch = Math.floor(new Date(body.last_payment_date + "T00:00:00").getTime() / 1000);
+      try {
+        await getDb(c).createPayment({
+          id: crypto.randomUUID(),
+          bill_id: newBill.id,
+          due_date: body.last_payment_date,
+          amount_cents: newBill.amount_cents,
+          paid_at: lastPaymentEpoch,
+          notes: null,
+        });
+      } catch (e) {
+        console.error("Failed to create initial paid payment for new bill:", e);
+      }
+    }
+
+    // Automatically trigger generating the initial/next payment cycle
     try {
       await generateNextPaymentForBill(newBill.id);
     } catch (e) {
-      console.error("Failed to generate initial payment cycle for new bill:", e);
+      console.error("Failed to generate payment cycle for new bill:", e);
     }
 
     return c.json(newBill, 201);
