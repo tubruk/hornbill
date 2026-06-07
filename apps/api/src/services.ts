@@ -230,3 +230,40 @@ export async function handlePaymentCreationSideEffects(payment: Payment): Promis
     await generateNextPaymentForBill(billId);
   }
 }
+
+/**
+ * Recalculates or schedules the next upcoming payment cycle when any payment
+ * on a bill is updated or deleted.
+ */
+export async function handlePaymentUpdateOrDeleteSideEffects(billId: string): Promise<void> {
+  const bill = await db.getBill(billId);
+  if (!bill.active) {
+    return;
+  }
+  const payments = await db.listPayments(billId);
+  const unpaidPayment = payments.find((p) => p.paid_at === null || p.paid_at === undefined);
+
+  // Sort paid payments descending by due_date to find the latest
+  const paidPayments = payments
+    .filter((p) => p.paid_at !== null && p.paid_at !== undefined)
+    .sort((a, b) => b.due_date.localeCompare(a.due_date));
+
+  const latestPaid = paidPayments[0];
+
+  if (unpaidPayment) {
+    if (latestPaid) {
+      const newDueDate = calculateNextDueDate(bill, latestPaid);
+      if (unpaidPayment.due_date !== newDueDate) {
+        await db.updatePayment(unpaidPayment.id, { due_date: newDueDate });
+      }
+    } else {
+      // Fallback to start_date if all paid payments are removed/unmarked
+      if (unpaidPayment.due_date !== bill.start_date) {
+        await db.updatePayment(unpaidPayment.id, { due_date: bill.start_date });
+      }
+    }
+  } else {
+    // No unpaid payment exists, generate the next one
+    await generateNextPaymentForBill(billId);
+  }
+}

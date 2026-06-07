@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { Bill, Payment } from "@hornbill/core";
 import { getDb, verifyBillAccess, type UserPayload } from "../trailbase";
-import { settlePayment, handlePaymentCreationSideEffects } from "../services";
+import { settlePayment, handlePaymentCreationSideEffects, handlePaymentUpdateOrDeleteSideEffects } from "../services";
 import { withBillAccess, withPaymentAccess } from "../middleware/auth";
 import { coreErrors, authErrors, validationErrors, lookupErrors, defaultValidationHook, uuidSchema } from "../utils/openapi-errors";
 
@@ -321,6 +321,11 @@ app.openapi(updatePaymentRoute, withPaymentAccess()(async (c) => {
     };
     
     const updated = await getDb(c).updatePayment(id, updates);
+    try {
+      await handlePaymentUpdateOrDeleteSideEffects(updated.bill_id);
+    } catch (e) {
+      console.error("Failed to run payment update side effects:", e);
+    }
     return c.json(updated, 200);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to update payment";
@@ -358,7 +363,13 @@ const deletePaymentRoute = createRoute({
 app.openapi(deletePaymentRoute, withPaymentAccess()(async (c) => {
   try {
     const id = c.req.param("id")!;
+    const payment = c.get("payment");
     await getDb(c).deletePayment(id);
+    try {
+      await handlePaymentUpdateOrDeleteSideEffects(payment.bill_id);
+    } catch (e) {
+      console.error("Failed to run payment deletion side effects:", e);
+    }
     return c.json({ success: true }, 200);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to delete payment";

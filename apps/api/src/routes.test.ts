@@ -16,6 +16,8 @@ describe("API Routes", () => {
   let handleBillUpdateSideEffectsSpy: any;
   let generateNextPaymentForBillSpy: any;
   let verifyAccountAccessSpy: any;
+  let handlePaymentCreationSideEffectsSpy: any;
+  let handlePaymentUpdateOrDeleteSideEffectsSpy: any;
 
   // We'll create a mock client with mocked methods
   const mockClient = {
@@ -54,6 +56,8 @@ describe("API Routes", () => {
     syncAllPaymentsSpy = spyOn(services, "syncAllPayments").mockImplementation(async () => ({ processed: 1, generated: 1 }));
     handleBillUpdateSideEffectsSpy = spyOn(services, "handleBillUpdateSideEffects").mockImplementation(async () => {});
     generateNextPaymentForBillSpy = spyOn(services, "generateNextPaymentForBill").mockImplementation(async () => ({}) as any);
+    handlePaymentCreationSideEffectsSpy = spyOn(services, "handlePaymentCreationSideEffects").mockImplementation(async () => {});
+    handlePaymentUpdateOrDeleteSideEffectsSpy = spyOn(services, "handlePaymentUpdateOrDeleteSideEffects").mockImplementation(async () => {});
  
     // Mock all methods on the default db client to delegate dynamically to mockClient
     spyOn(trailbase.db, "listAccounts").mockImplementation((...args) => (mockClient.listAccounts as any)(...args));
@@ -83,6 +87,8 @@ describe("API Routes", () => {
     handleBillUpdateSideEffectsSpy.mockRestore();
     generateNextPaymentForBillSpy.mockRestore();
     verifyAccountAccessSpy.mockRestore();
+    handlePaymentCreationSideEffectsSpy.mockRestore();
+    handlePaymentUpdateOrDeleteSideEffectsSpy.mockRestore();
   });
 
   describe("accounts routes", () => {
