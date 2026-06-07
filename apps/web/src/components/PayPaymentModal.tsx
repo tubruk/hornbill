@@ -12,10 +12,14 @@ interface Props {
   isUpcoming: boolean;
   amountCents: number;
   currency: string;
-  onConfirm: (amountCents: number, paidAtDate?: string, dueDate?: string) => Promise<void>;
+  onConfirm: (amountCents: number, paidAtDate?: string, dueDate?: string, notes?: string) => Promise<void>;
   onClose: () => void;
   isSubmitting?: boolean;
   isArbitrary?: boolean;
+  isEditing?: boolean;
+  initialNotes?: string | null;
+  paidAtDate?: string | null;
+  onDelete?: () => Promise<void>;
 }
 
 function formatPrettyDate(iso: string): string {
@@ -61,7 +65,21 @@ function getRelativeDateString(iso: string): string | null {
   return null;
 }
 
-export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, currency, onConfirm, onClose, isSubmitting, isArbitrary }: Props) {
+export function PayPaymentModal({
+  billName,
+  dueDate,
+  isUpcoming,
+  amountCents,
+  currency,
+  onConfirm,
+  onClose,
+  isSubmitting,
+  isArbitrary,
+  isEditing = false,
+  initialNotes = "",
+  paidAtDate = null,
+  onDelete,
+}: Props) {
   const getDaysUntilDue = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -74,8 +92,13 @@ export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, cu
 
   const [amount, setAmount] = useState((amountCents / 100).toString());
   const [amountError, setAmountError] = useState("");
-  const [dateOption, setDateOption] = useState<"today" | "custom">("today");
-  const [customDate, setCustomDate] = useState(getTodayStr());
+  const [dateOption, setDateOption] = useState<"today" | "custom">(
+    isEditing && paidAtDate ? "custom" : "today"
+  );
+  const [customDate, setCustomDate] = useState(
+    isEditing && paidAtDate ? paidAtDate : getTodayStr()
+  );
+  const [notes, setNotes] = useState(initialNotes || "");
   const [error, setError] = useState("");
   const [specifyDifferentDueDate, setSpecifyDifferentDueDate] = useState(false);
   const [customDueDate, setCustomDueDate] = useState(dueDate || getTodayStr());
@@ -104,7 +127,9 @@ export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, cu
     }
     setError("");
 
-    if (isArbitrary) {
+    if (isEditing) {
+      onConfirm(cents, paidAt, customDueDate, notes);
+    } else if (isArbitrary) {
       const due = specifyDifferentDueDate ? customDueDate : paidAt;
       onConfirm(cents, paidAt, due);
     } else {
@@ -125,10 +150,12 @@ export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, cu
         <div className="pb-4 border-b border-border-warm mb-5 flex items-start justify-between">
           <div>
             <h3 className="font-display font-bold text-[18px] text-text-primary">
-              Record Payment
+              {isEditing ? "Edit Payment" : "Record Payment"}
             </h3>
             <p className="text-[13px] text-text-secondary font-semibold mt-1">
-              {isArbitrary ? (
+              {isEditing ? (
+                <>Edit payment details for <span className="text-primary font-bold">&quot;{billName}&quot;</span>.</>
+              ) : isArbitrary ? (
                 <>Record an arbitrary payment for <span className="text-primary font-bold">&quot;{billName}&quot;</span>.</>
               ) : (
                 <>Mark <span className="text-primary font-bold">&quot;{billName}&quot;</span> as paid.</>
@@ -144,7 +171,7 @@ export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, cu
           </button>
         </div>
 
-        {isUpcoming && !isArbitrary && (
+        {isUpcoming && !isArbitrary && !isEditing && (
           <div className="mb-5 p-3.5 bg-[#FFFBEB] border border-[#FDE68A] rounded-sm text-[13px] text-[#92400E] font-semibold animate-fadeIn leading-relaxed">
             ⚠️ <span className="font-bold">Upcoming Payment:</span> This bill is still far from its due date. It is due in <span className="font-bold text-[#78350F]">{daysUntilDue} days</span> (on {new Date(dueDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}).
           </div>
@@ -243,7 +270,27 @@ export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, cu
             )}
           </div>
 
-          {isArbitrary && (
+          {isEditing && (
+            <>
+              <Input
+                label="Cycle Due Date"
+                type="date"
+                value={customDueDate}
+                onChange={(e) => setCustomDueDate(e.target.value)}
+                disabled={isSubmitting}
+              />
+              <Input
+                label="Notes"
+                type="text"
+                placeholder="Optional notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                disabled={isSubmitting}
+              />
+            </>
+          )}
+
+          {isArbitrary && !isEditing && (
             <div className="space-y-3 pt-2">
               <Checkbox
                 label="Specify a different cycle due date"
@@ -266,7 +313,20 @@ export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, cu
           )}
 
           {/* Submit and Cancel buttons */}
-          <div className="pt-4 border-t border-border-warm flex justify-end gap-3">
+          <div className="pt-4 border-t border-border-warm flex justify-end gap-3 items-center">
+            {isEditing && onDelete && (
+              <div className="mr-auto">
+                <Button
+                  variant="destructive"
+                  size="small"
+                  type="button"
+                  onClick={onDelete}
+                  disabled={isSubmitting}
+                >
+                  Delete
+                </Button>
+              </div>
+            )}
             <Button
               variant="ghost"
               size="medium"
@@ -282,7 +342,7 @@ export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, cu
               type="submit"
               disabled={isSubmitting}
             >
-              {isArbitrary ? "Record Payment" : "Mark as Paid"}
+              {isEditing ? "Save Changes" : isArbitrary ? "Record Payment" : "Mark as Paid"}
             </Button>
           </div>
         </form>

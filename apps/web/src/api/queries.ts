@@ -17,6 +17,8 @@ import {
   fetchPayments,
   payPayment,
   createPayment,
+  updatePayment,
+  deletePayment,
 
   triggerAccountSync,
   importAccount,
@@ -26,6 +28,7 @@ import {
   type CreateBillPayload,
   type UpdateBillPayload,
   type CreatePaymentPayload,
+  type UpdatePaymentPayload,
 } from "./client";
 
 // ── Query Key Factories ────────────────────────────────────────────────────
@@ -183,6 +186,29 @@ export function useCreatePayment() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payments"] });
       qc.invalidateQueries({ queryKey: ["bills"] });
+    },
+  });
+}
+
+export function useUpdatePayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, updates }: { id: string; accountId: string; updates: UpdatePaymentPayload }) =>
+      updatePayment(id, updates),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: qk.payments(vars.accountId) });
+      qc.invalidateQueries({ queryKey: qk.bills(vars.accountId) });
+    },
+  });
+}
+
+export function useDeletePayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: string; accountId: string }) => deletePayment(id),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: qk.payments(vars.accountId) });
+      qc.invalidateQueries({ queryKey: qk.bills(vars.accountId) });
     },
   });
 }

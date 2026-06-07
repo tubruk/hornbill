@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { useAppCtx } from "../context/AppContext";
-import { useBills, usePayments, usePayPayment } from "../api/queries";
+import { useBills, usePayments, usePayPayment, useUpdatePayment, useDeletePayment, type EnrichedPayment } from "../api/queries";
 import { PayPaymentModal } from "../components/PayPaymentModal";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
@@ -30,6 +30,15 @@ export function PaymentsView() {
     amountCents: number;
     currency: string;
   } | null>(null);
+  const [editingPayment, setEditingPayment] = useState<{
+    id: string;
+    billName: string;
+    dueDate: string;
+    amountCents: number;
+    currency: string;
+    paidAtDate: string;
+    notes: string;
+  } | null>(null);
   const todayStr = new Date().toISOString().split("T")[0];
 
   const search = useSearch({ from: "/payments" });
@@ -52,6 +61,8 @@ export function PaymentsView() {
   const payments = paymentsQuery.data ?? [];
 
   const payMut = usePayPayment();
+  const updateMut = useUpdatePayment();
+  const deleteMut = useDeletePayment();
 
   const displayed = payments
     .filter((p) => {
@@ -90,6 +101,61 @@ export function PaymentsView() {
           setPayingPayment(null);
         },
         onError: (err: unknown) => notify(err instanceof Error ? err.message : "Failed to mark as paid.", "error"),
+      }
+    );
+  }
+
+  function handleEdit(payment: EnrichedPayment) {
+    const paidAtDate = payment.paid_at
+      ? new Date(payment.paid_at * 1000).toISOString().split("T")[0]
+      : todayStr;
+    setEditingPayment({
+      id: payment.id,
+      billName: payment.bill?.name ?? "Bill",
+      dueDate: payment.due_date,
+      amountCents: payment.amount_cents,
+      currency: payment.bill?.currency ?? "USD",
+      paidAtDate,
+      notes: payment.notes || "",
+    });
+  }
+
+  async function handleEditConfirm(amountCents: number, paidAtDate?: string, dueDate?: string, notes?: string) {
+    if (!editingPayment || !currentAccount) return;
+    await updateMut.mutateAsync(
+      {
+        id: editingPayment.id,
+        accountId: currentAccount.id,
+        updates: {
+          amount_cents: amountCents,
+          paid_at: paidAtDate,
+          due_date: dueDate,
+          notes: notes || null,
+        },
+      },
+      {
+        onSuccess: () => {
+          notify(`Payment for "${editingPayment.billName}" updated.`, "success");
+          setEditingPayment(null);
+        },
+        onError: (err: unknown) => notify(err instanceof Error ? err.message : "Failed to update payment.", "error"),
+      }
+    );
+  }
+
+  async function handleEditDelete() {
+    if (!editingPayment || !currentAccount) return;
+    if (!window.confirm("Are you sure you want to delete this payment record? This cannot be undone.")) {
+      return;
+    }
+    await deleteMut.mutateAsync(
+      { id: editingPayment.id, accountId: currentAccount.id },
+      {
+        onSuccess: () => {
+          notify(`Payment record deleted.`, "success");
+          setEditingPayment(null);
+        },
+        onError: (err: unknown) => notify(err instanceof Error ? err.message : "Failed to delete payment.", "error"),
       }
     );
   }
@@ -247,13 +313,18 @@ export function PaymentsView() {
                         </>
                       )}
                     </span>
+                    {isSettled && p.notes && (
+                      <span className="text-[13px] text-text-secondary italic mt-1 block max-w-md truncate">
+                        Note: {p.notes}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-5 shrink-0">
                     <span className="text-[15px] font-mono font-semibold text-text-primary">
                       {formatCents(p.amount_cents, p.bill?.currency ?? "USD")}
                     </span>
-                    {!isSettled && (
+                    {!isSettled ? (
                       <Button
                         variant="secondary"
                         size="small"
@@ -270,6 +341,14 @@ export function PaymentsView() {
                         }
                       >
                         {isPaying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Mark Paid"}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        onClick={() => handleEdit(p)}
+                      >
+                        Edit
                       </Button>
                     )}
                   </div>
@@ -290,6 +369,23 @@ export function PaymentsView() {
           onConfirm={handlePayConfirm}
           onClose={() => setPayingPayment(null)}
           isSubmitting={payMut.isPending}
+        />
+      )}
+
+      {editingPayment && (
+        <PayPaymentModal
+          billName={editingPayment.billName}
+          dueDate={editingPayment.dueDate}
+          isUpcoming={false}
+          amountCents={editingPayment.amountCents}
+          currency={editingPayment.currency}
+          isEditing={true}
+          initialNotes={editingPayment.notes}
+          paidAtDate={editingPayment.paidAtDate}
+          onConfirm={handleEditConfirm}
+          onClose={() => setEditingPayment(null)}
+          onDelete={handleEditDelete}
+          isSubmitting={updateMut.isPending || deleteMut.isPending}
         />
       )}
 

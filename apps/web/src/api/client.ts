@@ -219,6 +219,25 @@ export function createPayment(payload: CreatePaymentPayload): Promise<Payment> {
   });
 }
 
+export interface UpdatePaymentPayload {
+  due_date?: string;
+  amount_cents?: number;
+  paid_at?: string | number | null;
+  notes?: string | null;
+}
+
+export function updatePayment(id: string, payload: UpdatePaymentPayload): Promise<Payment> {
+  return apiFetch<Payment>(`/payments/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deletePayment(id: string): Promise<void> {
+  return apiFetch<void>(`/payments/${id}`, { method: "DELETE" });
+}
+
 // ── Jobs ───────────────────────────────────────────────────────────────────
 
 export function triggerSync(): Promise<{ processed: number; generated: number }> {
