@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { Loader2, Plus, Trash2, ToggleLeft, ToggleRight, RefreshCw, History, Edit2, MoreVertical } from "lucide-react";
+import { Loader2, Plus, Trash2, ToggleLeft, ToggleRight, RefreshCw, History, Edit2, MoreVertical, CreditCard } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useAppCtx } from "../context/AppContext";
-import { useBills, useUpdateBill, useDeleteBill } from "../api/queries";
+import { useBills, useUpdateBill, useDeleteBill, useCreatePayment } from "../api/queries";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { Chip } from "../components/Chip";
 import { Tooltip } from "../components/Tooltip";
 import { AddBillModal } from "../components/AddBillModal";
+import { PayPaymentModal } from "../components/PayPaymentModal";
 import type { Bill } from "@hornbill/core";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -29,6 +30,7 @@ function recurrenceLabel(bill: Bill): string {
 export function BillsView() {
   const { currentAccount, openAddModal, notify } = useAppCtx();
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
+  const [recordingPaymentBill, setRecordingPaymentBill] = useState<Bill | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   // ── Queries & mutations ────────────────────────────────────────────────
@@ -37,6 +39,33 @@ export function BillsView() {
   const bills        = billsQuery.data ?? [];
   const updateBillMut = useUpdateBill();
   const deleteBillMut = useDeleteBill();
+  const createPaymentMut = useCreatePayment();
+
+  // ── Handlers ───────────────────────────────────────────────────────────
+
+  async function handleRecordPaymentConfirm(amountCents: number, paidAtDate?: string, dueDate?: string) {
+    if (!recordingPaymentBill || !currentAccount) return;
+    const paidAt = paidAtDate || new Date().toISOString().split("T")[0];
+    const due = dueDate || paidAt;
+
+    await createPaymentMut.mutateAsync(
+      {
+        bill_id: recordingPaymentBill.id,
+        due_date: due,
+        amount_cents: amountCents,
+        paid_at: paidAt,
+        notes: null,
+      },
+      {
+        onSuccess: () => {
+          notify(`Payment recorded for "${recordingPaymentBill.name}".`, "success");
+          setRecordingPaymentBill(null);
+        },
+        onError: (err: unknown) =>
+          notify(err instanceof Error ? err.message : "Could not record payment.", "error"),
+      }
+    );
+  }
 
   // ── Handlers ───────────────────────────────────────────────────────────
 
@@ -219,6 +248,17 @@ export function BillsView() {
                               Edit Bill
                             </button>
 
+                            <button
+                              onClick={() => {
+                                setActiveDropdown(null);
+                                setRecordingPaymentBill(bill);
+                              }}
+                              className="w-full text-left px-3.5 py-2 text-[13px] font-semibold text-text-primary hover:bg-stone-300/40 flex items-center gap-2.5 cursor-pointer"
+                            >
+                              <CreditCard className="w-4 h-4 text-text-secondary" />
+                              Record Payment
+                            </button>
+
                             <Link
                               to="/payments"
                               search={{ billId: bill.id, filter: "settled" }}
@@ -303,6 +343,20 @@ export function BillsView() {
           }}
           onClose={() => setEditingBill(null)}
           isSubmitting={updateBillMut.isPending}
+        />
+      )}
+
+      {recordingPaymentBill && (
+        <PayPaymentModal
+          billName={recordingPaymentBill.name}
+          dueDate={new Date().toISOString().split("T")[0]}
+          isUpcoming={false}
+          amountCents={recordingPaymentBill.amount_cents}
+          currency={recordingPaymentBill.currency}
+          isArbitrary={true}
+          onConfirm={handleRecordPaymentConfirm}
+          onClose={() => setRecordingPaymentBill(null)}
+          isSubmitting={createPaymentMut.isPending}
         />
       )}
 

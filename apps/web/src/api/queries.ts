@@ -16,6 +16,7 @@ import {
   deleteBill,
   fetchPayments,
   payPayment,
+  createPayment,
 
   triggerAccountSync,
   importAccount,
@@ -24,6 +25,7 @@ import {
   deleteApiKey,
   type CreateBillPayload,
   type UpdateBillPayload,
+  type CreatePaymentPayload,
 } from "./client";
 
 // ── Query Key Factories ────────────────────────────────────────────────────
@@ -170,6 +172,17 @@ export function usePayPayment() {
       payPayment(paymentId, paidAt, amountCents),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: qk.payments(vars.accountId) });
+    },
+  });
+}
+
+export function useCreatePayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreatePaymentPayload) => createPayment(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["payments"] });
+      qc.invalidateQueries({ queryKey: ["bills"] });
     },
   });
 }

@@ -203,6 +203,22 @@ export function payPayment(id: string, paidAt?: string | number, amountCents?: n
   });
 }
 
+export interface CreatePaymentPayload {
+  bill_id: string;
+  due_date: string;
+  amount_cents: number;
+  paid_at?: string | number | null;
+  notes?: string | null;
+}
+
+export function createPayment(payload: CreatePaymentPayload): Promise<Payment> {
+  return apiFetch<Payment>("/payments", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 // ── Jobs ───────────────────────────────────────────────────────────────────
 
 export function triggerSync(): Promise<{ processed: number; generated: number }> {

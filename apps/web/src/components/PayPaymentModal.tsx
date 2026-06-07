@@ -4,6 +4,7 @@ import { X, Calendar } from "lucide-react";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { Input } from "./Input";
+import { Checkbox } from "./Checkbox";
 
 interface Props {
   billName: string;
@@ -11,9 +12,10 @@ interface Props {
   isUpcoming: boolean;
   amountCents: number;
   currency: string;
-  onConfirm: (amountCents: number, paidAtDate?: string) => Promise<void>;
+  onConfirm: (amountCents: number, paidAtDate?: string, dueDate?: string) => Promise<void>;
   onClose: () => void;
   isSubmitting?: boolean;
+  isArbitrary?: boolean;
 }
 
 function formatPrettyDate(iso: string): string {
@@ -59,7 +61,7 @@ function getRelativeDateString(iso: string): string | null {
   return null;
 }
 
-export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, currency, onConfirm, onClose, isSubmitting }: Props) {
+export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, currency, onConfirm, onClose, isSubmitting, isArbitrary }: Props) {
   const getDaysUntilDue = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -75,6 +77,8 @@ export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, cu
   const [dateOption, setDateOption] = useState<"today" | "custom">("today");
   const [customDate, setCustomDate] = useState(getTodayStr());
   const [error, setError] = useState("");
+  const [specifyDifferentDueDate, setSpecifyDifferentDueDate] = useState(false);
+  const [customDueDate, setCustomDueDate] = useState(dueDate || getTodayStr());
 
   const daysUntilDue = getDaysUntilDue();
 
@@ -93,15 +97,18 @@ export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, cu
     const cents = validateAmount();
     if (cents === null) return;
 
-    if (dateOption === "custom") {
-      if (!customDate) {
-        setError("Please select a date.");
-        return;
-      }
-      setError("");
-      onConfirm(cents, customDate);
+    const paidAt = dateOption === "today" ? getTodayStr() : customDate;
+    if (dateOption === "custom" && !customDate) {
+      setError("Please select a date.");
+      return;
+    }
+    setError("");
+
+    if (isArbitrary) {
+      const due = specifyDifferentDueDate ? customDueDate : paidAt;
+      onConfirm(cents, paidAt, due);
     } else {
-      onConfirm(cents, undefined);
+      onConfirm(cents, dateOption === "custom" ? customDate : undefined);
     }
   };
 
@@ -121,7 +128,11 @@ export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, cu
               Record Payment
             </h3>
             <p className="text-[13px] text-text-secondary font-semibold mt-1">
-              Mark <span className="text-primary font-bold">&quot;{billName}&quot;</span> as paid.
+              {isArbitrary ? (
+                <>Record an arbitrary payment for <span className="text-primary font-bold">&quot;{billName}&quot;</span>.</>
+              ) : (
+                <>Mark <span className="text-primary font-bold">&quot;{billName}&quot;</span> as paid.</>
+              )}
             </p>
           </div>
           <button
@@ -133,7 +144,7 @@ export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, cu
           </button>
         </div>
 
-        {isUpcoming && (
+        {isUpcoming && !isArbitrary && (
           <div className="mb-5 p-3.5 bg-[#FFFBEB] border border-[#FDE68A] rounded-sm text-[13px] text-[#92400E] font-semibold animate-fadeIn leading-relaxed">
             ⚠️ <span className="font-bold">Upcoming Payment:</span> This bill is still far from its due date. It is due in <span className="font-bold text-[#78350F]">{daysUntilDue} days</span> (on {new Date(dueDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}).
           </div>
@@ -232,6 +243,28 @@ export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, cu
             )}
           </div>
 
+          {isArbitrary && (
+            <div className="space-y-3 pt-2">
+              <Checkbox
+                label="Specify a different cycle due date"
+                checked={specifyDifferentDueDate}
+                onChange={(e) => setSpecifyDifferentDueDate(e.target.checked)}
+                disabled={isSubmitting}
+              />
+              {specifyDifferentDueDate && (
+                <div className="p-3 bg-surface-warm rounded-sm border border-border-warm animate-fadeIn max-w-[220px]">
+                  <Input
+                    label="Cycle Due Date"
+                    type="date"
+                    value={customDueDate}
+                    onChange={(e) => setCustomDueDate(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Submit and Cancel buttons */}
           <div className="pt-4 border-t border-border-warm flex justify-end gap-3">
             <Button
@@ -249,7 +282,7 @@ export function PayPaymentModal({ billName, dueDate, isUpcoming, amountCents, cu
               type="submit"
               disabled={isSubmitting}
             >
-              Mark as Paid
+              {isArbitrary ? "Record Payment" : "Mark as Paid"}
             </Button>
           </div>
         </form>
