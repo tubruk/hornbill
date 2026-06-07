@@ -158,6 +158,7 @@ export interface CreateBillPayload {
   active: boolean;
   upcoming_threshold_days?: number | null;
   notes?: string | null;
+  last_payment_date?: string;
 }
 
 export function createBill(payload: CreateBillPayload): Promise<Bill> {

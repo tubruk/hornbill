@@ -26,6 +26,7 @@ export interface BillFormPayload {
   amount_type: "fixed";
   recurrence: Bill["recurrence"];
   start_date: string;
+  last_payment_date?: string;
   active: boolean;
   upcoming_threshold_days: number | null;
   notes: string | null;
@@ -57,6 +58,8 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
   }
 
   const [startDate, setStartDate] = useState(bill?.start_date ?? today());
+  const [alreadyPaid, setAlreadyPaid] = useState(false);
+  const [lastPaymentDate, setLastPaymentDate] = useState(today());
   const [notes, setNotes] = useState(bill?.notes ?? "");
   const [recurrenceType, setRecurrenceType] = useState<"monthly" | "yearly" | "interval">(
     bill?.recurrence.type ?? "monthly"
@@ -114,7 +117,8 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
       amount_cents: Math.round(parsed * 100),
       amount_type: "fixed",
       recurrence,
-      start_date: startDate,
+      start_date: alreadyPaid && !bill ? lastPaymentDate : startDate,
+      ...(alreadyPaid && !bill ? { last_payment_date: lastPaymentDate } : {}),
       active: bill ? bill.active : true,
       upcoming_threshold_days: hasThresholdOverride ? Number(thresholdDays) : null,
       notes: notes.trim() || null,
@@ -205,15 +209,34 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
               />
             </div>
             <div>
-              <Input
-                label="Start Date"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                disabled={!!bill}
-              />
+              {alreadyPaid && !bill ? (
+                <Input
+                  label="Last Payment Date"
+                  type="date"
+                  value={lastPaymentDate}
+                  onChange={(e) => setLastPaymentDate(e.target.value)}
+                />
+              ) : (
+                <Input
+                  label="Start Date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  disabled={!!bill}
+                />
+              )}
             </div>
           </div>
+
+          {!bill && (
+            <div className="space-y-3 pt-2">
+              <Checkbox
+                label="Already paid before? (Mark first payment as paid and schedule next cycle)"
+                checked={alreadyPaid}
+                onChange={(e) => setAlreadyPaid(e.target.checked)}
+              />
+            </div>
+          )}
 
           <Input
             label="Notes"
