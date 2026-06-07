@@ -384,6 +384,8 @@ describe("Trailbase Integration", () => {
         expect(schema.safeParse("9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d").success).toBe(true);
         // base64 trailbase UUID
         expect(schema.safeParse("DlQl7Tf6ShOnrepGm0dbWw==").success).toBe(true);
+        // URL-safe base64 trailbase UUID
+        expect(schema.safeParse("To9Wfp-ZQ-KfKS_dIx5dEA==").success).toBe(true);
         // invalid inputs
         expect(schema.safeParse("not-a-uuid").success).toBe(false);
         expect(schema.safeParse("DlQl7Tf6ShOnrepGm0dbWw=").success).toBe(false);
