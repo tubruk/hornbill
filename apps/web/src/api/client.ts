@@ -114,7 +114,7 @@ export function fetchAccounts(): Promise<Account[]> {
 }
 
 export function fetchAccount(id: string): Promise<Account> {
-  return apiFetch<Account>(`/accounts/${id}`);
+  return apiFetch<Account>(`/accounts/${encodeURIComponent(id)}`);
 }
 
 export function createAccount(name: string): Promise<Account> {
@@ -129,7 +129,7 @@ export function updateAccount(
   id: string,
   updates: Partial<Omit<Account, "id" | "created_at" | "updated_at">>
 ): Promise<Account> {
-  return apiFetch<Account>(`/accounts/${id}`, {
+  return apiFetch<Account>(`/accounts/${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),
@@ -137,7 +137,7 @@ export function updateAccount(
 }
 
 export function deleteAccount(id: string): Promise<void> {
-  return apiFetch<void>(`/accounts/${id}`, { method: "DELETE" });
+  return apiFetch<void>(`/accounts/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 // ── Bills ──────────────────────────────────────────────────────────────────
@@ -174,7 +174,7 @@ export type UpdateBillPayload = Partial<
 >;
 
 export function updateBill(id: string, updates: UpdateBillPayload): Promise<Bill> {
-  return apiFetch<Bill>(`/bills/${id}`, {
+  return apiFetch<Bill>(`/bills/${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),
@@ -182,7 +182,7 @@ export function updateBill(id: string, updates: UpdateBillPayload): Promise<Bill
 }
 
 export function deleteBill(id: string): Promise<void> {
-  return apiFetch<void>(`/bills/${id}`, { method: "DELETE" });
+  return apiFetch<void>(`/bills/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 // ── Payments ───────────────────────────────────────────────────────────────
@@ -196,7 +196,7 @@ export function payPayment(id: string, paidAt?: string | number, amountCents?: n
   const body: { paid_at?: string | number; amount_cents?: number } = {};
   if (paidAt !== undefined) body.paid_at = paidAt;
   if (amountCents !== undefined) body.amount_cents = amountCents;
-  return apiFetch<Payment>(`/payments/${id}/pay`, {
+  return apiFetch<Payment>(`/payments/${encodeURIComponent(id)}/pay`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -227,7 +227,7 @@ export interface UpdatePaymentPayload {
 }
 
 export function updatePayment(id: string, payload: UpdatePaymentPayload): Promise<Payment> {
-  return apiFetch<Payment>(`/payments/${id}`, {
+  return apiFetch<Payment>(`/payments/${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -235,7 +235,7 @@ export function updatePayment(id: string, payload: UpdatePaymentPayload): Promis
 }
 
 export function deletePayment(id: string): Promise<void> {
-  return apiFetch<void>(`/payments/${id}`, { method: "DELETE" });
+  return apiFetch<void>(`/payments/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 // ── Jobs ───────────────────────────────────────────────────────────────────
