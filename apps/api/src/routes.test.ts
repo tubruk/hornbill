@@ -1047,6 +1047,21 @@ describe("API Routes", () => {
       expect(res.status).toBe(400);
     });
 
+    test("POST / - fails with 400 when amount is not positive", async () => {
+      const res = await paymentsApp.request("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bill_id: "bill-1",
+          due_date: "2026-01-15",
+          amount_cents: -500,
+        }),
+      });
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toBe("Amount must be positive");
+    });
+
     test("POST / - returns 500 on db error", async () => {
       spyOn(trailbase.db, "createPayment").mockRejectedValue(new Error("Write error") as never);
 

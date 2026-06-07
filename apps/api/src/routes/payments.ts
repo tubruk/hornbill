@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { Bill, Payment } from "@hornbill/core";
 import { getDb, verifyBillAccess, type UserPayload } from "../trailbase";
-import { settlePayment } from "../services";
+import { settlePayment, handlePaymentCreationSideEffects } from "../services";
 import { withBillAccess, withPaymentAccess } from "../middleware/auth";
 import { coreErrors, authErrors, validationErrors, lookupErrors, defaultValidationHook, uuidSchema } from "../utils/openapi-errors";
 
@@ -185,6 +185,10 @@ app.openapi(createPaymentRoute, withBillAccess("body", "bill_id")(async (c) => {
       return c.json({ error: "Missing required fields: bill_id, due_date, amount_cents" }, 400);
     }
 
+    if (Number(body.amount_cents) <= 0) {
+      return c.json({ error: "Amount must be positive" }, 400);
+    }
+
     const newPayment = await getDb(c).createPayment({
       id: crypto.randomUUID(),
       bill_id: body.bill_id,
@@ -195,6 +199,14 @@ app.openapi(createPaymentRoute, withBillAccess("body", "bill_id")(async (c) => {
         : null,
       notes: body.notes || null,
     });
+
+    // Run side effects on payment creation (e.g. recalculating next due dates)
+    try {
+      await handlePaymentCreationSideEffects(newPayment);
+    } catch (e) {
+      console.error("Failed to run payment creation side effects:", e);
+    }
+
     return c.json(newPayment, 201);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create payment";

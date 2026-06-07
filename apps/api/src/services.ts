@@ -193,3 +193,40 @@ export async function handleBillUpdateSideEffects(
     await generateNextPaymentForBill(billId);
   }
 }
+
+/**
+ * Handles payment-related side effects when a payment is created.
+ * Specifically, if a paid payment is created and its due date is newer than the previous latest
+ * paid payment, it updates the next upcoming unpaid payment's due date.
+ * If no unpaid payment exists, it generates a new unpaid upcoming payment.
+ */
+export async function handlePaymentCreationSideEffects(payment: Payment): Promise<void> {
+  if (payment.paid_at === null || payment.paid_at === undefined) {
+    return;
+  }
+  const billId = payment.bill_id;
+  const bill = await db.getBill(billId);
+  if (!bill.active) {
+    return;
+  }
+  const payments = await db.listPayments(billId);
+  const unpaidPayment = payments.find((p) => p.paid_at === null || p.paid_at === undefined);
+
+  // Sort paid payments descending by due_date to find the latest
+  const paidPayments = payments
+    .filter((p) => p.paid_at !== null && p.paid_at !== undefined)
+    .sort((a, b) => b.due_date.localeCompare(a.due_date));
+
+  const latestPaid = paidPayments[0];
+
+  if (unpaidPayment) {
+    // Recalculate due date of existing unpaid payment based on new latestPaid
+    if (latestPaid && latestPaid.id === payment.id) {
+      const newDueDate = calculateNextDueDate(bill, latestPaid);
+      await db.updatePayment(unpaidPayment.id, { due_date: newDueDate });
+    }
+  } else {
+    // No unpaid payment exists, generate the next one
+    await generateNextPaymentForBill(billId);
+  }
+}

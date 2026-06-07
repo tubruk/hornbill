@@ -5,6 +5,7 @@ import {
   settlePayment,
   syncAllPayments,
   handleBillUpdateSideEffects,
+  handlePaymentCreationSideEffects,
 } from "./services";
 import type { Bill, Payment } from "@hornbill/core";
 
@@ -459,6 +460,121 @@ describe("Services Logic", () => {
       createPaymentSpy.mockResolvedValue({} as any);
 
       await handleBillUpdateSideEffects(oldBill.id, oldBill, updatedBill);
+
+      expect(createPaymentSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("handlePaymentCreationSideEffects", () => {
+    test("does nothing if payment is unpaid", async () => {
+      const payment: Payment = {
+        id: "pay-1",
+        bill_id: "bill-1",
+        due_date: "2026-01-15",
+        amount_cents: 1500,
+        paid_at: null,
+        created_at: 0,
+        updated_at: 0,
+      };
+      await handlePaymentCreationSideEffects(payment);
+      expect(getBillSpy).not.toHaveBeenCalled();
+    });
+
+    test("recalculates unpaid payment's due date if new paid payment is the latest", async () => {
+      const activeBill = mockBill({ active: true, recurrence: { type: "monthly", monthly: { day: 15 } } });
+      const newPaidPayment: Payment = {
+        id: "pay-new",
+        bill_id: activeBill.id,
+        due_date: "2026-02-15",
+        amount_cents: 1500,
+        paid_at: 1717142500,
+        created_at: 0,
+        updated_at: 0,
+      };
+      const oldPaidPayment: Payment = {
+        id: "pay-old",
+        bill_id: activeBill.id,
+        due_date: "2026-01-15",
+        amount_cents: 1500,
+        paid_at: 1717142400,
+        created_at: 0,
+        updated_at: 0,
+      };
+      const unpaidPayment: Payment = {
+        id: "pay-unpaid",
+        bill_id: activeBill.id,
+        due_date: "2026-02-15",
+        amount_cents: 1500,
+        paid_at: null,
+        created_at: 0,
+        updated_at: 0,
+      };
+
+      getBillSpy.mockResolvedValue(activeBill);
+      listPaymentsSpy.mockResolvedValue([newPaidPayment, oldPaidPayment, unpaidPayment]);
+
+      await handlePaymentCreationSideEffects(newPaidPayment);
+
+      expect(updatePaymentSpy).toHaveBeenCalledWith("pay-unpaid", {
+        due_date: "2026-03-15",
+      });
+    });
+
+    test("does not recalculate due date if new paid payment is not the latest", async () => {
+      const activeBill = mockBill({ active: true });
+      const newPaidPayment: Payment = {
+        id: "pay-new",
+        bill_id: activeBill.id,
+        due_date: "2026-01-15",
+        amount_cents: 1500,
+        paid_at: 1717142400,
+        created_at: 0,
+        updated_at: 0,
+      };
+      const latestPaidPayment: Payment = {
+        id: "pay-latest",
+        bill_id: activeBill.id,
+        due_date: "2026-02-15",
+        amount_cents: 1500,
+        paid_at: 1717142500,
+        created_at: 0,
+        updated_at: 0,
+      };
+      const unpaidPayment: Payment = {
+        id: "pay-unpaid",
+        bill_id: activeBill.id,
+        due_date: "2026-03-15",
+        amount_cents: 1500,
+        paid_at: null,
+        created_at: 0,
+        updated_at: 0,
+      };
+
+      getBillSpy.mockResolvedValue(activeBill);
+      listPaymentsSpy.mockResolvedValue([newPaidPayment, latestPaidPayment, unpaidPayment]);
+
+      await handlePaymentCreationSideEffects(newPaidPayment);
+
+      expect(updatePaymentSpy).not.toHaveBeenCalled();
+    });
+
+    test("generates new unpaid payment if none exists", async () => {
+      const activeBill = mockBill({ active: true, recurrence: { type: "monthly", monthly: { day: 15 } } });
+      const newPaidPayment: Payment = {
+        id: "pay-new",
+        bill_id: activeBill.id,
+        due_date: "2026-02-15",
+        amount_cents: 1500,
+        paid_at: 1717142500,
+        created_at: 0,
+        updated_at: 0,
+      };
+
+      getBillSpy.mockResolvedValue(activeBill);
+      listPaymentsSpy.mockResolvedValue([newPaidPayment]);
+      createPaymentSpy.mockResolvedValue({} as any);
+
+      await handlePaymentCreationSideEffects(newPaidPayment);
 
       expect(createPaymentSpy).toHaveBeenCalled();
     });
