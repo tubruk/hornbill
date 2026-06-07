@@ -701,5 +701,63 @@ describe("Services Logic", () => {
 
       expect(createPaymentSpy).toHaveBeenCalled();
     });
+
+    test("does nothing if bill is inactive", async () => {
+      const inactiveBill = mockBill({ active: false });
+      getBillSpy.mockResolvedValue(inactiveBill);
+
+      await handlePaymentUpdateOrDeleteSideEffects(inactiveBill.id);
+
+      expect(listPaymentsSpy).not.toHaveBeenCalled();
+    });
+
+    test("does not update unpaid payment if calculated due date is already correct", async () => {
+      const activeBill = mockBill({ active: true, recurrence: { type: "monthly", monthly: { day: 15 } } });
+      const paidPayment: Payment = {
+        id: "pay-1",
+        bill_id: activeBill.id,
+        due_date: "2026-02-15",
+        amount_cents: 1500,
+        paid_at: 1717142500,
+        created_at: 0,
+        updated_at: 0,
+      };
+      const unpaidPayment: Payment = {
+        id: "pay-unpaid",
+        bill_id: activeBill.id,
+        due_date: "2026-03-15",
+        amount_cents: 1500,
+        paid_at: null,
+        created_at: 0,
+        updated_at: 0,
+      };
+
+      getBillSpy.mockResolvedValue(activeBill);
+      listPaymentsSpy.mockResolvedValue([paidPayment, unpaidPayment]);
+
+      await handlePaymentUpdateOrDeleteSideEffects(activeBill.id);
+
+      expect(updatePaymentSpy).not.toHaveBeenCalled();
+    });
+
+    test("does not update unpaid payment if due date is already start_date and no paid payments exist", async () => {
+      const activeBill = mockBill({ active: true, start_date: "2026-01-01" });
+      const unpaidPayment: Payment = {
+        id: "pay-unpaid",
+        bill_id: activeBill.id,
+        due_date: "2026-01-01",
+        amount_cents: 1500,
+        paid_at: null,
+        created_at: 0,
+        updated_at: 0,
+      };
+
+      getBillSpy.mockResolvedValue(activeBill);
+      listPaymentsSpy.mockResolvedValue([unpaidPayment]);
+
+      await handlePaymentUpdateOrDeleteSideEffects(activeBill.id);
+
+      expect(updatePaymentSpy).not.toHaveBeenCalled();
+    });
   });
 });
