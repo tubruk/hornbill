@@ -464,6 +464,46 @@ describe("Services Logic", () => {
 
       expect(createPaymentSpy).toHaveBeenCalled();
     });
+
+    test("updates unpaid payment due date based on latest paid payment when recurrence changes", async () => {
+      const oldBill = mockBill({ active: true, amount_cents: 1500, recurrence: { type: "monthly", monthly: { day: 15 } } });
+      const updatedBill = mockBill({
+        active: true,
+        amount_cents: 1500,
+        recurrence: {
+          type: "monthly",
+          monthly: { day: 20 }, // changed from 15 to 20
+        },
+      });
+
+      const unpaidPayment: Payment = {
+        id: "unpaid-1",
+        bill_id: oldBill.id,
+        due_date: "2026-02-15",
+        amount_cents: 1500,
+        paid_at: null,
+        created_at: 0,
+        updated_at: 0,
+      };
+
+      const paidPayment: Payment = {
+        id: "paid-1",
+        bill_id: oldBill.id,
+        due_date: "2026-01-15",
+        amount_cents: 1500,
+        paid_at: Math.floor(new Date("2026-01-15T10:00:00Z").getTime() / 1000),
+        created_at: 0,
+        updated_at: 0,
+      };
+
+      listPaymentsSpy.mockResolvedValue([unpaidPayment, paidPayment]);
+
+      await handleBillUpdateSideEffects(oldBill.id, oldBill, updatedBill);
+
+      expect(updatePaymentSpy).toHaveBeenCalledWith("unpaid-1", {
+        due_date: "2026-02-20",
+      });
+    });
   });
 
   describe("handlePaymentCreationSideEffects", () => {
@@ -479,6 +519,22 @@ describe("Services Logic", () => {
       };
       await handlePaymentCreationSideEffects(payment);
       expect(getBillSpy).not.toHaveBeenCalled();
+    });
+
+    test("does nothing if bill is inactive", async () => {
+      const inactiveBill = mockBill({ active: false });
+      const payment: Payment = {
+        id: "pay-1",
+        bill_id: inactiveBill.id,
+        due_date: "2026-01-15",
+        amount_cents: 1500,
+        paid_at: 1717142500,
+        created_at: 0,
+        updated_at: 0,
+      };
+      getBillSpy.mockResolvedValue(inactiveBill);
+      await handlePaymentCreationSideEffects(payment);
+      expect(listPaymentsSpy).not.toHaveBeenCalled();
     });
 
     test("recalculates unpaid payment's due date if new paid payment is the latest", async () => {

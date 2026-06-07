@@ -1241,6 +1241,58 @@ describe("API Routes", () => {
       });
       expect(res.status).toBe(200);
     });
+
+    test("PATCH /:id - handles side effect errors gracefully", async () => {
+      const updated = { ...mockPaymentItem, amount_cents: 1600 };
+      spyOn(trailbase.db, "updatePayment").mockResolvedValue(updated);
+      handlePaymentUpdateOrDeleteSideEffectsSpy.mockRejectedValue(new Error("Side effect error") as never);
+
+      const res = await paymentsApp.request("/pay-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount_cents: 1600 }),
+      });
+      expect(res.status).toBe(200);
+    });
+
+    test("DELETE /:id - handles side effect errors gracefully", async () => {
+      spyOn(trailbase.db, "deletePayment").mockResolvedValue();
+      handlePaymentUpdateOrDeleteSideEffectsSpy.mockRejectedValue(new Error("Side effect error") as never);
+
+      const res = await paymentsApp.request("/pay-1", {
+        method: "DELETE",
+      });
+      expect(res.status).toBe(200);
+    });
+
+    test("PATCH /:id - updates payment details with number paid_at", async () => {
+      const updated = { ...mockPaymentItem, amount_cents: 1600 };
+      spyOn(trailbase.db, "updatePayment").mockResolvedValue(updated);
+
+      const res = await paymentsApp.request("/pay-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paid_at: 1717142500 }),
+      });
+      expect(res.status).toBe(200);
+    });
+
+    test("POST / - handles side effect errors gracefully", async () => {
+      const created = { ...mockPaymentItem, id: "pay-2" };
+      spyOn(trailbase.db, "createPayment").mockResolvedValue(created);
+      handlePaymentCreationSideEffectsSpy.mockRejectedValue(new Error("Creation side effect error") as never);
+
+      const res = await paymentsApp.request("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bill_id: "bill-1",
+          due_date: "2026-06-01",
+          amount_cents: 1599,
+        }),
+      });
+      expect(res.status).toBe(201);
+    });
   });
 
   describe("jobs routes", () => {
