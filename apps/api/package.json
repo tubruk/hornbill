@@ -12,7 +12,7 @@
     "@hono/zod-openapi": "^1.4.0",
     "@hornbill/core": "workspace:*",
     "@scalar/hono-api-reference": "^0.10.20",
-    "bunqueue": "^2.8.3",
+    "bunqueue": "^2.8.6",
     "hono": "^4.4.2",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3",
