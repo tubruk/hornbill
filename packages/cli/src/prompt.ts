@@ -44,3 +44,25 @@ export async function promptPassword(query: string): Promise<string> {
     });
   });
 }
+
+export async function promptSelect(
+  query: string,
+  options: { name: string; value: string; desc?: string }[]
+): Promise<string> {
+  console.log(`\n${query}`);
+  options.forEach((opt, idx) => {
+    const num = idx + 1;
+    const descStr = opt.desc ? ` - ${opt.desc}` : "";
+    console.log(`  [${num}] ${opt.name}${descStr}`);
+  });
+
+  while (true) {
+    const answer = await promptText(`Select option (1-${options.length})`);
+    const num = parseInt(answer, 10);
+    if (!isNaN(num) && num >= 1 && num <= options.length) {
+      return options[num - 1].value;
+    }
+    console.log("Invalid option, please choose a number from the list.");
+  }
+}
+

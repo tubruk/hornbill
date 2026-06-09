@@ -2,9 +2,12 @@
 import { Command } from "commander";
 import { resolveConfig, saveConfig, loadConfig, getConfigPath } from "./config";
 import { checkStatus, checkAuth, listBills, listPayments, payPayment, APIError, login, createApiKey } from "./api";
-import { promptText, promptPassword } from "./prompt";
-import { hostname } from "node:os";
+import { promptText, promptPassword, promptSelect } from "./prompt";
+import { hostname, homedir } from "node:os";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import packageJson from "../package.json";
+import { getSkillContent } from "./macro" with { type: "macro" };
 
 const program = new Command();
 
@@ -411,6 +414,212 @@ paymentsCmd
       }
     } catch (err) {
       handleError(err);
+    }
+  });
+
+// Command: skill
+const skillCmd = program.command("skill").description("Manage agent skills");
+
+skillCmd
+  .command("install")
+  .description("Install the Hornbill agent skill")
+  .option("-s, --show", "Only print the skill markdown file to stdout")
+  .option("--preset <preset>", "Skill location preset (gemini, claude)")
+  .option("--scope <scope>", "Installation scope (global, project)")
+  .option("--dir <dir>", "Custom skill installation directory")
+  .action(async (cmdOpts) => {
+    const opts = program.opts();
+
+    if (cmdOpts.show) {
+      console.log(getSkillContent());
+      return;
+    }
+
+    try {
+      const skillContent = getSkillContent();
+      let scope = cmdOpts.scope;
+      const preset = cmdOpts.preset;
+      let dir = cmdOpts.dir;
+      let targetPath = "";
+
+      if (dir) {
+        if (dir.startsWith("~")) {
+          dir = join(homedir(), dir.slice(1));
+        } else if (!dir.startsWith("/") && !dir.startsWith(".")) {
+          dir = join(process.cwd(), dir);
+        }
+        targetPath = join(dir, "hornbill", "SKILL.md");
+      } else {
+        if (scope && scope !== "global" && scope !== "project") {
+          console.error(`Invalid scope: ${scope}. Supported scopes: global, project`);
+          process.exit(1);
+        }
+
+        if (preset && preset !== "gemini" && preset !== "claude" && preset !== "cursor" && preset !== "cline" && preset !== "agents") {
+          console.error(`Invalid preset: ${preset}. Supported presets: gemini, claude, cursor, cline, agents`);
+          process.exit(1);
+        }
+
+        // 1. Resolve directly if both preset and scope are supplied
+        if (preset && scope) {
+          if (preset === "gemini") {
+            targetPath = scope === "global"
+              ? join(homedir(), ".gemini", "skills", "hornbill", "SKILL.md")
+              : join(process.cwd(), ".gemini", "skills", "hornbill", "SKILL.md");
+          } else if (preset === "claude") {
+            targetPath = scope === "global"
+              ? join(homedir(), ".claude", "skills", "hornbill", "SKILL.md")
+              : join(process.cwd(), ".claude", "skills", "hornbill", "SKILL.md");
+          } else if (preset === "cursor") {
+            targetPath = scope === "global"
+              ? join(homedir(), ".cursor", "skills", "hornbill", "SKILL.md")
+              : join(process.cwd(), ".cursor", "skills", "hornbill", "SKILL.md");
+          } else if (preset === "cline") {
+            targetPath = scope === "global"
+              ? join(homedir(), ".cline", "skills", "hornbill", "SKILL.md")
+              : join(process.cwd(), ".cline", "skills", "hornbill", "SKILL.md");
+          } else if (preset === "agents") {
+            targetPath = scope === "global"
+              ? join(homedir(), ".agents", "skills", "hornbill", "SKILL.md")
+              : join(process.cwd(), ".agents", "skills", "hornbill", "SKILL.md");
+          }
+        }
+
+        // 2. Otherwise, prompt interactively
+        if (!targetPath) {
+          let selectedScopeOrCustom = scope;
+          if (!scope && !preset) {
+            const firstChoices = [
+              { name: "Global", value: "global", desc: "Install globally in the home directory" },
+              { name: "Project", value: "project", desc: "Install locally in the current project directory" },
+              { name: "Custom", value: "custom", desc: "Enter a custom directory path manually" }
+            ];
+            selectedScopeOrCustom = await promptSelect("Select installation target:", firstChoices);
+          }
+
+          if (selectedScopeOrCustom === "custom") {
+            console.log("\nCustom directory structure will be: <entered-directory>/hornbill/SKILL.md");
+            const customDir = await promptText("Enter custom skill installation directory");
+            if (!customDir) {
+              console.error("Installation directory is required.");
+              process.exit(1);
+            }
+            let cdir = customDir;
+            if (cdir.startsWith("~")) {
+              cdir = join(homedir(), cdir.slice(1));
+            } else if (!cdir.startsWith("/") && !cdir.startsWith(".")) {
+              cdir = join(process.cwd(), cdir);
+            }
+            targetPath = join(cdir, "hornbill", "SKILL.md");
+          } else {
+            scope = selectedScopeOrCustom as "global" | "project" || "global";
+
+            if (preset) {
+              if (preset === "gemini") {
+                targetPath = scope === "global"
+                  ? join(homedir(), ".gemini", "skills", "hornbill", "SKILL.md")
+                  : join(process.cwd(), ".gemini", "skills", "hornbill", "SKILL.md");
+              } else if (preset === "claude") {
+                targetPath = scope === "global"
+                  ? join(homedir(), ".claude", "skills", "hornbill", "SKILL.md")
+                  : join(process.cwd(), ".claude", "skills", "hornbill", "SKILL.md");
+              } else if (preset === "cursor") {
+                targetPath = scope === "global"
+                  ? join(homedir(), ".cursor", "skills", "hornbill", "SKILL.md")
+                  : join(process.cwd(), ".cursor", "skills", "hornbill", "SKILL.md");
+              } else if (preset === "cline") {
+                targetPath = scope === "global"
+                  ? join(homedir(), ".cline", "skills", "hornbill", "SKILL.md")
+                  : join(process.cwd(), ".cline", "skills", "hornbill", "SKILL.md");
+              } else if (preset === "agents") {
+                targetPath = scope === "global"
+                  ? join(homedir(), ".agents", "skills", "hornbill", "SKILL.md")
+                  : join(process.cwd(), ".agents", "skills", "hornbill", "SKILL.md");
+              }
+            } else {
+              let choices;
+              if (scope === "global") {
+                choices = [
+                  { name: "~/.agents/skills/hornbill", value: "agents", desc: "Universal / General Agents" },
+                  { name: "~/.gemini/skills/hornbill", value: "gemini", desc: "Google Gemini / Antigravity" },
+                  { name: "~/.claude/skills/hornbill", value: "claude", desc: "Claude Code" },
+                  { name: "~/.cursor/skills/hornbill", value: "cursor", desc: "Cursor" },
+                  { name: "~/.cline/skills/hornbill", value: "cline", desc: "Cline" }
+                ];
+              } else {
+                choices = [
+                  { name: "./.agents/skills/hornbill", value: "agents", desc: "Universal / General Agents" },
+                  { name: "./.gemini/skills/hornbill", value: "gemini", desc: "Google Gemini / Antigravity" },
+                  { name: "./.claude/skills/hornbill", value: "claude", desc: "Claude Code" },
+                  { name: "./.cursor/skills/hornbill", value: "cursor", desc: "Cursor" },
+                  { name: "./.cline/skills/hornbill", value: "cline", desc: "Cline" }
+                ];
+              }
+
+              const selectedPreset = await promptSelect("Select target skill location preset:", choices);
+              if (selectedPreset === "gemini") {
+                targetPath = scope === "global"
+                  ? join(homedir(), ".gemini", "skills", "hornbill", "SKILL.md")
+                  : join(process.cwd(), ".gemini", "skills", "hornbill", "SKILL.md");
+              } else if (selectedPreset === "claude") {
+                targetPath = scope === "global"
+                  ? join(homedir(), ".claude", "skills", "hornbill", "SKILL.md")
+                  : join(process.cwd(), ".claude", "skills", "hornbill", "SKILL.md");
+              } else if (selectedPreset === "cursor") {
+                targetPath = scope === "global"
+                  ? join(homedir(), ".cursor", "skills", "hornbill", "SKILL.md")
+                  : join(process.cwd(), ".cursor", "skills", "hornbill", "SKILL.md");
+              } else if (selectedPreset === "cline") {
+                targetPath = scope === "global"
+                  ? join(homedir(), ".cline", "skills", "hornbill", "SKILL.md")
+                  : join(process.cwd(), ".cline", "skills", "hornbill", "SKILL.md");
+              } else if (selectedPreset === "agents") {
+                targetPath = scope === "global"
+                  ? join(homedir(), ".agents", "skills", "hornbill", "SKILL.md")
+                  : join(process.cwd(), ".agents", "skills", "hornbill", "SKILL.md");
+              }
+            }
+          }
+        }
+      }
+
+      const destDir = join(targetPath, "..");
+      if (!existsSync(destDir)) {
+        mkdirSync(destDir, { recursive: true });
+      }
+
+      writeFileSync(targetPath, skillContent, "utf-8");
+
+      if (opts.json) {
+        console.log(
+          JSON.stringify(
+            {
+              status: "success",
+              path: targetPath,
+            },
+            null,
+            2
+          )
+        );
+      } else {
+        console.log(`Hornbill agent skill successfully installed to: ${targetPath}`);
+      }
+    } catch (err) {
+      if (opts.json) {
+        console.log(
+          JSON.stringify(
+            {
+              status: "error",
+              error: err instanceof Error ? err.message : String(err),
+            },
+            null,
+            2
+          )
+        );
+        process.exit(1);
+      } else {
+        handleError(err);
+      }
     }
   });
 
