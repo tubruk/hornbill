@@ -28,7 +28,7 @@ import {
   useCreateApiKey,
   useDeleteApiKey,
 } from "../api/queries";
-import { exportAccount } from "../api/client";
+import { exportAccount, testNotification } from "../api/client";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
@@ -99,6 +99,7 @@ export function SettingsView() {
   const [gotifyToken, setGotifyToken] = useState(currentAccount?.notification_provider?.config?.gotifyToken ?? "");
   const [ntfyUrl, setNtfyUrl] = useState(currentAccount?.notification_provider?.config?.ntfyUrl ?? "");
   const [ntfyToken, setNtfyToken] = useState(currentAccount?.notification_provider?.config?.ntfyToken ?? "");
+  const [isTestingNotification, setIsTestingNotification] = useState(false);
 
   // Autocomplete search states
   const [currencySearch, setCurrencySearch] = useState("");
@@ -175,6 +176,35 @@ export function SettingsView() {
         ),
       onError: (err: unknown) => notify(err instanceof Error ? err.message : "Sync failed.", "error"),
     });
+  }
+
+  async function handleTestNotification() {
+    setIsTestingNotification(true);
+    try {
+      const config: Account["notification_provider"] = {
+        type: providerType,
+        config: {
+          webhookUrl: (providerType === "webhook" || providerType === "slack" || providerType === "discord") ? webhookUrl : undefined,
+          botToken: providerType === "telegram" ? botToken : undefined,
+          chatId: providerType === "telegram" ? chatId : undefined,
+          gotifyUrl: providerType === "gotify" ? gotifyUrl : undefined,
+          gotifyToken: providerType === "gotify" ? gotifyToken : undefined,
+          ntfyUrl: providerType === "ntfy" ? ntfyUrl : undefined,
+          ntfyToken: providerType === "ntfy" ? ntfyToken : undefined,
+        },
+      };
+
+      const res = await testNotification(config);
+      if (res.success) {
+        notify("Test notification sent successfully!", "success");
+      } else {
+        notify(res.message || "Failed to send test notification.", "error");
+      }
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Failed to send test notification.", "error");
+    } finally {
+      setIsTestingNotification(false);
+    }
   }
 
   function handleSaveSettings(e: React.FormEvent) {
@@ -953,12 +983,12 @@ export function SettingsView() {
                   </div>
                 )}
 
-                <div className="pt-2 flex items-center justify-between gap-4 border-t border-border-warm">
+                <div className="pt-2 flex items-center gap-4 border-t border-border-warm">
                   <Button
                     type="submit"
                     variant="primary"
                     size="medium"
-                    disabled={updateAccountMut.isPending || !isApiConnected}
+                    disabled={updateAccountMut.isPending || isTestingNotification || !isApiConnected}
                     className="gap-2 shrink-0"
                   >
                     {updateAccountMut.isPending ? (
@@ -967,6 +997,23 @@ export function SettingsView() {
                       "Save Reminders"
                     )}
                   </Button>
+
+                  {reminderEnabled && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="medium"
+                      disabled={updateAccountMut.isPending || isTestingNotification || !isApiConnected}
+                      onClick={handleTestNotification}
+                      className="gap-2 shrink-0"
+                    >
+                      {isTestingNotification ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        "Test Notification"
+                      )}
+                    </Button>
+                  )}
                 </div>
               </form>
             ) : (

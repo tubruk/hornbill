@@ -153,6 +153,16 @@ export function deleteAccount(id: string): Promise<void> {
   return apiFetch<void>(`/accounts/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
+export function testNotification(
+  notificationProvider: Account["notification_provider"]
+): Promise<{ success: boolean; message: string }> {
+  return apiFetch<{ success: boolean; message: string }>("/accounts/test-notification", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ notification_provider: notificationProvider }),
+  });
+}
+
 // ── Bills ──────────────────────────────────────────────────────────────────
 
 export function fetchBills(accountId?: string): Promise<Bill[]> {
