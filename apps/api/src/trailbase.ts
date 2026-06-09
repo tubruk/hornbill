@@ -289,6 +289,14 @@ export class TrailbaseClient {
       recurrence: typeof bill.recurrence === "string" ? JSON.parse(bill.recurrence) : bill.recurrence,
     }));
 
+    // Sort by active status (active first), then by name alphabetically (ascending)
+    bills.sort((a, b) => {
+      if (a.active !== b.active) {
+        return a.active ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
+
     if (!accountId) return bills;
 
     return bills.filter(bill => bill.account_id === accountId);
