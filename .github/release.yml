@@ -5,6 +5,8 @@ changelog:
       - dependabot
     labels:
       - dependencies
+      - chore
+      - test
   categories:
     - title: "🚀 Features"
       labels:
@@ -16,6 +18,5 @@ changelog:
         - "fix"
     - title: "🧰 Maintenance"
       labels:
-        - "chore"
         - "refactor"
         - "ci"
