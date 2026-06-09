@@ -12,10 +12,6 @@ Manage and track bills and payments using the `hornbill` CLI client.
 | Action | Command | Description |
 |--------|---------|-------------|
 | Check Status | `hornbill status` | Check connection and authentication status |
-| Authenticate | `hornbill login` | Authenticate and generate a personal access token |
-| List Config | `hornbill config list` | List all local configurations and paths |
-| Set Config | `hornbill config set <key> <value>` | Set configuration (keys: `url`, `key`) |
-| Get Config | `hornbill config get <key>` | Get configuration value |
 | List Bills | `hornbill bills list` | List all tracked bills |
 | Create Bill | `hornbill bills create --name <name> --amount <amount> --recurrence <recurrence>` | Create a new bill schedule with recurrence |
 | List Payments | `hornbill payments list` | List payments (defaults to unpaid) |
@@ -28,89 +24,16 @@ Manage and track bills and payments using the `hornbill` CLI client.
 
 ---
 
-## Configuration & Authentication
+## Authentication & Status
 
-The CLI needs a server URL and an API key. You can authenticate interactively or set them manually.
+Before running commands, verify that the CLI is configured and authenticated with the Hornbill server:
 
-### Check Status
-Verify if the CLI is connected to the server and authenticated:
 ```bash
 hornbill status
 ```
 
-### Authentication
-To authenticate and generate a personal access token automatically:
-```bash
-hornbill login --email <email> --password <password> --name <apiKeyName>
-```
-If flags are not provided, the command will prompt you for them.
-
-### Manual Configuration
-You can view and set configuration directly:
-```bash
-# View configuration
-hornbill config list
-
-# Set server URL
-hornbill config set url http://localhost:3000
-
-# Set API key manually
-hornbill config set key your_personal_access_token
-```
-
----
-
-## Tracking Bills and Payments
-
-### List Bills
-To view all bills configured in the system:
-```bash
-hornbill bills list
-```
-
-### List Payments
-To list payments:
-```bash
-# List all unpaid payments (default behavior)
-hornbill payments list
-
-# List all payments (both paid and unpaid)
-hornbill payments list --status all
-
-# List only paid payments
-hornbill payments list --status paid
-
-# Filter payments by a specific Bill ID
-hornbill payments list --bill-id <billId>
-
-# Limit the output size
-hornbill payments list --limit 50
-```
-
----
-
-## Settling Payments
-
-To mark an unpaid payment as settled:
-```bash
-hornbill payments pay <paymentId>
-```
-
-### Overrides
-If you settled a payment with a different amount or on a different date:
-```bash
-# Pay a different amount (e.g. 15.99)
-hornbill payments pay <paymentId> --amount 15.99
-
-# Pay with a custom date (ISO date string or Unix timestamp)
-hornbill payments pay <paymentId> --date "2026-06-09"
-```
-
-## JSON Output
-Append `-j` or `--json` to any command to format the output as JSON.
-```bash
-hornbill bills list --json
-```
+> [!IMPORTANT]
+> If the output shows `Auth Status: Unauthenticated` (or missing API key), do not attempt to configure it yourself. Ask the user to run `hornbill login` on their terminal to authenticate the CLI.
 
 ---
 
@@ -118,7 +41,13 @@ hornbill bills list --json
 
 For daily operations, manage your bills and payments using the Hornbill CLI.
 
-### 1. Creating a New Bill & Setting Recurrence (CLI)
+### 1. Listing Configured Bills
+To view all bills currently configured in the system:
+```bash
+hornbill bills list
+```
+
+### 2. Creating a New Bill & Setting Recurrence
 To track a new bill, use the `hornbill bills create` command. Specify the correct recurrence format so future payment cycles are generated automatically:
 
 *   **Fixed Subscriptions (Monthly):** Due on the same calendar day every month.
@@ -140,19 +69,32 @@ To track a new bill, use the `hornbill bills create` command. Specify the correc
     hornbill bills create --name "Water Bill" --amount 45.00 --currency USD --start-date "2026-06-09" --recurrence "interval:1-months-due_date"
     ```
 
-### 2. Checking Unpaid Payments (CLI)
-To check which bills are currently outstanding and unpaid:
+### 3. Checking Unpaid Payments
+To list payments:
 ```bash
-hornbill payments list --status unpaid
+# List all unpaid payments (default behavior)
+hornbill payments list
+
+# List all payments (both paid and unpaid)
+hornbill payments list --status all
+
+# List only paid payments
+hornbill payments list --status paid
+
+# Filter payments by a specific Bill ID
+hornbill payments list --bill-id <billId>
+
+# Limit the output size
+hornbill payments list --limit 50
 ```
 
-### 3. Changing the Due Date of an Unpaid Payment (CLI)
+### 4. Changing the Due Date of an Unpaid Payment
 To change the due date of a current unpaid payment cycle (for example, if the billing date was adjusted by the provider), update it using:
 ```bash
 hornbill payments update <payment_uuid> --due-date "2026-06-25"
 ```
 
-### 4. Marking a Payment as Paid with Overrides (CLI)
+### 5. Marking a Payment as Paid with Overrides
 When a bill is paid, mark the payment cycle as settled:
 ```bash
 hornbill payments pay <payment_uuid>
@@ -169,10 +111,16 @@ hornbill payments pay <payment_uuid> --date "2026-06-08"
 hornbill payments pay <payment_uuid> --amount 48.50 --date "2026-06-08"
 ```
 
-### 5. Making an Arbitrary/Ad-Hoc Payment (CLI)
+### 6. Making an Arbitrary/Ad-Hoc Payment
 To log a manual, arbitrary payment cycle for a bill that is not part of the standard recurrence schedule:
 ```bash
 hornbill payments create --bill-id <bill_uuid> --amount 50.00 --due-date "2026-06-09" --paid-at "2026-06-09" --notes "Ad-hoc mid-cycle payment"
+```
+
+### 7. Formatting Output as JSON
+Append `-j` or `--json` to any command to format the output as JSON.
+```bash
+hornbill bills list --json
 ```
 
 ### Fallback for Undescribed Tasks
