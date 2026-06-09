@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
 import { resolveConfig, saveConfig, loadConfig, getConfigPath } from "./config";
-import { checkStatus, checkAuth, listBills, listPayments, payPayment, APIError, login, createApiKey } from "./api";
+import { checkStatus, checkAuth, listBills, listPayments, payPayment, APIError, login, createApiKey, listAccounts, createBill, updatePayment, createPayment } from "./api";
 import { promptText, promptPassword, promptSelect } from "./prompt";
 import { hostname, homedir } from "node:os";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -316,6 +316,127 @@ billsCmd
     }
   });
 
+billsCmd
+  .command("create")
+  .description("Create a new bill")
+  .option("-n, --name <name>", "Name of the bill")
+  .option("-a, --amount <amount>", "Billing amount (e.g. 15.99)")
+  .option("-c, --currency <currency>", "Currency code (e.g. USD, IDR)", "USD")
+  .option("-t, --amount-type <type>", "Amount type: fixed, variable", "fixed")
+  .option("-s, --start-date <date>", "Start date YYYY-MM-DD (defaults to today)")
+  .option("-u, --account-id <accountId>", "Account UUID")
+  .option("-r, --recurrence <recurrence>", "Recurrence: one-time, monthly:<day>, yearly:<month>-<day>, interval:<every>-<unit>-<from>, or JSON string")
+  .option("--notes <notes>", "Optional notes")
+  .option("--upcoming-threshold-days <days>", "Upcoming threshold days")
+  .option("--last-payment-date <date>", "Last payment date YYYY-MM-DD")
+  .action(async (cmdOpts) => {
+    const opts = program.opts();
+    const config = resolveConfig(opts);
+
+    try {
+      let accountId = cmdOpts.accountId;
+      if (!accountId) {
+        const accounts = await listAccounts(config.url, config.key);
+        if (accounts.length === 1) {
+          accountId = accounts[0].id;
+        } else if (accounts.length > 1) {
+          const choices = accounts.map(a => ({ name: `${a.name} (${a.id})`, value: a.id }));
+          accountId = await promptSelect("Select an Account", choices);
+        } else {
+          console.error("Error: No accounts found. Please create an account first.");
+          process.exit(1);
+        }
+      }
+
+      let name = cmdOpts.name;
+      if (!name) {
+        name = await promptText("Bill Name");
+        if (!name) {
+          console.error("Error: Bill name is required.");
+          process.exit(1);
+        }
+      }
+
+      const amountVal = cmdOpts.amount ? parseFloat(cmdOpts.amount) : 0;
+      if (isNaN(amountVal) || amountVal < 0) {
+        console.error("Error: Amount must be a positive number.");
+        process.exit(1);
+      }
+      const amountCents = Math.round(amountVal * 100);
+
+      let recurrence: unknown = null;
+      let recStr = cmdOpts.recurrence;
+      if (recStr === undefined) {
+        recStr = await promptText("Recurrence (one-time, monthly:<day>, yearly:<month>-<day>, interval:<every>-<unit>-<from>)", "one-time");
+      }
+
+      if (recStr && recStr !== "one-time" && recStr !== "none") {
+        if (recStr.trim().startsWith("{")) {
+          recurrence = JSON.parse(recStr);
+        } else {
+          const monthlyMatch = recStr.match(/^monthly:(\d+)$/);
+          const yearlyMatch = recStr.match(/^yearly:(\d+)-(\d+)$/);
+          const intervalMatch = recStr.match(/^interval:(\d+)-(days|weeks|months)-(due_date|paid_at)$/);
+
+          if (monthlyMatch) {
+            recurrence = { type: "monthly", monthly: { day: parseInt(monthlyMatch[1], 10) } };
+          } else if (yearlyMatch) {
+            recurrence = { type: "yearly", yearly: { month: parseInt(yearlyMatch[1], 10), day: parseInt(yearlyMatch[2], 10) } };
+          } else if (intervalMatch) {
+            recurrence = {
+              type: "interval",
+              interval: {
+                every: parseInt(intervalMatch[1], 10),
+                unit: intervalMatch[2],
+                from: intervalMatch[3],
+              },
+            };
+          } else {
+            console.error("Error: Invalid recurrence format. Use one-time, monthly:<day>, yearly:<month>-<day>, interval:<every>-<unit>-<from>, or a raw JSON string.");
+            process.exit(1);
+          }
+        }
+      }
+
+      const startDate = cmdOpts.startDate || new Date().toISOString().split("T")[0];
+
+      const payload: Record<string, unknown> = {
+        account_id: accountId,
+        name,
+        currency: cmdOpts.currency,
+        amount_cents: amountCents,
+        amount_type: cmdOpts.amountType,
+        recurrence,
+        start_date: startDate,
+        active: true,
+      };
+
+      if (cmdOpts.notes) {
+        payload.notes = cmdOpts.notes;
+      }
+      if (cmdOpts.upcomingThresholdDays) {
+        payload.upcoming_threshold_days = parseInt(cmdOpts.upcomingThresholdDays, 10);
+      }
+      if (cmdOpts.lastPaymentDate) {
+        payload.last_payment_date = cmdOpts.lastPaymentDate;
+      }
+
+      const bill = await createBill(config.url, config.key, payload);
+
+      if (opts.json) {
+        console.log(JSON.stringify(bill, null, 2));
+      } else {
+        console.log(`Bill "${bill.name}" created successfully!`);
+        console.log(`ID:           ${bill.id}`);
+        console.log(`Amount:       ${formatAmount(bill.amount_cents)} ${bill.currency}`);
+        console.log(`Recurrence:   ${bill.recurrence ? JSON.stringify(bill.recurrence) : "one-time"}`);
+        console.log(`Start Date:   ${bill.start_date}`);
+      }
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
 // Command: payments
 const paymentsCmd = program.command("payments").description("Manage and view payments");
 
@@ -419,6 +540,133 @@ paymentsCmd
         console.log(`Payment ${paymentId} successfully settled!`);
         console.log(`Amount:      ${formatAmount(updated.amount_cents)}`);
         console.log(`Paid At:     ${updated.paid_at ? new Date(updated.paid_at * 1000).toISOString() : "-"}`);
+      }
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+paymentsCmd
+  .command("update <paymentId>")
+  .description("Update details of an existing payment cycle")
+  .option("-d, --due-date <date>", "Scheduled due date (YYYY-MM-DD)")
+  .option("-a, --amount <amount>", "Payment amount override (e.g. 15.99)")
+  .option("-p, --paid-at <date>", "Payment settlement date/timestamp, or 'null' to clear paid status")
+  .option("-n, --notes <notes>", "Optional notes")
+  .action(async (paymentId, cmdOpts) => {
+    const opts = program.opts();
+    const config = resolveConfig(opts);
+
+    const payload: Record<string, unknown> = {};
+    if (cmdOpts.dueDate !== undefined) {
+      payload.due_date = cmdOpts.dueDate;
+    }
+    if (cmdOpts.amount !== undefined) {
+      const num = parseFloat(cmdOpts.amount);
+      if (isNaN(num) || num < 0) {
+        console.error("Invalid amount. Must be a positive number.");
+        process.exit(1);
+      }
+      payload.amount_cents = Math.round(num * 100);
+    }
+    if (cmdOpts.paidAt !== undefined) {
+      if (cmdOpts.paidAt === "null") {
+        payload.paid_at = null;
+      } else {
+        payload.paid_at = cmdOpts.paidAt;
+      }
+    }
+    if (cmdOpts.notes !== undefined) {
+      payload.notes = cmdOpts.notes;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      console.error("Error: Please provide at least one option to update (--due-date, --amount, --paid-at, --notes).");
+      process.exit(1);
+    }
+
+    try {
+      const updated = await updatePayment(config.url, config.key, paymentId, payload);
+
+      if (opts.json) {
+        console.log(JSON.stringify(updated, null, 2));
+      } else {
+        console.log(`Payment ${paymentId} updated successfully!`);
+        console.log(`Due Date:    ${updated.due_date}`);
+        console.log(`Amount:      ${formatAmount(updated.amount_cents)}`);
+        console.log(`Paid At:     ${updated.paid_at ? new Date(updated.paid_at * 1000).toISOString() : "-"}`);
+        console.log(`Notes:       ${updated.notes || "-"}`);
+      }
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+paymentsCmd
+  .command("create")
+  .description("Create an ad-hoc payment cycle for a bill")
+  .option("-b, --bill-id <billId>", "Associated Bill ID")
+  .option("-d, --due-date <date>", "Scheduled due date YYYY-MM-DD (defaults to today)")
+  .option("-a, --amount <amount>", "Payment amount (e.g. 15.99)")
+  .option("-p, --paid-at <date>", "Payment settlement date/timestamp")
+  .option("-n, --notes <notes>", "Optional notes")
+  .action(async (cmdOpts) => {
+    const opts = program.opts();
+    const config = resolveConfig(opts);
+
+    try {
+      let billId = cmdOpts.billId;
+      if (!billId) {
+        const bills = await listBills(config.url, config.key);
+        if (bills.length === 1) {
+          billId = bills[0].id;
+        } else if (bills.length > 1) {
+          const choices = bills.map(b => ({ name: `${b.name} (${b.id})`, value: b.id }));
+          billId = await promptSelect("Select a Bill", choices);
+        } else {
+          console.error("Error: No bills found. Please create a bill first.");
+          process.exit(1);
+        }
+      }
+
+      let amountStr = cmdOpts.amount;
+      if (amountStr === undefined) {
+        amountStr = await promptText("Amount (e.g. 15.99)");
+      }
+      const amountVal = parseFloat(amountStr || "0");
+      if (isNaN(amountVal) || amountVal <= 0) {
+        console.error("Error: A positive amount is required.");
+        process.exit(1);
+      }
+      const amountCents = Math.round(amountVal * 100);
+
+      const dueDate = cmdOpts.dueDate || new Date().toISOString().split("T")[0];
+
+      const payload: Record<string, unknown> = {
+        bill_id: billId,
+        due_date: dueDate,
+        amount_cents: amountCents,
+      };
+
+      if (cmdOpts.paidAt !== undefined) {
+        payload.paid_at = cmdOpts.paidAt;
+      }
+      if (cmdOpts.notes !== undefined) {
+        payload.notes = cmdOpts.notes;
+      }
+
+      const payment = await createPayment(config.url, config.key, payload);
+
+      if (opts.json) {
+        console.log(JSON.stringify(payment, null, 2));
+      } else {
+        console.log(`Payment created successfully!`);
+        console.log(`ID:          ${payment.id}`);
+        console.log(`Bill ID:     ${payment.bill_id}`);
+        console.log(`Due Date:    ${payment.due_date}`);
+        console.log(`Amount:      ${formatAmount(payment.amount_cents)}`);
+        console.log(`Paid At:     ${payment.paid_at ? new Date(payment.paid_at * 1000).toISOString() : "-"}`);
+        console.log(`Notes:       ${payment.notes || "-"}`);
       }
     } catch (err) {
       handleError(err);

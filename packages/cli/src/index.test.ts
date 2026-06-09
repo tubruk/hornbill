@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
 import { resolveConfig, loadConfig, saveConfig, getConfigPath, getConfigDir } from "./config";
-import { checkStatus, checkAuth, listBills, listPayments, payPayment, login, createApiKey } from "./api";
+import { checkStatus, checkAuth, listBills, listPayments, payPayment, login, createApiKey, listAccounts, createBill, updatePayment, createPayment } from "./api";
 import { existsSync, unlinkSync, mkdirSync, writeFileSync } from "node:fs";
-import type { Bill, Payment } from "@hornbill/core";
+import type { Bill, Payment, Account } from "@hornbill/core";
 
 // Helper to set mock fetch without TypeScript typing errors or any keyword
 function setMockFetch(fn: (input: unknown, init?: unknown) => Promise<Response>): void {
@@ -304,5 +304,127 @@ describe("CLI API Client", () => {
     expect(result).toEqual(mockKeyResult);
     expect(calledHeader).toBe("Bearer jwt-token-abc");
     expect(calledBody).toContain("hornbill-cli@test");
+  });
+
+  it("should list accounts", async () => {
+    const mockAccounts: Account[] = [
+      {
+        id: "acc-1",
+        name: "Primary Wallet",
+        upcoming_threshold_days: 7,
+        currencies: ["USD"],
+        default_currency: "USD",
+        archived: false,
+        notification_provider: { type: "console", config: {} },
+        notification_reminder: { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null },
+        created_at: 1717142404,
+        updated_at: 1717142404,
+      },
+    ];
+
+    setMockFetch(
+      mock(() => {
+        return Promise.resolve(
+          new Response(JSON.stringify(mockAccounts), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      })
+    );
+
+    const result = await listAccounts("http://mock-server", "hb_pat_123");
+    expect(result).toEqual(mockAccounts);
+  });
+
+  it("should create a bill", async () => {
+    const mockCreatedBill: Bill = {
+      id: "bill-1",
+      account_id: "acc-1",
+      name: "Netflix",
+      currency: "USD",
+      amount_cents: 1599,
+      amount_type: "fixed",
+      active: true,
+      start_date: "2026-06-01",
+      recurrence: { type: "monthly", monthly: { day: 1 } },
+      created_at: 1717142404,
+      updated_at: 1717142404,
+    };
+
+    let calledBody = "";
+    setMockFetch(
+      mock((_, init) => {
+        calledBody = (init as RequestInit)?.body?.toString() || "";
+        return Promise.resolve(
+          new Response(JSON.stringify(mockCreatedBill), {
+            status: 201,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      })
+    );
+
+    const result = await createBill("http://mock-server", "hb_pat_123", { name: "Netflix" });
+    expect(result).toEqual(mockCreatedBill);
+    expect(calledBody).toContain("Netflix");
+  });
+
+  it("should update a payment", async () => {
+    const mockUpdatedPayment: Payment = {
+      id: "payment-1",
+      bill_id: "bill-1",
+      due_date: "2026-06-15",
+      amount_cents: 1599,
+      paid_at: null,
+      created_at: 1717142404,
+      updated_at: 1717142404,
+    };
+
+    let calledBody = "";
+    setMockFetch(
+      mock((_, init) => {
+        calledBody = (init as RequestInit)?.body?.toString() || "";
+        return Promise.resolve(
+          new Response(JSON.stringify(mockUpdatedPayment), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      })
+    );
+
+    const result = await updatePayment("http://mock-server", "hb_pat_123", "payment-1", { due_date: "2026-06-15" });
+    expect(result).toEqual(mockUpdatedPayment);
+    expect(calledBody).toContain("2026-06-15");
+  });
+
+  it("should create a payment", async () => {
+    const mockCreatedPayment: Payment = {
+      id: "payment-1",
+      bill_id: "bill-1",
+      due_date: "2026-06-01",
+      amount_cents: 1599,
+      paid_at: null,
+      created_at: 1717142404,
+      updated_at: 1717142404,
+    };
+
+    let calledBody = "";
+    setMockFetch(
+      mock((_, init) => {
+        calledBody = (init as RequestInit)?.body?.toString() || "";
+        return Promise.resolve(
+          new Response(JSON.stringify(mockCreatedPayment), {
+            status: 201,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      })
+    );
+
+    const result = await createPayment("http://mock-server", "hb_pat_123", { bill_id: "bill-1", amount_cents: 1599, due_date: "2026-06-01" });
+    expect(result).toEqual(mockCreatedPayment);
+    expect(calledBody).toContain("bill-1");
   });
 });

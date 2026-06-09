@@ -1,4 +1,4 @@
-import type { Bill, Payment } from "@hornbill/core";
+import type { Bill, Payment, Account } from "@hornbill/core";
 
 export interface StatusResponse {
   status: string;
@@ -137,4 +137,42 @@ export async function createApiKey(
       body: JSON.stringify({ name }),
     }
   );
+}
+
+export async function listAccounts(url: string, key: string): Promise<Account[]> {
+  return request<Account[]>(url, key, "/api/v1/accounts");
+}
+
+export async function createBill(
+  url: string,
+  key: string,
+  data: Record<string, unknown>
+): Promise<Bill> {
+  return request<Bill>(url, key, "/api/v1/bills", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updatePayment(
+  url: string,
+  key: string,
+  paymentId: string,
+  data: Record<string, unknown>
+): Promise<Payment> {
+  return request<Payment>(url, key, `/api/v1/payments/${paymentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function createPayment(
+  url: string,
+  key: string,
+  data: Record<string, unknown>
+): Promise<Payment> {
+  return request<Payment>(url, key, "/api/v1/payments", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
