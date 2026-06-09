@@ -41,6 +41,25 @@ describe("API Routes", () => {
   };
 
   beforeEach(() => {
+    // Reset mockClient methods to prevent test pollution
+    mockClient.listAccounts = async (): Promise<Account[]> => [];
+    mockClient.getAccount = async (id: string): Promise<Account> => ({ id } as any);
+    mockClient.createAccount = async (acc: any): Promise<Account> => acc;
+    mockClient.updateAccount = async (id: string, acc: any): Promise<Account> => ({ id, ...acc } as any);
+    mockClient.deleteAccount = async (): Promise<void> => {};
+    mockClient.listBills = async (): Promise<Bill[]> => [];
+    mockClient.getBill = async (id: string): Promise<Bill> => ({ id } as any);
+    mockClient.createBill = async (bill: any): Promise<Bill> => bill;
+    mockClient.updateBill = async (id: string, bill: any): Promise<Bill> => ({ id, ...bill } as any);
+    mockClient.deleteBill = async (): Promise<void> => {};
+    mockClient.listPayments = async (): Promise<Payment[]> => [];
+    mockClient.getPayment = async (id: string): Promise<Payment> => ({ id } as any);
+    mockClient.createPayment = async (pay: any): Promise<Payment> => pay;
+    mockClient.updatePayment = async (id: string, pay: any): Promise<Payment> => ({ id, ...pay } as any);
+    mockClient.deletePayment = async (): Promise<void> => {};
+    mockClient.listAccountUsers = async (): Promise<any[]> => [];
+    mockClient.associateUserToAccount = async (): Promise<any> => {};
+
     // Spy and mock trailbase functions
     getDbSpy = spyOn(trailbase, "getDb").mockImplementation(() => trailbase.db as any);
     verifyTokenSpy = spyOn(trailbase, "verifyToken").mockImplementation(async () => ({ sub: "user-123" }));
@@ -766,6 +785,25 @@ describe("API Routes", () => {
       expect(res.status).toBe(400);
     });
 
+    test("POST / - fails with 409 if name already exists (case-insensitive)", async () => {
+      spyOn(mockClient, "listBills").mockResolvedValue([mockBillItem]);
+
+      const res = await billsApp.request("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account_id: "acc-1",
+          name: "  reNt ",
+          currency: "USD",
+          recurrence: { type: "monthly", monthly: { day: 1 } },
+          start_date: "2026-01-01",
+        }),
+      });
+      expect(res.status).toBe(409);
+      const json = await res.json();
+      expect(json.error).toBe('Bill name "  reNt " already exists in this account');
+    });
+
     test("POST / - returns 500 on db creation error", async () => {
       spyOn(trailbase.db, "createBill").mockRejectedValue(new Error("Unique constraint") as never);
 
@@ -823,6 +861,49 @@ describe("API Routes", () => {
       expect(res.status).toBe(400);
       const json = await res.json();
       expect(json.error).toBe("start_date is immutable");
+    });
+
+    test("PATCH /:id - fails with 409 if name already exists (case-insensitive) on another bill", async () => {
+      spyOn(trailbase.db, "getBill").mockResolvedValue(mockBillItem);
+      spyOn(mockClient, "listBills").mockResolvedValue([
+        mockBillItem,
+        {
+          id: "bill-2",
+          account_id: "acc-1",
+          name: "Netflix",
+          currency: "USD",
+          amount_cents: 1500,
+          recurrence: { type: "monthly", monthly: { day: 1 } },
+          start_date: "2026-01-01",
+          active: true,
+          created_at: 0,
+          updated_at: 0,
+        }
+      ]);
+
+      const res = await billsApp.request("/bill-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "netflix" }),
+      });
+      expect(res.status).toBe(409);
+      const json = await res.json();
+      expect(json.error).toBe('Bill name "netflix" already exists in this account');
+    });
+
+    test("PATCH /:id - succeeds if name is updated to the same name (case-insensitive) of the current bill", async () => {
+      spyOn(trailbase.db, "getBill").mockResolvedValue(mockBillItem);
+      spyOn(mockClient, "listBills").mockResolvedValue([mockBillItem]);
+      spyOn(trailbase.db, "updateBill").mockResolvedValue({ ...mockBillItem, name: "RENT" });
+
+      const res = await billsApp.request("/bill-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "RENT" }),
+      });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.name).toBe("RENT");
     });
 
     test("DELETE /:id - deletes bill successfully", async () => {

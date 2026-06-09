@@ -3,7 +3,7 @@ import type { Bill } from "@hornbill/core";
 import { getDb, verifyAccountAccess, type UserPayload } from "../trailbase";
 import { generateNextPaymentForBill, handleBillUpdateSideEffects } from "../services";
 import { withAccountAccess, withBillAccess } from "../middleware/auth";
-import { coreErrors, authErrors, validationErrors, lookupErrors, defaultValidationHook, uuidSchema } from "../utils/openapi-errors";
+import { coreErrors, authErrors, validationErrors, lookupErrors, defaultValidationHook, uuidSchema, ErrorResponseSchema } from "../utils/openapi-errors";
 
 export const BillOpenApiSchema = z.object({
   id: uuidSchema().openapi({ description: "UUID of the bill", example: "d3b07384-d113-4bf6-a5cc-9c60dfd667fb" }),
@@ -159,6 +159,14 @@ const createBillRoute = createRoute({
       },
       description: "Bill successfully created and initialized",
     },
+    409: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: "Conflict: A bill with this name already exists in this account",
+    },
     ...coreErrors,
     ...authErrors,
     ...validationErrors,
@@ -174,6 +182,15 @@ app.openapi(createBillRoute, withAccountAccess("body", "account_id")(async (c) =
     // Scaffolding validation
     if (!body.account_id || !body.name || !body.currency || !body.recurrence || !startDate) {
       return c.json({ error: "Missing required fields: account_id, name, currency, recurrence, start_date" }, 400);
+    }
+
+    // Uniqueness check: case-insensitive, scoped to the account
+    const existingBills = await getDb(c).listBills(body.account_id);
+    const hasDuplicate = existingBills.some(
+      (b) => b.name.toLowerCase() === body.name!.trim().toLowerCase()
+    );
+    if (hasDuplicate) {
+      return c.json({ error: `Bill name "${body.name}" already exists in this account` }, 409);
     }
 
     const newBill = await getDb(c).createBill({
@@ -247,6 +264,14 @@ const updateBillRoute = createRoute({
       },
       description: "Bill successfully updated",
     },
+    409: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: "Conflict: A bill with this name already exists in this account",
+    },
     ...coreErrors,
     ...authErrors,
     ...validationErrors,
@@ -268,6 +293,17 @@ app.openapi(updateBillRoute, withBillAccess()(async (c) => {
     }
     if (body.start_date !== undefined && body.start_date !== oldBill.start_date) {
       return c.json({ error: "start_date is immutable" }, 400);
+    }
+
+    // Uniqueness check if name is updated: case-insensitive, scoped to the account
+    if (body.name !== undefined && body.name.trim().toLowerCase() !== oldBill.name.toLowerCase()) {
+      const existingBills = await getDb(c).listBills(oldBill.account_id);
+      const hasDuplicate = existingBills.some(
+        (b) => b.id !== id && b.name.toLowerCase() === body.name!.trim().toLowerCase()
+      );
+      if (hasDuplicate) {
+        return c.json({ error: `Bill name "${body.name}" already exists in this account` }, 409);
+      }
     }
 
     const updates: Partial<Bill> = {
