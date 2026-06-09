@@ -758,5 +758,34 @@ describe("Services Logic", () => {
 
       expect(updatePaymentSpy).not.toHaveBeenCalled();
     });
+
+    test("does not update unpaid payment if ignoreRecalculationForPaymentId matches", async () => {
+      const activeBill = mockBill({ active: true, recurrence: { type: "monthly", monthly: { day: 15 } } });
+      const paidPayment: Payment = {
+        id: "pay-1",
+        bill_id: activeBill.id,
+        due_date: "2026-02-15",
+        amount_cents: 1500,
+        paid_at: 1717142500,
+        created_at: 0,
+        updated_at: 0,
+      };
+      const unpaidPayment: Payment = {
+        id: "pay-unpaid",
+        bill_id: activeBill.id,
+        due_date: "2026-02-15",
+        amount_cents: 1500,
+        paid_at: null,
+        created_at: 0,
+        updated_at: 0,
+      };
+
+      getBillSpy.mockResolvedValue(activeBill);
+      listPaymentsSpy.mockResolvedValue([paidPayment, unpaidPayment]);
+
+      await handlePaymentUpdateOrDeleteSideEffects(activeBill.id, "pay-unpaid");
+
+      expect(updatePaymentSpy).not.toHaveBeenCalled();
+    });
   });
 });

@@ -323,7 +323,7 @@ app.openapi(updatePaymentRoute, withPaymentAccess()(async (c) => {
     
     const updated = await getDb(c).updatePayment(id, updates);
     try {
-      await handlePaymentUpdateOrDeleteSideEffects(updated.bill_id);
+      await handlePaymentUpdateOrDeleteSideEffects(updated.bill_id, updated.id);
     } catch (e) {
       console.error("Failed to run payment update side effects:", e);
     }

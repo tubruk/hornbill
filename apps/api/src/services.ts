@@ -238,7 +238,7 @@ export async function handlePaymentCreationSideEffects(payment: Payment): Promis
  * Recalculates or schedules the next upcoming payment cycle when any payment
  * on a bill is updated or deleted.
  */
-export async function handlePaymentUpdateOrDeleteSideEffects(billId: string): Promise<void> {
+export async function handlePaymentUpdateOrDeleteSideEffects(billId: string, ignoreRecalculationForPaymentId?: string): Promise<void> {
   const bill = await db.getBill(billId);
   if (!bill.active) {
     return;
@@ -253,7 +253,7 @@ export async function handlePaymentUpdateOrDeleteSideEffects(billId: string): Pr
 
   const latestPaid = paidPayments[0];
 
-  if (unpaidPayment) {
+  if (unpaidPayment && unpaidPayment.id !== ignoreRecalculationForPaymentId) {
     if (latestPaid) {
       const newDueDate = calculateNextDueDate(bill, latestPaid);
       if (unpaidPayment.due_date !== newDueDate) {
@@ -265,7 +265,7 @@ export async function handlePaymentUpdateOrDeleteSideEffects(billId: string): Pr
         await db.updatePayment(unpaidPayment.id, { due_date: bill.start_date });
       }
     }
-  } else {
+  } else if (!unpaidPayment) {
     // No unpaid payment exists, generate the next one
     await generateNextPaymentForBill(billId);
   }
