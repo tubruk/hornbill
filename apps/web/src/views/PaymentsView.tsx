@@ -8,6 +8,7 @@ import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { SplitButton } from "../components/SplitButton";
 import { DropdownItem } from "../components/Dropdown";
+import { BillRowSkeleton } from "../components/Skeleton";
 import { getPaymentState, DEFAULT_UPCOMING_THRESHOLD_DAYS } from "@hornbill/core";
 
 type Filter = "unpaid" | "settled";
@@ -251,8 +252,10 @@ export function PaymentsView() {
 
       <Card hoverable={false}>
         {paymentsQuery.isPending ? (
-          <div className="py-12 flex justify-center">
-            <Loader2 className="w-6 h-6 text-primary animate-spin" />
+          <div className="divide-y divide-border-warm">
+            <BillRowSkeleton />
+            <BillRowSkeleton />
+            <BillRowSkeleton />
           </div>
         ) : displayed.length === 0 ? (
           <div className="py-16 text-center text-[15px] text-text-secondary font-semibold">

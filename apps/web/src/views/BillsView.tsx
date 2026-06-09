@@ -10,6 +10,7 @@ import { Tooltip } from "../components/Tooltip";
 import { AddBillModal } from "../components/AddBillModal";
 import { PayPaymentModal } from "../components/PayPaymentModal";
 import { Dropdown, DropdownItem } from "../components/Dropdown";
+import { BillRowSkeleton } from "../components/Skeleton";
 import type { Bill } from "@hornbill/core";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -50,11 +51,14 @@ export function BillsView() {
 
     await createPaymentMut.mutateAsync(
       {
-        bill_id: recordingPaymentBill.id,
-        due_date: due,
-        amount_cents: amountCents,
-        paid_at: paidAt,
-        notes: null,
+        payload: {
+          bill_id: recordingPaymentBill.id,
+          due_date: due,
+          amount_cents: amountCents,
+          paid_at: paidAt,
+          notes: null,
+        },
+        accountId: currentAccount.id,
       },
       {
         onSuccess: () => {
@@ -150,8 +154,10 @@ export function BillsView() {
       {/* Bills list */}
       <Card hoverable={false}>
         {billsQuery.isPending ? (
-          <div className="py-12 flex justify-center">
-            <Loader2 className="w-6 h-6 text-primary animate-spin" />
+          <div className="divide-y divide-border-warm">
+            <BillRowSkeleton />
+            <BillRowSkeleton />
+            <BillRowSkeleton />
           </div>
 
         ) : billsQuery.isError ? (

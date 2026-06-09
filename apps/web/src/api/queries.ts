@@ -110,7 +110,7 @@ export function useCreateBill() {
       // Invalidate bills for the account this bill belongs to
       qc.invalidateQueries({ queryKey: qk.bills(vars.account_id) });
       // Also invalidate payments since a new payment cycle is generated on create
-      qc.invalidateQueries({ queryKey: ["payments"] });
+      qc.invalidateQueries({ queryKey: qk.payments(vars.account_id) });
     },
   });
 }
@@ -120,9 +120,22 @@ export function useUpdateBill() {
   return useMutation({
     mutationFn: ({ id, updates }: { id: string; accountId: string; updates: UpdateBillPayload }) =>
       updateBill(id, updates),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: qk.bills(vars.accountId) });
-      qc.invalidateQueries({ queryKey: qk.payments(vars.accountId) });
+    onMutate: async ({ id, accountId, updates }) => {
+      await qc.cancelQueries({ queryKey: qk.bills(accountId) });
+      const previousBills = qc.getQueryData<Bill[]>(qk.bills(accountId));
+      qc.setQueryData<Bill[]>(qk.bills(accountId), (old) =>
+        old ? old.map((b) => (b.id === id ? { ...b, ...updates } : b)) : []
+      );
+      return { previousBills };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previousBills) {
+        qc.setQueryData(qk.bills(variables.accountId), context.previousBills);
+      }
+    },
+    onSettled: (_data, _error, variables) => {
+      qc.invalidateQueries({ queryKey: qk.bills(variables.accountId) });
+      qc.invalidateQueries({ queryKey: qk.payments(variables.accountId) });
     },
   });
 }
@@ -131,9 +144,22 @@ export function useDeleteBill() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id }: { id: string; accountId: string }) => deleteBill(id),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: qk.bills(vars.accountId) });
-      qc.invalidateQueries({ queryKey: ["payments"] });
+    onMutate: async ({ id, accountId }) => {
+      await qc.cancelQueries({ queryKey: qk.bills(accountId) });
+      const previousBills = qc.getQueryData<Bill[]>(qk.bills(accountId));
+      qc.setQueryData<Bill[]>(qk.bills(accountId), (old) =>
+        old ? old.filter((b) => b.id !== id) : []
+      );
+      return { previousBills };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previousBills) {
+        qc.setQueryData(qk.bills(variables.accountId), context.previousBills);
+      }
+    },
+    onSettled: (_data, _error, variables) => {
+      qc.invalidateQueries({ queryKey: qk.bills(variables.accountId) });
+      qc.invalidateQueries({ queryKey: qk.payments(variables.accountId) });
     },
   });
 }
@@ -173,8 +199,36 @@ export function usePayPayment() {
   return useMutation({
     mutationFn: ({ paymentId, paidAt, amountCents, notes }: { paymentId: string; accountId: string; paidAt?: string | number; amountCents?: number; notes?: string | null }) =>
       payPayment(paymentId, paidAt, amountCents, notes),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: qk.payments(vars.accountId) });
+    onMutate: async ({ paymentId, accountId, paidAt, amountCents, notes }) => {
+      await qc.cancelQueries({ queryKey: qk.payments(accountId) });
+      const previousPayments = qc.getQueryData<EnrichedPayment[]>(qk.payments(accountId));
+      const finalPaidAt = paidAt !== undefined 
+        ? (typeof paidAt === "number" ? paidAt : Math.floor(new Date(paidAt).getTime() / 1000))
+        : Math.floor(Date.now() / 1000);
+
+      qc.setQueryData<EnrichedPayment[]>(qk.payments(accountId), (old) =>
+        old
+          ? old.map((p) =>
+              p.id === paymentId
+                ? {
+                    ...p,
+                    paid_at: finalPaidAt,
+                    ...(amountCents !== undefined ? { amount_cents: amountCents } : {}),
+                    ...(notes !== undefined ? { notes } : {}),
+                  }
+                : p
+            )
+          : []
+      );
+      return { previousPayments };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previousPayments) {
+        qc.setQueryData(qk.payments(variables.accountId), context.previousPayments);
+      }
+    },
+    onSettled: (_data, _error, variables) => {
+      qc.invalidateQueries({ queryKey: qk.payments(variables.accountId) });
     },
   });
 }
@@ -182,10 +236,10 @@ export function usePayPayment() {
 export function useCreatePayment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: CreatePaymentPayload) => createPayment(payload),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["payments"] });
-      qc.invalidateQueries({ queryKey: ["bills"] });
+    mutationFn: ({ payload }: { payload: CreatePaymentPayload; accountId: string }) => createPayment(payload),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: qk.payments(vars.accountId) });
+      qc.invalidateQueries({ queryKey: qk.bills(vars.accountId) });
     },
   });
 }
@@ -206,9 +260,22 @@ export function useDeletePayment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id }: { id: string; accountId: string }) => deletePayment(id),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: qk.payments(vars.accountId) });
-      qc.invalidateQueries({ queryKey: qk.bills(vars.accountId) });
+    onMutate: async ({ id, accountId }) => {
+      await qc.cancelQueries({ queryKey: qk.payments(accountId) });
+      const previousPayments = qc.getQueryData<EnrichedPayment[]>(qk.payments(accountId));
+      qc.setQueryData<EnrichedPayment[]>(qk.payments(accountId), (old) =>
+        old ? old.filter((p) => p.id !== id) : []
+      );
+      return { previousPayments };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previousPayments) {
+        qc.setQueryData(qk.payments(variables.accountId), context.previousPayments);
+      }
+    },
+    onSettled: (_data, _error, variables) => {
+      qc.invalidateQueries({ queryKey: qk.payments(variables.accountId) });
+      qc.invalidateQueries({ queryKey: qk.bills(variables.accountId) });
     },
   });
 }
@@ -222,7 +289,7 @@ export function useTriggerAccountSync(accountId: string) {
     mutationFn: () => triggerAccountSync(accountId),
     onSuccess: () => {
       // After sync new payments may have been generated
-      qc.invalidateQueries({ queryKey: ["payments"] });
+      qc.invalidateQueries({ queryKey: qk.payments(accountId) });
     },
   });
 }
