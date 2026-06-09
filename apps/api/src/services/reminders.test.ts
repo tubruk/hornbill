@@ -59,7 +59,6 @@ describe("Payment Reminders Service", () => {
     name: "Spotify Premium",
     currency: "USD",
     amount_cents: 1099,
-    amount_type: "fixed",
     recurrence: { type: "monthly", monthly: { day: 15 } },
     start_date: "2026-01-01",
     active: true,

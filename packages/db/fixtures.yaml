@@ -21,7 +21,6 @@ bills:
     name: "Premium Typography Licenses"
     currency: "USD"
     amount_cents: 9900
-    amount_type: "fixed"
     recurrence:
       type: "monthly"
       monthly:
@@ -37,7 +36,6 @@ bills:
     name: "Enterprise Domain Registration"
     currency: "USD"
     amount_cents: 12000
-    amount_type: "fixed"
     recurrence:
       type: "yearly"
       yearly:
@@ -54,7 +52,6 @@ bills:
     name: "Co-working Space Fee"
     currency: "USD"
     amount_cents: 45000
-    amount_type: "fixed"
     recurrence:
       type: "interval"
       interval:
@@ -71,7 +68,6 @@ bills:
     name: "Design Sprint Consultation"
     currency: "USD"
     amount_cents: 150000
-    amount_type: "fixed"
     recurrence:
       type: "interval"
       interval:
@@ -88,7 +84,6 @@ bills:
     name: "AWS Cloud Infrastructure"
     currency: "IDR"
     amount_cents: 14900000
-    amount_type: "fixed"
     recurrence:
       type: "interval"
       interval:
@@ -106,7 +101,6 @@ bills:
     name: "Spotify Premium"
     currency: "USD"
     amount_cents: 1499
-    amount_type: "fixed"
     recurrence:
       type: "monthly"
       monthly:
@@ -122,7 +116,6 @@ bills:
     name: "Home Fiber Internet"
     currency: "IDR"
     amount_cents: 450000
-    amount_type: "fixed"
     recurrence:
       type: "monthly"
       monthly:
@@ -137,7 +130,6 @@ bills:
     name: "Shared Server Hosting"
     currency: "USD"
     amount_cents: 2500
-    amount_type: "fixed"
     recurrence:
       type: "monthly"
       monthly:
@@ -152,7 +144,6 @@ bills:
     name: "Streaming Service Bundle"
     currency: "IDR"
     amount_cents: 150000
-    amount_type: "fixed"
     recurrence:
       type: "monthly"
       monthly:

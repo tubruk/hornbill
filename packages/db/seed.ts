@@ -118,7 +118,6 @@ interface SeederData {
     name: string;
     currency: string;
     amount_cents: number;
-    amount_type: string;
     recurrence: Record<string, unknown>;
     start_date: string;
     active?: boolean;
@@ -205,7 +204,6 @@ async function runSeeder() {
         name: bill.name,
         currency: bill.currency,
         amount_cents: bill.amount_cents,
-        amount_type: bill.amount_type,
         recurrence: JSON.stringify(bill.recurrence),
         start_date: bill.start_date,
         active: bill.active ? 1 : 0,

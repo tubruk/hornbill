@@ -14,7 +14,6 @@ CREATE TABLE IF NOT EXISTS bills (
     name TEXT NOT NULL,
     currency TEXT NOT NULL,
     amount_cents INTEGER NOT NULL,
-    amount_type TEXT NOT NULL, -- 'fixed' | 'variable'
     recurrence TEXT NOT NULL,  -- JSON string containing Recurrence config
     start_date TEXT NOT NULL,  -- YYYY-MM-DD
     active INTEGER NOT NULL DEFAULT 1, -- Boolean (0 = false, 1 = true)

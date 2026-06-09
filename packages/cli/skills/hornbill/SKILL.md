@@ -123,21 +123,21 @@ To track a new bill, use the `hornbill bills create` command. Specify the correc
 
 *   **Fixed Subscriptions (Monthly):** Due on the same calendar day every month.
     ```bash
-    hornbill bills create --name "Netflix" --amount 15.49 --currency USD --amount-type fixed --start-date "2026-06-17" --recurrence "monthly:17"
+    hornbill bills create --name "Netflix" --amount 15.49 --currency USD --start-date "2026-06-17" --recurrence "monthly:17"
     ```
 *   **Annual Renewals (Yearly):** Due once a year on a specific day and month.
     ```bash
-    hornbill bills create --name "Domain Renewal" --amount 12.00 --currency USD --amount-type fixed --start-date "2026-06-09" --recurrence "yearly:6-9"
+    hornbill bills create --name "Domain Renewal" --amount 12.00 --currency USD --start-date "2026-06-09" --recurrence "yearly:6-9"
     ```
 *   **One-Time Invoices (One-time):** A single payment cycle that does not repeat. Pass `one-time` as the recurrence strategy:
     ```bash
-    hornbill bills create --name "Dental Checkup" --amount 75.00 --currency USD --amount-type fixed --start-date "2026-06-09" --recurrence "one-time"
+    hornbill bills create --name "Dental Checkup" --amount 75.00 --currency USD --start-date "2026-06-09" --recurrence "one-time"
     ```
 *   **Utility & Shifting Bills (Custom Intervals):** Repeats every **N** days, weeks, or months. Select the correct anchoring strategy (`due_date` or `paid_at`):
     *   `due_date` (From Due Date): For bills with strict deadlines (e.g. credit cards). Next cycle is relative to current due date.
     *   `paid_at` (From Paid Date): For service cycles that shift depending on when you pay (e.g. parking passes). Next cycle is relative to actual payment date.
     ```bash
-    hornbill bills create --name "Water Bill" --amount 45.00 --currency USD --amount-type variable --start-date "2026-06-09" --recurrence "interval:1-months-due_date"
+    hornbill bills create --name "Water Bill" --amount 45.00 --currency USD --start-date "2026-06-09" --recurrence "interval:1-months-due_date"
     ```
 
 ### 2. Checking Unpaid Payments (CLI)

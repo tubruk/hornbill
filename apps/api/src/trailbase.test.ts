@@ -185,7 +185,6 @@ describe("Trailbase Integration", () => {
         name: "New Bill",
         currency: "USD",
         amount_cents: 1500,
-        amount_type: "fixed",
         recurrence: { type: "monthly", monthly: { day: 1 } },
         start_date: "2026-01-01",
         active: true,

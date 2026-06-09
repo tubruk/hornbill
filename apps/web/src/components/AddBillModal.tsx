@@ -23,7 +23,6 @@ export interface BillFormPayload {
   name: string;
   currency: string;
   amount_cents: number;
-  amount_type: "fixed";
   recurrence: Bill["recurrence"];
   start_date: string;
   last_payment_date?: string;
@@ -115,7 +114,6 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
       name: name.trim(),
       currency,
       amount_cents: Math.round(parsed * 100),
-      amount_type: "fixed",
       recurrence,
       start_date: alreadyPaid && !bill ? lastPaymentDate : startDate,
       ...(alreadyPaid && !bill ? { last_payment_date: lastPaymentDate } : {}),

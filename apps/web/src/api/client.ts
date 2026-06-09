@@ -152,7 +152,6 @@ export interface CreateBillPayload {
   name: string;
   currency: string;
   amount_cents: number;
-  amount_type: "fixed" | "variable";
   recurrence: Bill["recurrence"];
   start_date: string;
   active: boolean;

@@ -253,7 +253,6 @@ export const BillSchema = z.object({
   name: z.string().min(1),
   currency: z.string().regex(/^[A-Z]{3}$/, "Must be a 3-character uppercase ISO 4217 code"),
   amount_cents: z.number().int().nonnegative(),
-  amount_type: z.enum(["fixed", "variable"]),
   recurrence: RecurrenceSchema,
   start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be in YYYY-MM-DD format"),
   active: z.boolean(),

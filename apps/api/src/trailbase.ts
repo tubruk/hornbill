@@ -89,7 +89,6 @@ interface DbBill {
   name: string;
   currency: string;
   amount_cents: number;
-  amount_type: string;
   recurrence: string | Record<string, unknown>;
   start_date: string;
   active: number | boolean;
@@ -280,7 +279,6 @@ export class TrailbaseClient {
       account_id: typeof bill.account_id === "object" && bill.account_id !== null ? bill.account_id.id : bill.account_id,
       active: Number(bill.active) === 1,
       recurrence: typeof bill.recurrence === "string" ? JSON.parse(bill.recurrence) : bill.recurrence,
-      amount_type: bill.amount_type as "fixed" | "variable",
     }));
 
     if (!accountId) return bills;
@@ -295,7 +293,6 @@ export class TrailbaseClient {
       account_id: typeof bill.account_id === "object" && bill.account_id !== null ? bill.account_id.id : bill.account_id,
       active: Number(bill.active) === 1,
       recurrence: typeof bill.recurrence === "string" ? JSON.parse(bill.recurrence) : bill.recurrence,
-      amount_type: bill.amount_type as "fixed" | "variable",
     };
   }
 
@@ -327,7 +324,6 @@ export class TrailbaseClient {
     if (updates.name !== undefined) payload.name = updates.name;
     if (updates.currency !== undefined) payload.currency = updates.currency;
     if (updates.amount_cents !== undefined) payload.amount_cents = updates.amount_cents;
-    if (updates.amount_type !== undefined) payload.amount_type = updates.amount_type;
     if (updates.start_date !== undefined) payload.start_date = updates.start_date;
     if (updates.upcoming_threshold_days !== undefined) payload.upcoming_threshold_days = updates.upcoming_threshold_days;
     if (updates.notes !== undefined) payload.notes = updates.notes;

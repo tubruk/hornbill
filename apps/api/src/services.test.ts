@@ -42,7 +42,6 @@ describe("Services Logic", () => {
     name: "Netflix",
     currency: "USD",
     amount_cents: 1500,
-    amount_type: "fixed",
     recurrence: {
       type: "monthly",
       monthly: { day: 15 },

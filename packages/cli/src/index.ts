@@ -299,13 +299,12 @@ billsCmd
           console.log("No bills found.");
           return;
         }
-        const headers = ["ID", "Name", "Amount", "Currency", "Type", "Active", "Start Date"];
+        const headers = ["ID", "Name", "Amount", "Currency", "Active", "Start Date"];
         const rows = bills.map(bill => [
           bill.id,
           bill.name,
           formatAmount(bill.amount_cents),
           bill.currency,
-          bill.amount_type,
           bill.active ? "Yes" : "No",
           bill.start_date,
         ]);
@@ -322,7 +321,6 @@ billsCmd
   .option("-n, --name <name>", "Name of the bill")
   .option("-a, --amount <amount>", "Billing amount (e.g. 15.99)")
   .option("-c, --currency <currency>", "Currency code (e.g. USD, IDR)", "USD")
-  .option("-t, --amount-type <type>", "Amount type: fixed, variable", "fixed")
   .option("-s, --start-date <date>", "Start date YYYY-MM-DD (defaults to today)")
   .option("-u, --account-id <accountId>", "Account UUID")
   .option("-r, --recurrence <recurrence>", "Recurrence: one-time, monthly:<day>, yearly:<month>-<day>, interval:<every>-<unit>-<from>, or JSON string")
@@ -405,7 +403,6 @@ billsCmd
         name,
         currency: cmdOpts.currency,
         amount_cents: amountCents,
-        amount_type: cmdOpts.amountType,
         recurrence,
         start_date: startDate,
         active: true,

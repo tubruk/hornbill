@@ -11,7 +11,6 @@ describe("calculateNextDueDate", () => {
     name: "Mock Bill",
     currency: "USD",
     amount_cents: 1000,
-    amount_type: "fixed",
     recurrence,
     start_date: start,
     active: true,
@@ -372,7 +371,6 @@ describe("Schemas Validation", () => {
         name: "Internet Bill",
         currency: "USD",
         amount_cents: 5000,
-        amount_type: "fixed",
         recurrence: {
           type: "monthly",
           monthly: { day: 15 },
@@ -393,7 +391,6 @@ describe("Schemas Validation", () => {
         name: "Internet Bill",
         currency: "USD",
         amount_cents: 5000,
-        amount_type: "fixed",
         recurrence: {
           type: "monthly",
           monthly: { day: 15 },
@@ -414,7 +411,6 @@ describe("Schemas Validation", () => {
         name: "Internet Bill",
         currency: "USD",
         amount_cents: 5000,
-        amount_type: "fixed",
         recurrence: {
           type: "monthly",
           monthly: { day: 32 }, // Out of range
