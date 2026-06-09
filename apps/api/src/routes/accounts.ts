@@ -46,6 +46,10 @@ const app = new OpenAPIHono<{ Variables: { user: UserPayload; myAccountIds: Set<
 });
 
 async function getAuthUser(c: Context): Promise<UserPayload> {
+  const user = c.get("user") as UserPayload | undefined;
+  if (user) {
+    return user;
+  }
   const authHeader = c.req.header("Authorization");
   if (!authHeader) {
     throw new Error("Missing Authorization header");

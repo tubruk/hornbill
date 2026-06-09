@@ -509,10 +509,16 @@ export const db = new TrailbaseClient();
 export function getDb(tokenOrContext?: string | Context): TrailbaseClient {
   if (!tokenOrContext) return db;
   if (typeof tokenOrContext === "string") {
+    if (tokenOrContext.startsWith("ApiKey ")) {
+      return db;
+    }
     return new TrailbaseClient(tokenOrContext);
   }
   const authHeader = tokenOrContext.req.header("Authorization");
-  return authHeader ? new TrailbaseClient(authHeader) : db;
+  if (authHeader && !authHeader.startsWith("ApiKey ")) {
+    return new TrailbaseClient(authHeader);
+  }
+  return db;
 }
 
 export async function verifyAccountAccess(c: Context, accountId: string): Promise<boolean> {
