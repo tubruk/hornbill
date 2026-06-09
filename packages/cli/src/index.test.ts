@@ -1,7 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
+import { existsSync, unlinkSync, mkdirSync, writeFileSync, mkdtempSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+
+// Isolate tests config directory so it doesn't delete or override the user's actual config
+const tempConfigDir = mkdtempSync(join(tmpdir(), "hornbill-test-"));
+process.env.XDG_CONFIG_HOME = tempConfigDir;
+
 import { resolveConfig, loadConfig, saveConfig, getConfigPath, getConfigDir } from "./config";
 import { checkStatus, checkAuth, listBills, listPayments, payPayment, login, createApiKey, listAccounts, createBill, updatePayment, createPayment, updateBill } from "./api";
-import { existsSync, unlinkSync, mkdirSync, writeFileSync } from "node:fs";
 import type { Bill, Payment, Account } from "@hornbill/core";
 
 // Helper to set mock fetch without TypeScript typing errors or any keyword
