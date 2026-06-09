@@ -6,6 +6,7 @@ WORKDIR /app
 
 # Copy lockfile, configs, and workspace manifests
 COPY package.json bun.lock tsconfig.json ./
+COPY packages/cli/package.json ./packages/cli/
 COPY packages/core/package.json ./packages/core/
 COPY packages/db/package.json ./packages/db/
 COPY apps/api/package.json ./apps/api/
@@ -33,6 +34,7 @@ COPY --from=trailbase/trailbase:latest /app/trail /usr/local/bin/trail
 
 # Copy workspace configs and lockfiles first for production caching
 COPY package.json bun.lock tsconfig.json ./
+COPY packages/cli/package.json ./packages/cli/
 COPY packages/core/package.json ./packages/core/
 COPY packages/db/package.json ./packages/db/
 COPY apps/api/package.json ./apps/api/
