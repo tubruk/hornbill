@@ -147,7 +147,15 @@ export class TrailbaseClient {
       throw new Error(`Trailbase API error: [${response.status}] ${response.statusText}. Response: ${body}`);
     }
 
-    return response.json() as Promise<T>;
+    const text = await response.text();
+    if (!text || text === "deleted") {
+      return {} as T;
+    }
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      return text as unknown as T;
+    }
   }
 
   // --- Accounts CRUD ---
