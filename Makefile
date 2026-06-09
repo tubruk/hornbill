@@ -42,7 +42,7 @@ docker-down:
 # Reset/drop local and containerized databases
 db-reset:
 	@echo "Resetting local development and Docker databases..."
-	@rm -f ${TRAILBASE_DATA_DIR:-./data/hornbill}/*.db ${TRAILBASE_DATA_DIR:-./data/hornbill}/*.db-journal ${TRAILBASE_DATA_DIR:-./data/hornbill}/*.db-shm ${TRAILBASE_DATA_DIR:-./data/hornbill}/*.db-wal
+	@rm -f $${TRAILBASE_DATA_DIR:-./data/hornbill}/*.db $${TRAILBASE_DATA_DIR:-./data/hornbill}/*.db-* $${TRAILBASE_DATA_DIR:-./data/hornbill}/data/*.db $${TRAILBASE_DATA_DIR:-./data/hornbill}/data/*.db-*
 	@echo "Database reset complete. Next launch will run migrations from scratch."
 
 # Seed the database with yaml fixtures
