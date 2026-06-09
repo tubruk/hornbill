@@ -60,6 +60,36 @@ Open `http://localhost:3000` in your browser to start using Hornbill.
 > Hornbill does not manage or provision SSL certificates directly. To run Hornbill securely over HTTPS, it is highly recommended to deploy it behind a reverse proxy. See the [Reverse Proxy & SSL Setup](docs/reverse-proxy.md) guide for Caddy and Nginx configuration templates.
 
 
+## 💻 CLI & Agent Integration
+
+### 1. CLI Installation
+Install the Hornbill CLI client ([packages/cli](file:///Users/akhyar.amarullah/Projects/github.com/chickenzord/hornbill/packages/cli)) using Homebrew:
+```bash
+brew install chickenzord/tap/hornbill-cli
+```
+Or build from source:
+```bash
+bun --filter @hornbill/cli build
+```
+
+Once installed, you can log in and test connection status by running:
+```bash
+# Authenticate with your Hornbill server
+hornbill login
+
+# Verify connection and authentication status
+hornbill status
+```
+
+### 2. Agent Skill Installation
+To add the Hornbill capability to your AI coding agents, install the [hornbill skill](file:///Users/akhyar.amarullah/Projects/github.com/chickenzord/hornbill/skills/hornbill/SKILL.md) using the CLI:
+```bash
+hornbill skill install
+```
+This enables agents to interactively track bills, list payments, or settle outstanding bill cycles.
+
+
+
 ## ⚙️ Configuration (Environment Variables)
 
 | Variable | Description | Default |
