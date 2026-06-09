@@ -367,6 +367,9 @@ export class TrailbaseClient {
       bill_id: typeof p.bill_id === "object" && p.bill_id !== null ? p.bill_id.id : p.bill_id,
     }));
 
+    // Sort by due date in descending order
+    payments.sort((a, b) => b.due_date.localeCompare(a.due_date));
+
     if (!billId) return payments;
     return payments.filter(p => p.bill_id === billId);
   }
