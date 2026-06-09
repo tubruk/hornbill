@@ -2,7 +2,8 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { getDb, verifyToken, type UserPayload } from "../trailbase";
-import { DEFAULT_UPCOMING_THRESHOLD_DAYS, AccountSchema, type Account, type Bill, type Payment } from "@hornbill/core";
+import { DEFAULT_UPCOMING_THRESHOLD_DAYS, AccountSchema, NotificationProviderSchema, type Account, type Bill, type Payment } from "@hornbill/core";
+import { sendAggregatedNotification } from "../services/reminders";
 import { withAccountAccess } from "../middleware/auth";
 import { coreErrors, authErrors, validationErrors, lookupErrors, defaultValidationHook, uuidSchema } from "../utils/openapi-errors";
 
@@ -506,6 +507,73 @@ app.openapi(importAccountRoute, async (c) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to import account";
     return c.json({ error: message }, 500);
+  }
+});
+
+// POST /api/v1/accounts/test-notification - Test notification settings
+const TestNotificationRequestSchema = z.object({
+  notification_provider: z.record(z.string(), z.unknown()).openapi({ description: "Full notification provider configuration to test" }),
+}).openapi("TestNotificationRequest");
+
+const testNotificationRoute = createRoute({
+  method: "post",
+  path: "/test-notification",
+  summary: "Test Notification",
+  description: "Sends a test reminder notification using the provided temporary config to verify integration settings",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: TestNotificationRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean(), message: z.string() }).openapi("TestNotificationSuccess"),
+        },
+      },
+      description: "Test notification sent successfully",
+    },
+    ...coreErrors,
+    ...authErrors,
+    ...validationErrors,
+  },
+});
+
+app.openapi(testNotificationRoute, async (c) => {
+  try {
+    await getAuthUser(c);
+    const body = c.req.valid("json");
+    const provider = body.notification_provider;
+
+    // Validate the provider schema
+    const parsed = NotificationProviderSchema.safeParse(provider);
+    if (!parsed.success) {
+      return c.json({ error: `Invalid provider configuration: ${parsed.error.issues[0].message}` }, 400);
+    }
+
+    const testPayments = [
+      {
+        id: "test-payment-uuid",
+        due_date: new Date().toISOString().split("T")[0],
+        amount_cents: 1000,
+        bill_name: "Test Bill Connection",
+        currency: "USD",
+      },
+    ];
+
+    // Trigger test notification
+    await sendAggregatedNotification(parsed.data, "Test Account", new Date().toISOString().split("T")[0], testPayments);
+
+    return c.json({ success: true, message: "Test notification dispatched successfully." }, 200);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to send test notification";
+    const status: ContentfulStatusCode = message.includes("Unauthorized") || message.includes("Authorization") ? 401 : 500;
+    return c.json({ error: message }, status);
   }
 });
 

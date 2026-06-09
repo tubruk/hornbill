@@ -137,7 +137,7 @@ interface ReminderPayment {
   currency: string;
 }
 
-async function sendAggregatedNotification(
+export async function sendAggregatedNotification(
   provider: Account["notification_provider"],
   accountName: string,
   todayStr: string,
@@ -151,20 +151,39 @@ async function sendAggregatedNotification(
     return `${amount} ${currency}`;
   };
 
+  const getRelativeDateStr = (dueDate: string): string => {
+    const t1 = Date.parse(dueDate + "T00:00:00Z");
+    const t2 = Date.parse(todayStr + "T00:00:00Z");
+    const diffTime = t1 - t2;
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      const absDays = Math.abs(diffDays);
+      return absDays === 1 ? "1 day Overdue" : `${absDays} days Overdue`;
+    } else if (diffDays === 0) {
+      return "due today";
+    } else {
+      return diffDays === 1 ? "due tomorrow" : `due in ${diffDays} days`;
+    }
+  };
+
+  const sortedPayments = [...payments].sort((a, b) => a.due_date.localeCompare(b.due_date));
+
   switch (provider.type) {
     case "discord": {
       if (!config.webhookUrl) {
         throw new Error("Missing Discord Webhook URL configuration.");
       }
       
-      const embeds = payments.map((p) => {
+      const embeds = sortedPayments.map((p) => {
         const overdue = isOverdue(p.due_date);
+        const relStr = getRelativeDateStr(p.due_date);
         return {
           title: p.bill_name,
           color: overdue ? 0xDC2626 : 0xD97706, // Error Red or Warning Amber
           fields: [
             { name: "Amount", value: formatAmount(p.amount_cents, p.currency), inline: true },
-            { name: "Due Date", value: overdue ? `⚠️ **${p.due_date} (Overdue)**` : p.due_date, inline: true },
+            { name: "Due Date", value: overdue ? `⚠️ **${p.due_date} (${relStr})**` : `${p.due_date} (${relStr})`, inline: true },
           ],
         };
       });
@@ -210,13 +229,14 @@ async function sendAggregatedNotification(
         },
       ];
 
-      for (const p of payments) {
+      for (const p of sortedPayments) {
         const overdue = isOverdue(p.due_date);
+        const relStr = getRelativeDateStr(p.due_date);
         blocks.push({
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `*${p.bill_name}*\n• *Amount:* ${formatAmount(p.amount_cents, p.currency)}\n• *Due Date:* ${overdue ? `⚠️ *${p.due_date} (Overdue)*` : p.due_date}`,
+            text: `*${p.bill_name}*\n• *Amount:* ${formatAmount(p.amount_cents, p.currency)}\n• *Due Date:* ${overdue ? `⚠️ *${p.due_date} (${relStr})*` : `${p.due_date} (${relStr})`}`,
           },
         });
       }
@@ -239,9 +259,10 @@ async function sendAggregatedNotification(
       }
 
       let text = `🔔 *Hornbill Payment Reminders*\nUnpaid bill summary for *${accountName}*:\n\n`;
-      for (const p of payments) {
+      for (const p of sortedPayments) {
         const overdue = isOverdue(p.due_date);
-        const dateStr = overdue ? `⚠️ *${p.due_date} (Overdue)*` : `\`${p.due_date}\``;
+        const relStr = getRelativeDateStr(p.due_date);
+        const dateStr = overdue ? `⚠️ *${p.due_date} (${relStr})*` : `\`${p.due_date}\` (${relStr})`;
         text += `• *${p.bill_name}*\n  Amount: \`${formatAmount(p.amount_cents, p.currency)}\`\n  Due: ${dateStr}\n\n`;
       }
 
@@ -279,6 +300,7 @@ async function sendAggregatedNotification(
       //       "amount_cents": 1099,
       //       "currency": "USD",
       //       "due_date": "2026-06-05",
+      //       "relative_due": "5 days overdue",
       //       "is_overdue": false
       //     }
       //   ]
@@ -290,12 +312,13 @@ async function sendAggregatedNotification(
           event: "payment.reminders",
           account: accountName,
           timestamp: Math.floor(Date.now() / 1000),
-          payments: payments.map((p) => ({
+          payments: sortedPayments.map((p) => ({
             id: p.id,
             bill_name: p.bill_name,
             amount_cents: p.amount_cents,
             currency: p.currency,
             due_date: p.due_date,
+            relative_due: getRelativeDateStr(p.due_date),
             is_overdue: isOverdue(p.due_date),
           })),
         }),
@@ -313,9 +336,10 @@ async function sendAggregatedNotification(
       }
 
       let message = `Unpaid bill summary for account ${accountName}:\n\n`;
-      for (const p of payments) {
+      for (const p of sortedPayments) {
         const overdue = isOverdue(p.due_date);
-        message += `• ${p.bill_name}\n  Amount: ${formatAmount(p.amount_cents, p.currency)}\n  Due: ${p.due_date}${overdue ? " (Overdue)" : ""}\n\n`;
+        const relStr = getRelativeDateStr(p.due_date);
+        message += `• ${p.bill_name}\n  Amount: ${formatAmount(p.amount_cents, p.currency)}\n  Due: ${p.due_date} (${relStr})${overdue ? " ⚠️" : ""}\n\n`;
       }
 
       const url = config.gotifyUrl.endsWith("/message") ? config.gotifyUrl : `${config.gotifyUrl}/message`;
@@ -344,9 +368,10 @@ async function sendAggregatedNotification(
       }
 
       let message = `Unpaid bill summary for account ${accountName}:\n\n`;
-      for (const p of payments) {
+      for (const p of sortedPayments) {
         const overdue = isOverdue(p.due_date);
-        message += `• ${p.bill_name}\n  Amount: ${formatAmount(p.amount_cents, p.currency)}\n  Due: ${p.due_date}${overdue ? " (Overdue)" : ""}\n\n`;
+        const relStr = getRelativeDateStr(p.due_date);
+        message += `• ${p.bill_name}\n  Amount: ${formatAmount(p.amount_cents, p.currency)}\n  Due: ${p.due_date} (${relStr})${overdue ? " ⚠️" : ""}\n\n`;
       }
 
       const headers: Record<string, string> = {
@@ -374,11 +399,12 @@ async function sendAggregatedNotification(
         {
           event: "payment.reminders.console",
           account: accountName,
-          payments: payments.map((p) => ({
+          payments: sortedPayments.map((p) => ({
             id: p.id,
             bill_name: p.bill_name,
             amount: formatAmount(p.amount_cents, p.currency),
             due_date: p.due_date,
+            relative_due: getRelativeDateStr(p.due_date),
             is_overdue: isOverdue(p.due_date),
           })),
         },

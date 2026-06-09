@@ -2,6 +2,7 @@ import { expect, test, describe, spyOn, beforeEach, afterEach } from "bun:test";
 import { Hono } from "hono";
 import * as trailbase from "./trailbase";
 import * as services from "./services";
+import * as remindersService from "./services/reminders";
 import accountsApp from "./routes/accounts";
 import billsApp from "./routes/bills";
 import paymentsApp from "./routes/payments";
@@ -668,6 +669,59 @@ describe("API Routes", () => {
         body: JSON.stringify(payload),
       });
       expect(res.status).toBe(500);
+    });
+
+    test("POST /test-notification - returns 401 on missing Authorization header", async () => {
+      verifyTokenSpy.mockRejectedValue(new Error("Missing Authorization header") as never);
+
+      const res = await accountsApp.request("/test-notification", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          notification_provider: { type: "webhook", config: { webhookUrl: "https://example.com" } },
+        }),
+      });
+      expect(res.status).toBe(401);
+    });
+
+    test("POST /test-notification - sends test notification successfully with valid config", async () => {
+      const sendNotificationSpy = spyOn(remindersService, "sendAggregatedNotification").mockResolvedValue();
+
+      const res = await accountsApp.request("/test-notification", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer token",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          notification_provider: { type: "webhook", config: { webhookUrl: "https://example.com" } },
+        }),
+      });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(sendNotificationSpy).toHaveBeenCalled();
+      sendNotificationSpy.mockRestore();
+    });
+
+    test("POST /test-notification - fails with 400 on invalid config", async () => {
+      const sendNotificationSpy = spyOn(remindersService, "sendAggregatedNotification").mockResolvedValue();
+
+      const res = await accountsApp.request("/test-notification", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer token",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          notification_provider: { type: "invalid", config: {} },
+        }),
+      });
+      expect(res.status).toBe(400);
+      expect(sendNotificationSpy).not.toHaveBeenCalled();
+      sendNotificationSpy.mockRestore();
     });
   });
 
