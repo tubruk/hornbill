@@ -26,12 +26,6 @@ Manage and track bills and payments using the `hornbill` CLI client.
 | Pay with Date | `hornbill payments pay <paymentId> --date <date>` | Settle a payment with custom date (ISO or Epoch) |
 | Update Payment | `hornbill payments update <paymentId> [options]` | Update due date, amount, paid_at, or notes |
 | Create Payment | `hornbill payments create --bill-id <billId> --amount <amount>` | Log an ad-hoc payment cycle for a bill |
-| List Accounts | `hornbill accounts list` | List all financial accounts |
-| Create Account | `hornbill accounts create --name <name> [options]` | Create a new financial account |
-| Update Account | `hornbill accounts update <accountId> [options]` | Update configuration details for an account |
-| Show Account | `hornbill accounts show <accountId>` | Show details of a specific financial account |
-| Export Backup | `hornbill accounts export <accountId> [--output <path>]` | Export a full account backup to JSON file |
-| Import Backup | `hornbill accounts import <filepath> [--regenerate-ids]` | Import account backup JSON file |
 
 ---
 
@@ -153,28 +147,8 @@ Append `-j` or `--json` to any command to format the output as JSON.
 hornbill bills list --json
 ```
 
-### 9. Account Management & Backups
-To manage financial accounts, perform backup exports, or restore from imports:
-
-*   **List Accounts:**
-    ```bash
-    hornbill accounts list
-    ```
-*   **Create Account:**
-    ```bash
-    hornbill accounts create --name "My Personal Wallet" --default-currency USD --currencies USD,EUR
-    ```
-*   **Export Account Backup:** Exports account metadata, bills, and payments history to a JSON file.
-    ```bash
-    hornbill accounts export <accountId> --output "./hornbill-backup.json"
-    ```
-*   **Import Account Backup:** Recreates account structure from backup. Pass `--regenerate-ids` to avoid duplicate primary key conflicts on import.
-    ```bash
-    hornbill accounts import "./hornbill-backup.json" --regenerate-ids
-    ```
-
-### 10. Inspecting Resource Details
-To view comprehensive metadata for single bills, payments, or accounts:
+### 9. Inspecting Resource Details
+To view comprehensive metadata for single bills or payments:
 
 *   **Inspect Bill:** Shows bill schedule parameters and list of associated payment cycles.
     ```bash
@@ -183,10 +157,6 @@ To view comprehensive metadata for single bills, payments, or accounts:
 *   **Inspect Payment:** Displays payment details including due dates, paid timestamps, and custom notes.
     ```bash
     hornbill payments show <paymentId>
-    ```
-*   **Inspect Account:**
-    ```bash
-    hornbill accounts show <accountId>
     ```
 
 ### Fallback for Undescribed Tasks
