@@ -166,6 +166,18 @@ export async function updatePayment(
   });
 }
 
+export async function updateBill(
+  url: string,
+  key: string,
+  billId: string,
+  data: Record<string, unknown>
+): Promise<Bill> {
+  return request<Bill>(url, key, `/api/v1/bills/${billId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function createPayment(
   url: string,
   key: string,

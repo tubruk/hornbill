@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
 import { resolveConfig, saveConfig, loadConfig, getConfigPath } from "./config";
-import { checkStatus, checkAuth, listBills, listPayments, payPayment, APIError, login, createApiKey, listAccounts, createBill, updatePayment, createPayment } from "./api";
+import { checkStatus, checkAuth, listBills, listPayments, payPayment, APIError, login, createApiKey, listAccounts, createBill, updatePayment, createPayment, updateBill } from "./api";
 import { promptText, promptPassword, promptSelect } from "./prompt";
 import { hostname, homedir } from "node:os";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -428,6 +428,115 @@ billsCmd
         console.log(`Amount:       ${formatAmount(bill.amount_cents)} ${bill.currency}`);
         console.log(`Recurrence:   ${bill.recurrence ? JSON.stringify(bill.recurrence) : "one-time"}`);
         console.log(`Start Date:   ${bill.start_date}`);
+      }
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+billsCmd
+  .command("update <billId>")
+  .description("Update details of an existing bill")
+  .option("-n, --name <name>", "New name of the bill")
+  .option("-a, --amount <amount>", "New billing amount (e.g. 15.99)")
+  .option("-r, --recurrence <recurrence>", "New recurrence: one-time, monthly:<day>, yearly:<month>-<day>, interval:<every>-<unit>-<from>, or JSON string")
+  .option("--notes <notes>", "Optional notes (or 'null' to clear)")
+  .option("--upcoming-threshold-days <days>", "Upcoming threshold days (or 'null' to clear)")
+  .option("--active <active>", "Active state (true/false)")
+  .action(async (billId, cmdOpts) => {
+    const opts = program.opts();
+    const config = resolveConfig(opts);
+
+    const payload: Record<string, unknown> = {};
+
+    if (cmdOpts.name !== undefined) {
+      const name = cmdOpts.name.trim();
+      if (!name) {
+        console.error("Error: Bill name cannot be empty.");
+        process.exit(1);
+      }
+      payload.name = name;
+    }
+
+    if (cmdOpts.amount !== undefined) {
+      const num = parseFloat(cmdOpts.amount);
+      if (isNaN(num) || num < 0) {
+        console.error("Error: Amount must be a positive number.");
+        process.exit(1);
+      }
+      payload.amount_cents = Math.round(num * 100);
+    }
+
+    if (cmdOpts.recurrence !== undefined) {
+      const recStr = cmdOpts.recurrence;
+      if (recStr === "one-time" || recStr === "none") {
+        payload.recurrence = null;
+      } else if (recStr.trim().startsWith("{")) {
+        payload.recurrence = JSON.parse(recStr);
+      } else {
+        const monthlyMatch = recStr.match(/^monthly:(\d+)$/);
+        const yearlyMatch = recStr.match(/^yearly:(\d+)-(\d+)$/);
+        const intervalMatch = recStr.match(/^interval:(\d+)-(days|weeks|months)-(due_date|paid_at)$/);
+
+        if (monthlyMatch) {
+          payload.recurrence = { type: "monthly", monthly: { day: parseInt(monthlyMatch[1], 10) } };
+        } else if (yearlyMatch) {
+          payload.recurrence = { type: "yearly", yearly: { month: parseInt(yearlyMatch[1], 10), day: parseInt(yearlyMatch[2], 10) } };
+        } else if (intervalMatch) {
+          payload.recurrence = {
+            type: "interval",
+            interval: {
+              every: parseInt(intervalMatch[1], 10),
+              unit: intervalMatch[2],
+              from: intervalMatch[3],
+            },
+          };
+        } else {
+          console.error("Error: Invalid recurrence format. Use one-time, monthly:<day>, yearly:<month>-<day>, interval:<every>-<unit>-<from>, or a raw JSON string.");
+          process.exit(1);
+        }
+      }
+    }
+
+    if (cmdOpts.notes !== undefined) {
+      payload.notes = cmdOpts.notes === "null" ? null : cmdOpts.notes;
+    }
+    if (cmdOpts.upcomingThresholdDays !== undefined) {
+      payload.upcoming_threshold_days = cmdOpts.upcomingThresholdDays === "null" ? null : parseInt(cmdOpts.upcomingThresholdDays, 10);
+    }
+    if (cmdOpts.active !== undefined) {
+      if (cmdOpts.active === "true") {
+        payload.active = true;
+      } else if (cmdOpts.active === "false") {
+        payload.active = false;
+      } else {
+        console.error("Error: --active must be 'true' or 'false'.");
+        process.exit(1);
+      }
+    }
+
+    if (Object.keys(payload).length === 0) {
+      console.error("Error: Please provide at least one option to update (--name, --amount, --recurrence, --notes, --upcoming-threshold-days, --active). To change when a bill was last paid, use 'payments update <paymentId> --paid-at' instead.");
+      process.exit(1);
+    }
+
+    try {
+      const bill = await updateBill(config.url, config.key, billId, payload);
+
+      if (opts.json) {
+        console.log(JSON.stringify(bill, null, 2));
+      } else {
+        console.log(`Bill ${billId} updated successfully!`);
+        console.log(`Name:        ${bill.name}`);
+        console.log(`Amount:      ${formatAmount(bill.amount_cents)} ${bill.currency}`);
+        console.log(`Recurrence:  ${bill.recurrence ? JSON.stringify(bill.recurrence) : "one-time"}`);
+        console.log(`Active:      ${bill.active ? "Yes" : "No"}`);
+        if (bill.notes !== undefined) {
+          console.log(`Notes:       ${bill.notes || "-"}`);
+        }
+        if (bill.upcoming_threshold_days !== undefined) {
+          console.log(`Threshold:   ${bill.upcoming_threshold_days ?? "-"} days`);
+        }
       }
     } catch (err) {
       handleError(err);

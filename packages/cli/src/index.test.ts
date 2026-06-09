@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
 import { resolveConfig, loadConfig, saveConfig, getConfigPath, getConfigDir } from "./config";
-import { checkStatus, checkAuth, listBills, listPayments, payPayment, login, createApiKey, listAccounts, createBill, updatePayment, createPayment } from "./api";
+import { checkStatus, checkAuth, listBills, listPayments, payPayment, login, createApiKey, listAccounts, createBill, updatePayment, createPayment, updateBill } from "./api";
 import { existsSync, unlinkSync, mkdirSync, writeFileSync } from "node:fs";
 import type { Bill, Payment, Account } from "@hornbill/core";
 
@@ -395,6 +395,50 @@ describe("CLI API Client", () => {
     const result = await updatePayment("http://mock-server", "hb_pat_123", "payment-1", { due_date: "2026-06-15" });
     expect(result).toEqual(mockUpdatedPayment);
     expect(calledBody).toContain("2026-06-15");
+  });
+
+  it("should update a bill", async () => {
+    const mockUpdatedBill: Bill = {
+      id: "bill-1",
+      account_id: "acc-1",
+      name: "Netflix Premium",
+      currency: "USD",
+      amount_cents: 1999,
+      active: false,
+      start_date: "2026-06-01",
+      recurrence: { type: "monthly", monthly: { day: 15 } },
+      created_at: 1717142404,
+      updated_at: 1717228804,
+    };
+
+    let calledUrl = "";
+    let calledMethod = "";
+    let calledBody = "";
+    setMockFetch(
+      mock((input, init) => {
+        calledUrl = input as string;
+        calledMethod = (init as RequestInit)?.method || "GET";
+        calledBody = (init as RequestInit)?.body?.toString() || "";
+        return Promise.resolve(
+          new Response(JSON.stringify(mockUpdatedBill), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      })
+    );
+
+    const result = await updateBill("http://mock-server", "hb_pat_123", "bill-1", {
+      name: "Netflix Premium",
+      amount_cents: 1999,
+      active: false,
+    });
+    expect(result).toEqual(mockUpdatedBill);
+    expect(calledUrl).toContain("/api/v1/bills/bill-1");
+    expect(calledMethod).toBe("PATCH");
+    expect(calledBody).toContain("Netflix Premium");
+    expect(calledBody).toContain("1999");
+    expect(calledBody).toContain("\"active\":false");
   });
 
   it("should create a payment", async () => {
