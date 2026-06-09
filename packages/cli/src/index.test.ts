@@ -16,8 +16,8 @@ afterAll(() => {
 });
 
 import { resolveConfig, loadConfig, saveConfig, getConfigPath, getConfigDir } from "./config";
-import { checkStatus, checkAuth, listBills, listPayments, payPayment, login, createApiKey, listAccounts, createBill, updatePayment, createPayment, updateBill } from "./api";
-import type { Bill, Payment, Account } from "@hornbill/core";
+import { checkStatus, checkAuth, listBills, listPayments, payPayment, login, createApiKey, listAccounts, createBill, updatePayment, createPayment, updateBill, getAccount, createAccount, updateAccount, deleteAccount, exportAccount, importAccount } from "./api";
+import type { Bill, Payment, Account, ExportPayload } from "@hornbill/core";
 
 // Helper to set mock fetch without TypeScript typing errors or any keyword
 function setMockFetch(fn: (input: unknown, init?: unknown) => Promise<Response>): void {
@@ -484,4 +484,202 @@ describe("CLI API Client", () => {
     expect(result).toEqual(mockCreatedPayment);
     expect(calledBody).toContain("bill-1");
   });
+
+  it("should get an account", async () => {
+    const mockAccount: Account = {
+      id: "acc-1",
+      name: "Primary Wallet",
+      upcoming_threshold_days: 7,
+      currencies: ["USD"],
+      default_currency: "USD",
+      archived: false,
+      notification_provider: { type: "console", config: {} },
+      notification_reminder: { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null },
+      created_at: 1717142404,
+      updated_at: 1717142404,
+    };
+
+    setMockFetch(
+      mock(() => {
+        return Promise.resolve(
+          new Response(JSON.stringify(mockAccount), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      })
+    );
+
+    const result = await getAccount("http://mock-server", "hb_pat_123", "acc-1");
+    expect(result).toEqual(mockAccount);
+  });
+
+  it("should create an account", async () => {
+    const mockCreatedAccount: Account = {
+      id: "acc-1",
+      name: "New Wallet",
+      upcoming_threshold_days: 7,
+      currencies: ["USD"],
+      default_currency: "USD",
+      archived: false,
+      notification_provider: { type: "console", config: {} },
+      notification_reminder: { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null },
+      created_at: 1717142404,
+      updated_at: 1717142404,
+    };
+
+    let calledBody = "";
+    setMockFetch(
+      mock((_, init) => {
+        calledBody = (init as RequestInit)?.body?.toString() || "";
+        return Promise.resolve(
+          new Response(JSON.stringify(mockCreatedAccount), {
+            status: 201,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      })
+    );
+
+    const result = await createAccount("http://mock-server", "hb_pat_123", { name: "New Wallet" });
+    expect(result).toEqual(mockCreatedAccount);
+    expect(calledBody).toContain("New Wallet");
+  });
+
+  it("should update an account", async () => {
+    const mockUpdatedAccount: Account = {
+      id: "acc-1",
+      name: "Updated Wallet",
+      upcoming_threshold_days: 7,
+      currencies: ["USD"],
+      default_currency: "USD",
+      archived: true,
+      notification_provider: { type: "console", config: {} },
+      notification_reminder: { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null },
+      created_at: 1717142404,
+      updated_at: 1717142404,
+    };
+
+    let calledBody = "";
+    setMockFetch(
+      mock((_, init) => {
+        calledBody = (init as RequestInit)?.body?.toString() || "";
+        return Promise.resolve(
+          new Response(JSON.stringify(mockUpdatedAccount), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      })
+    );
+
+    const result = await updateAccount("http://mock-server", "hb_pat_123", "acc-1", { name: "Updated Wallet", archived: true });
+    expect(result).toEqual(mockUpdatedAccount);
+    expect(calledBody).toContain("Updated Wallet");
+    expect(calledBody).toContain("true");
+  });
+
+  it("should delete an account", async () => {
+    let calledUrl = "";
+    let calledMethod = "";
+    setMockFetch(
+      mock((url, init) => {
+        calledUrl = url as string;
+        calledMethod = (init as RequestInit)?.method || "GET";
+        return Promise.resolve(
+          new Response(JSON.stringify({ success: true }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      })
+    );
+
+    const result = await deleteAccount("http://mock-server", "hb_pat_123", "acc-1");
+    expect(result).toEqual({ success: true });
+    expect(calledUrl).toContain("/api/v1/accounts/acc-1");
+    expect(calledMethod).toBe("DELETE");
+  });
+
+  it("should export an account backup", async () => {
+    const mockBackup = {
+      version: 1,
+      exported_at: 1717142500,
+      account: {
+        id: "acc-1",
+        name: "Primary Wallet",
+        upcoming_threshold_days: 7,
+        currencies: ["USD"],
+        default_currency: "USD",
+        archived: false,
+        notification_provider: { type: "console", config: {} },
+        notification_reminder: { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null },
+        created_at: 1717142404,
+        updated_at: 1717142404,
+      },
+      bills: [],
+      payments: [],
+    };
+
+    let calledUrl = "";
+    setMockFetch(
+      mock((url) => {
+        calledUrl = url as string;
+        return Promise.resolve(
+          new Response(JSON.stringify(mockBackup), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      })
+    );
+
+    const result = await exportAccount("http://mock-server", "hb_pat_123", "acc-1");
+    expect(result).toEqual(mockBackup as unknown as ExportPayload);
+    expect(calledUrl).toContain("/api/v1/accounts/acc-1/export");
+  });
+
+  it("should import an account backup", async () => {
+    const mockAccount: Account = {
+      id: "acc-1",
+      name: "Primary Wallet",
+      upcoming_threshold_days: 7,
+      currencies: ["USD"],
+      default_currency: "USD",
+      archived: false,
+      notification_provider: { type: "console", config: {} },
+      notification_reminder: { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null },
+      created_at: 1717142404,
+      updated_at: 1717142404,
+    };
+
+    const mockBackup = {
+      version: 1,
+      exported_at: 1717142500,
+      account: mockAccount,
+      bills: [],
+      payments: [],
+    };
+
+    let calledUrl = "";
+    let calledBody = "";
+    setMockFetch(
+      mock((url, init) => {
+        calledUrl = url as string;
+        calledBody = (init as RequestInit)?.body?.toString() || "";
+        return Promise.resolve(
+          new Response(JSON.stringify(mockAccount), {
+            status: 201,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      })
+    );
+
+    const result = await importAccount("http://mock-server", "hb_pat_123", mockBackup as unknown as ExportPayload, true);
+    expect(result).toEqual(mockAccount);
+    expect(calledUrl).toContain("/api/v1/accounts/import?regenerate_ids=true");
+    expect(calledBody).toContain("exported_at");
+  });
 });
+

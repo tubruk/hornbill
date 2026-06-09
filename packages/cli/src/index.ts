@@ -1,10 +1,31 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
 import { resolveConfig, saveConfig, loadConfig, getConfigPath } from "./config";
-import { checkStatus, checkAuth, listBills, listPayments, payPayment, APIError, login, createApiKey, listAccounts, createBill, updatePayment, createPayment, updateBill } from "./api";
+import {
+  checkStatus,
+  checkAuth,
+  listBills,
+  listPayments,
+  payPayment,
+  APIError,
+  login,
+  createApiKey,
+  listAccounts,
+  createBill,
+  updatePayment,
+  createPayment,
+  updateBill,
+  getAccount,
+  createAccount,
+  updateAccount,
+  deleteAccount,
+  exportAccount,
+  importAccount,
+  type ExportPayload,
+} from "./api";
 import { promptText, promptPassword, promptSelect } from "./prompt";
 import { hostname, homedir } from "node:os";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import packageJson from "../package.json";
 import { getSkillContent } from "./macro" with { type: "macro" };
@@ -779,7 +800,323 @@ paymentsCmd
     }
   });
 
+// Command: accounts
+const accountsCmd = program.command("accounts").description("Manage and view financial accounts");
+
+accountsCmd
+  .command("list")
+  .description("List all accounts")
+  .action(async () => {
+    const opts = program.opts();
+    const config = resolveConfig(opts);
+
+    try {
+      const accounts = await listAccounts(config.url, config.key);
+
+      if (opts.json) {
+        console.log(JSON.stringify(accounts, null, 2));
+      } else {
+        if (accounts.length === 0) {
+          console.log("No accounts found.");
+          return;
+        }
+        const headers = ["ID", "Name", "Default Currency", "Currencies", "Threshold", "Archived"];
+        const rows = accounts.map(acc => [
+          acc.id,
+          acc.name,
+          acc.default_currency,
+          acc.currencies.join(", "),
+          `${acc.upcoming_threshold_days} days`,
+          acc.archived ? "Yes" : "No",
+        ]);
+        printTable(headers, rows);
+      }
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+accountsCmd
+  .command("create")
+  .description("Create a new financial account")
+  .option("-n, --name <name>", "Name of the account")
+  .option("-t, --threshold <days>", "Threshold in days for upcoming bills alert")
+  .option("-c, --currencies <currencies>", "Comma-separated list of supported currencies (e.g. USD,IDR)")
+  .option("-d, --default-currency <currency>", "Primary currency of the account (e.g. USD)")
+  .option("--archived <archived>", "Archived state (true/false)")
+  .action(async (cmdOpts) => {
+    const opts = program.opts();
+    const config = resolveConfig(opts);
+
+    try {
+      let name = cmdOpts.name;
+      if (!name) {
+        name = await promptText("Account Name");
+        if (!name) {
+          console.error("Error: Account name is required.");
+          process.exit(1);
+        }
+      }
+
+      const payload: Record<string, unknown> = {
+        name,
+      };
+
+      if (cmdOpts.threshold !== undefined) {
+        const threshold = parseInt(cmdOpts.threshold, 10);
+        if (isNaN(threshold) || threshold <= 0) {
+          console.error("Error: Threshold must be a positive integer.");
+          process.exit(1);
+        }
+        payload.upcoming_threshold_days = threshold;
+      }
+
+      if (cmdOpts.currencies !== undefined) {
+        payload.currencies = cmdOpts.currencies.split(",").map((c: string) => c.trim().toUpperCase());
+      }
+
+      if (cmdOpts.defaultCurrency !== undefined) {
+        payload.default_currency = cmdOpts.defaultCurrency.trim().toUpperCase();
+      }
+
+      if (cmdOpts.archived !== undefined) {
+        if (cmdOpts.archived === "true") {
+          payload.archived = true;
+        } else if (cmdOpts.archived === "false") {
+          payload.archived = false;
+        } else {
+          console.error("Error: --archived must be 'true' or 'false'.");
+          process.exit(1);
+        }
+      }
+
+      const account = await createAccount(config.url, config.key, payload);
+
+      if (opts.json) {
+        console.log(JSON.stringify(account, null, 2));
+      } else {
+        console.log(`Account "${account.name}" created successfully!`);
+        console.log(`ID:               ${account.id}`);
+        console.log(`Default Currency: ${account.default_currency}`);
+        console.log(`Currencies:       ${account.currencies.join(", ")}`);
+        console.log(`Threshold:        ${account.upcoming_threshold_days} days`);
+      }
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+accountsCmd
+  .command("show <accountId>")
+  .description("Get details of a specific account")
+  .action(async (accountId) => {
+    const opts = program.opts();
+    const config = resolveConfig(opts);
+
+    try {
+      const account = await getAccount(config.url, config.key, accountId);
+
+      if (opts.json) {
+        console.log(JSON.stringify(account, null, 2));
+      } else {
+        console.log(`Account:          ${account.name}`);
+        console.log(`ID:               ${account.id}`);
+        console.log(`Default Currency: ${account.default_currency}`);
+        console.log(`Currencies:       ${account.currencies.join(", ")}`);
+        console.log(`Threshold:        ${account.upcoming_threshold_days} days`);
+        console.log(`Archived:         ${account.archived ? "Yes" : "No"}`);
+        console.log(`Created At:       ${new Date(account.created_at * 1000).toISOString()}`);
+        console.log(`Updated At:       ${new Date(account.updated_at * 1000).toISOString()}`);
+      }
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+accountsCmd
+  .command("update <accountId>")
+  .description("Update details of an existing account")
+  .option("-n, --name <name>", "New name of the account")
+  .option("-t, --threshold <days>", "New threshold in days for upcoming bills alert")
+  .option("-c, --currencies <currencies>", "New comma-separated list of supported currencies (e.g. USD,IDR)")
+  .option("-d, --default-currency <currency>", "New primary currency of the account (e.g. USD)")
+  .option("--archived <archived>", "Archived state (true/false)")
+  .action(async (accountId, cmdOpts) => {
+    const opts = program.opts();
+    const config = resolveConfig(opts);
+
+    const payload: Record<string, unknown> = {};
+
+    if (cmdOpts.name !== undefined) {
+      const name = cmdOpts.name.trim();
+      if (!name) {
+        console.error("Error: Account name cannot be empty.");
+        process.exit(1);
+      }
+      payload.name = name;
+    }
+
+    if (cmdOpts.threshold !== undefined) {
+      const threshold = parseInt(cmdOpts.threshold, 10);
+      if (isNaN(threshold) || threshold <= 0) {
+        console.error("Error: Threshold must be a positive integer.");
+        process.exit(1);
+      }
+      payload.upcoming_threshold_days = threshold;
+    }
+
+    if (cmdOpts.currencies !== undefined) {
+      payload.currencies = cmdOpts.currencies.split(",").map((c: string) => c.trim().toUpperCase());
+    }
+
+    if (cmdOpts.defaultCurrency !== undefined) {
+      payload.default_currency = cmdOpts.defaultCurrency.trim().toUpperCase();
+    }
+
+    if (cmdOpts.archived !== undefined) {
+      if (cmdOpts.archived === "true") {
+        payload.archived = true;
+      } else if (cmdOpts.archived === "false") {
+        payload.archived = false;
+      } else {
+        console.error("Error: --archived must be 'true' or 'false'.");
+        process.exit(1);
+      }
+    }
+
+    if (Object.keys(payload).length === 0) {
+      console.error("Error: Please provide at least one option to update (--name, --threshold, --currencies, --default-currency, --archived).");
+      process.exit(1);
+    }
+
+    try {
+      const account = await updateAccount(config.url, config.key, accountId, payload);
+
+      if (opts.json) {
+        console.log(JSON.stringify(account, null, 2));
+      } else {
+        console.log(`Account ${accountId} updated successfully!`);
+        console.log(`Name:             ${account.name}`);
+        console.log(`Default Currency: ${account.default_currency}`);
+        console.log(`Currencies:       ${account.currencies.join(", ")}`);
+        console.log(`Threshold:        ${account.upcoming_threshold_days} days`);
+        console.log(`Archived:         ${account.archived ? "Yes" : "No"}`);
+      }
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+accountsCmd
+  .command("delete <accountId>")
+  .description("Permanently delete an account")
+  .option("-y, --yes", "Skip delete confirmation prompt")
+  .action(async (accountId, cmdOpts) => {
+    const opts = program.opts();
+    const config = resolveConfig(opts);
+
+    try {
+      if (!cmdOpts.yes && !opts.json) {
+        const confirm = await promptText(`Are you sure you want to delete account ${accountId}? (y/N)`, "n");
+        if (confirm.toLowerCase() !== "y") {
+          console.log("Deletion cancelled.");
+          return;
+        }
+      }
+
+      const res = await deleteAccount(config.url, config.key, accountId);
+
+      if (opts.json) {
+        console.log(JSON.stringify(res, null, 2));
+      } else {
+        console.log(`Account ${accountId} successfully deleted.`);
+      }
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+accountsCmd
+  .command("export <accountId>")
+  .description("Export a full backup of the account (including bills and payments) to a JSON file")
+  .option("-o, --output <path>", "File path to save the JSON backup")
+  .action(async (accountId, cmdOpts) => {
+    const opts = program.opts();
+    const config = resolveConfig(opts);
+
+    try {
+      const payload = await exportAccount(config.url, config.key, accountId);
+
+      if (opts.json) {
+        console.log(JSON.stringify(payload, null, 2));
+      } else if (cmdOpts.output) {
+        let dest = cmdOpts.output;
+        if (dest.startsWith("~")) {
+          dest = join(homedir(), dest.slice(1));
+        } else if (!dest.startsWith("/") && !dest.startsWith(".")) {
+          dest = join(process.cwd(), dest);
+        }
+        writeFileSync(dest, JSON.stringify(payload, null, 2), "utf-8");
+        console.log(`Backup successfully exported to ${dest}`);
+      } else {
+        const safeName = payload.account.name.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+        const defaultFilename = `hornbill-backup-${safeName}-${payload.exported_at}.json`;
+        const dest = join(process.cwd(), defaultFilename);
+        writeFileSync(dest, JSON.stringify(payload, null, 2), "utf-8");
+        console.log(`Backup successfully exported to ${dest}`);
+      }
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+accountsCmd
+  .command("import <filepath>")
+  .description("Import a backup from a JSON file to recreate the account, bills, and payments")
+  .option("--regenerate-ids", "Regenerate all UUIDs to resolve conflicts")
+  .action(async (filepath, cmdOpts) => {
+    const opts = program.opts();
+    const config = resolveConfig(opts);
+
+    try {
+      let resolvedPath = filepath;
+      if (resolvedPath.startsWith("~")) {
+        resolvedPath = join(homedir(), resolvedPath.slice(1));
+      } else if (!resolvedPath.startsWith("/") && !resolvedPath.startsWith(".")) {
+        resolvedPath = join(process.cwd(), resolvedPath);
+      }
+
+      if (!existsSync(resolvedPath)) {
+        console.error(`Error: File does not exist at ${resolvedPath}`);
+        process.exit(1);
+      }
+
+      const raw = readFileSync(resolvedPath, "utf-8");
+      const payload = JSON.parse(raw) as ExportPayload;
+
+      if (!payload || typeof payload !== "object" || !payload.account || !Array.isArray(payload.bills) || !Array.isArray(payload.payments)) {
+        console.error("Error: Invalid backup file format. Expected a JSON with 'account', 'bills', and 'payments' properties.");
+        process.exit(1);
+      }
+
+      const regenerateIds = !!cmdOpts.regenerateIds;
+      const account = await importAccount(config.url, config.key, payload, regenerateIds);
+
+      if (opts.json) {
+        console.log(JSON.stringify(account, null, 2));
+      } else {
+        console.log(`Account "${account.name}" imported successfully!`);
+        console.log(`ID:               ${account.id}`);
+        console.log(`Default Currency: ${account.default_currency}`);
+        console.log(`Currencies:       ${account.currencies.join(", ")}`);
+      }
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
 // Command: skill
+
 const skillCmd = program.command("skill").description("Manage agent skills");
 
 skillCmd

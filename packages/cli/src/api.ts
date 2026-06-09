@@ -1,4 +1,7 @@
-import type { Bill, Payment, Account } from "@hornbill/core";
+import type { Bill, Payment, Account, ExportPayload } from "@hornbill/core";
+export type { ExportPayload };
+
+
 
 export interface StatusResponse {
   status: string;
@@ -188,3 +191,68 @@ export async function createPayment(
     body: JSON.stringify(data),
   });
 }
+
+export async function getAccount(url: string, key: string, id: string): Promise<Account> {
+  return request<Account>(url, key, `/api/v1/accounts/${id}`);
+}
+
+export async function createAccount(
+  url: string,
+  key: string,
+  data: Record<string, unknown>
+): Promise<Account> {
+  return request<Account>(url, key, "/api/v1/accounts", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateAccount(
+  url: string,
+  key: string,
+  id: string,
+  data: Record<string, unknown>
+): Promise<Account> {
+  return request<Account>(url, key, `/api/v1/accounts/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteAccount(
+  url: string,
+  key: string,
+  id: string
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(url, key, `/api/v1/accounts/${id}`, {
+    method: "DELETE",
+  });
+}
+
+
+
+export async function exportAccount(
+  url: string,
+  key: string,
+  id: string
+): Promise<ExportPayload> {
+  return request<ExportPayload>(url, key, `/api/v1/accounts/${id}/export`);
+}
+
+export async function importAccount(
+  url: string,
+  key: string,
+  payload: ExportPayload,
+  regenerateIds = false
+): Promise<Account> {
+  return request<Account>(
+    url,
+    key,
+    `/api/v1/accounts/import?regenerate_ids=${regenerateIds ? "true" : "false"}`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
