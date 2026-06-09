@@ -7,6 +7,7 @@ install:
 # Build all package bundles and applications
 build: install
 	@bun run --filter hornbill-web build
+	@bun run --filter=@hornbill/cli build
 
 # Run linters across all packages
 lint:
