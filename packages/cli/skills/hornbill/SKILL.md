@@ -1,6 +1,8 @@
 ---
 name: hornbill
 description: Manages bills and payments tracking. Use when user wants to view bills, check unpaid/paid payments, or pay bills.
+metadata:
+  generator: hornbill-cli v0.1.3
 ---
 
 # Hornbill CLI Skill
