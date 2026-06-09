@@ -110,7 +110,7 @@ describe("Trailbase Integration", () => {
 
     // Mock FS & Crypto for JWT verifyToken tests
     existsSpy = spyOn(fs, "existsSync").mockImplementation(() => true);
-    readSpy = spyOn(fs, "readFileSync").mockImplementation(((path: any, options: any) => "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAMNfK1b7Z\n-----END PUBLIC KEY-----") as any);
+    readSpy = spyOn(fs, "readFileSync").mockImplementation(((_path: any, _options: any) => "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAMNfK1b7Z\n-----END PUBLIC KEY-----") as any);
     importKeySpy = spyOn(crypto.subtle, "importKey").mockResolvedValue({} as any);
     jwtVerifySpy = spyOn(jwt, "verify").mockResolvedValue({ sub: "user-123" } as any);
   });
@@ -342,12 +342,10 @@ describe("Trailbase Integration", () => {
 
   describe("Access Verification Helpers", () => {
     let getMap: Map<string, any>;
-    let setSpy: any;
     let contextMock: any;
 
     beforeEach(() => {
       getMap = new Map();
-      setSpy = spyOn(getMap, "set");
       contextMock = {
         get: (key: string) => getMap.get(key),
         set: (key: string, val: any) => getMap.set(key, val),

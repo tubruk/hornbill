@@ -188,16 +188,20 @@ program
               online: true,
               authenticated: isAuthed,
               registration_enabled: serverStatus.registration_enabled,
+              cli_version: packageJson.version,
+              server_version: serverStatus.version || "unknown",
             },
             null,
             2
           )
         );
       } else {
-        console.log(`Server URL:   ${config.url}`);
-        console.log(`Connection:   Online`);
-        console.log(`Auth Status:  ${isAuthed ? "Authenticated" : "Unauthenticated (or missing API key)"}`);
-        console.log(`Registration: ${serverStatus.registration_enabled ? "Enabled" : "Disabled"}`);
+        console.log(`Server URL:     ${config.url}`);
+        console.log(`Connection:     Online`);
+        console.log(`Auth Status:    ${isAuthed ? "Authenticated" : "Unauthenticated (or missing API key)"}`);
+        console.log(`Registration:   ${serverStatus.registration_enabled ? "Enabled" : "Disabled"}`);
+        console.log(`CLI Version:    ${packageJson.version}`);
+        console.log(`Server Version: ${serverStatus.version || "unknown"}`);
       }
     } catch (err) {
       if (opts.json) {
@@ -208,6 +212,8 @@ program
               online: false,
               authenticated: false,
               error: err instanceof Error ? err.message : String(err),
+              cli_version: packageJson.version,
+              server_version: "unknown",
             },
             null,
             2
@@ -216,6 +222,8 @@ program
         process.exit(1);
       } else {
         console.error(`Failed to connect to Hornbill server at ${config.url}`);
+        console.log(`CLI Version:    ${packageJson.version}`);
+        console.log(`Server Version: unknown`);
         handleError(err);
       }
     }

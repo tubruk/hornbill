@@ -2,6 +2,8 @@ import type { Bill, Payment } from "@hornbill/core";
 
 export interface StatusResponse {
   status: string;
+  version?: string;
+  commit?: string;
   registration_enabled: boolean;
   data_dir?: string;
   trailbase_url?: string;

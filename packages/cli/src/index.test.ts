@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
 import { resolveConfig, loadConfig, saveConfig, getConfigPath, getConfigDir } from "./config";
-import { checkStatus, checkAuth, listBills, listPayments, payPayment, APIError, login, createApiKey } from "./api";
+import { checkStatus, checkAuth, listBills, listPayments, payPayment, login, createApiKey } from "./api";
 import { existsSync, unlinkSync, mkdirSync, writeFileSync } from "node:fs";
 import type { Bill, Payment } from "@hornbill/core";
 
