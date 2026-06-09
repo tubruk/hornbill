@@ -83,10 +83,23 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   }
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`);
+    const text = await res.text().catch(() => "");
+    let errorMessage = `HTTP ${res.status}`;
+    if (text) {
+      try {
+        const body = JSON.parse(text) as { error?: string };
+        if (body && typeof body === "object" && body.error) {
+          errorMessage = String(body.error);
+        }
+      } catch {
+        errorMessage = text;
+      }
+    }
+    throw new Error(errorMessage);
   }
-  return res.json() as Promise<T>;
+
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 // ── Auth ───────────────────────────────────────────────────────────────────
