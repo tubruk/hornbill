@@ -256,3 +256,35 @@ export async function importAccount(
   );
 }
 
+export async function getBill(
+  url: string,
+  key: string,
+  id: string
+): Promise<Bill & { payments: Payment[] }> {
+  return request<Bill & { payments: Payment[] }>(url, key, `/api/v1/bills/${id}`);
+}
+
+export async function deleteBill(
+  url: string,
+  key: string,
+  id: string
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(url, key, `/api/v1/bills/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function getPayment(url: string, key: string, id: string): Promise<Payment> {
+  return request<Payment>(url, key, `/api/v1/payments/${id}`);
+}
+
+export async function deletePayment(
+  url: string,
+  key: string,
+  id: string
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(url, key, `/api/v1/payments/${id}`, {
+    method: "DELETE",
+  });
+}
+

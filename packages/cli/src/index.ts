@@ -21,6 +21,10 @@ import {
   deleteAccount,
   exportAccount,
   importAccount,
+  getBill,
+  deleteBill,
+  getPayment,
+  deletePayment,
   type ExportPayload,
 } from "./api";
 import { promptText, promptPassword, promptSelect } from "./prompt";
@@ -564,6 +568,81 @@ billsCmd
     }
   });
 
+billsCmd
+  .command("show <billId>")
+  .description("Get details of a specific bill including its payments history")
+  .action(async (billId) => {
+    const opts = program.opts();
+    const config = resolveConfig(opts);
+
+    try {
+      const bill = await getBill(config.url, config.key, billId);
+
+      if (opts.json) {
+        console.log(JSON.stringify(bill, null, 2));
+      } else {
+        console.log(`Bill:        ${bill.name}`);
+        console.log(`ID:          ${bill.id}`);
+        console.log(`Account ID:  ${bill.account_id}`);
+        console.log(`Amount:      ${formatAmount(bill.amount_cents)} ${bill.currency}`);
+        console.log(`Recurrence:  ${bill.recurrence ? JSON.stringify(bill.recurrence) : "one-time"}`);
+        console.log(`Active:      ${bill.active ? "Yes" : "No"}`);
+        console.log(`Start Date:  ${bill.start_date}`);
+        console.log(`Threshold:   ${bill.upcoming_threshold_days ?? "-"} days`);
+        console.log(`Notes:       ${bill.notes || "-"}`);
+        console.log("\nAssociated Payments:");
+        if (bill.payments.length === 0) {
+          console.log("No payments found.");
+        } else {
+          const headers = ["Payment ID", "Due Date", "Amount", "Status", "Paid At"];
+          const rows = bill.payments.map(p => {
+            const status = p.paid_at != null ? "Paid" : "Unpaid";
+            const paidAtStr = p.paid_at != null ? new Date(p.paid_at * 1000).toISOString().split("T")[0] : "-";
+            return [
+              p.id,
+              p.due_date,
+              formatAmount(p.amount_cents),
+              status,
+              paidAtStr,
+            ];
+          });
+          printTable(headers, rows);
+        }
+      }
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+billsCmd
+  .command("delete <billId>")
+  .description("Permanently delete a bill and all its associated payment cycles")
+  .option("-y, --yes", "Skip delete confirmation prompt")
+  .action(async (billId, cmdOpts) => {
+    const opts = program.opts();
+    const config = resolveConfig(opts);
+
+    try {
+      if (!cmdOpts.yes && !opts.json) {
+        const confirm = await promptText(`Are you sure you want to delete bill ${billId} and all its payments? (y/N)`, "n");
+        if (confirm.toLowerCase() !== "y") {
+          console.log("Deletion cancelled.");
+          return;
+        }
+      }
+
+      const res = await deleteBill(config.url, config.key, billId);
+
+      if (opts.json) {
+        console.log(JSON.stringify(res, null, 2));
+      } else {
+        console.log(`Bill ${billId} successfully deleted.`);
+      }
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
 // Command: payments
 const paymentsCmd = program.command("payments").description("Manage and view payments");
 
@@ -794,6 +873,69 @@ paymentsCmd
         console.log(`Amount:      ${formatAmount(payment.amount_cents)}`);
         console.log(`Paid At:     ${payment.paid_at ? new Date(payment.paid_at * 1000).toISOString() : "-"}`);
         console.log(`Notes:       ${payment.notes || "-"}`);
+      }
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+paymentsCmd
+  .command("show <paymentId>")
+  .description("Get details of a specific payment cycle")
+  .action(async (paymentId) => {
+    const opts = program.opts();
+    const config = resolveConfig(opts);
+
+    try {
+      const payment = await getPayment(config.url, config.key, paymentId);
+
+      if (opts.json) {
+        console.log(JSON.stringify(payment, null, 2));
+      } else {
+        const status = payment.paid_at != null ? "Paid" : "Unpaid";
+        const paidAtStr = payment.paid_at != null ? new Date(payment.paid_at * 1000).toISOString() : "-";
+        console.log(`Payment ID:  ${payment.id}`);
+        console.log(`Bill ID:     ${payment.bill_id}`);
+        console.log(`Due Date:    ${payment.due_date}`);
+        console.log(`Amount:      ${formatAmount(payment.amount_cents)}`);
+        console.log(`Status:      ${status}`);
+        console.log(`Paid At:     ${paidAtStr}`);
+        console.log(`Notes:       ${payment.notes || "-"}`);
+        if (payment.created_at) {
+          console.log(`Created At:  ${new Date(payment.created_at * 1000).toISOString()}`);
+        }
+        if (payment.updated_at) {
+          console.log(`Updated At:  ${new Date(payment.updated_at * 1000).toISOString()}`);
+        }
+      }
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+paymentsCmd
+  .command("delete <paymentId>")
+  .description("Permanently delete a payment cycle")
+  .option("-y, --yes", "Skip delete confirmation prompt")
+  .action(async (paymentId, cmdOpts) => {
+    const opts = program.opts();
+    const config = resolveConfig(opts);
+
+    try {
+      if (!cmdOpts.yes && !opts.json) {
+        const confirm = await promptText(`Are you sure you want to delete payment cycle ${paymentId}? (y/N)`, "n");
+        if (confirm.toLowerCase() !== "y") {
+          console.log("Deletion cancelled.");
+          return;
+        }
+      }
+
+      const res = await deletePayment(config.url, config.key, paymentId);
+
+      if (opts.json) {
+        console.log(JSON.stringify(res, null, 2));
+      } else {
+        console.log(`Payment cycle ${paymentId} successfully deleted.`);
       }
     } catch (err) {
       handleError(err);

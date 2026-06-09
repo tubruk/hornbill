@@ -17,13 +17,21 @@ Manage and track bills and payments using the `hornbill` CLI client.
 | List Bills | `hornbill bills list` | List all tracked bills |
 | Create Bill | `hornbill bills create --name <name> --amount <amount> --recurrence <recurrence>` | Create a new bill schedule with recurrence |
 | Update Bill | `hornbill bills update <billId> [options]` | Update billing configuration (name, amount, recurrence, notes, threshold, active state) |
+| Show Bill | `hornbill bills show <billId>` | Show details of a bill including payment history |
 | List Payments | `hornbill payments list` | List payments (defaults to unpaid) |
 | Filter Payments | `hornbill payments list --status <all\|paid\|unpaid>` | Filter payments by payment status |
+| Show Payment | `hornbill payments show <paymentId>` | Show details of a specific payment cycle |
 | Pay Bill/Payment | `hornbill payments pay <paymentId>` | Settle a specific payment cycle |
 | Pay with Amount | `hornbill payments pay <paymentId> --amount <amount>` | Settle a payment overriding the amount |
 | Pay with Date | `hornbill payments pay <paymentId> --date <date>` | Settle a payment with custom date (ISO or Epoch) |
 | Update Payment | `hornbill payments update <paymentId> [options]` | Update due date, amount, paid_at, or notes |
 | Create Payment | `hornbill payments create --bill-id <billId> --amount <amount>` | Log an ad-hoc payment cycle for a bill |
+| List Accounts | `hornbill accounts list` | List all financial accounts |
+| Create Account | `hornbill accounts create --name <name> [options]` | Create a new financial account |
+| Update Account | `hornbill accounts update <accountId> [options]` | Update configuration details for an account |
+| Show Account | `hornbill accounts show <accountId>` | Show details of a specific financial account |
+| Export Backup | `hornbill accounts export <accountId> [--output <path>]` | Export a full account backup to JSON file |
+| Import Backup | `hornbill accounts import <filepath> [--regenerate-ids]` | Import account backup JSON file |
 
 ---
 
@@ -144,6 +152,42 @@ Append `-j` or `--json` to any command to format the output as JSON.
 ```bash
 hornbill bills list --json
 ```
+
+### 9. Account Management & Backups
+To manage financial accounts, perform backup exports, or restore from imports:
+
+*   **List Accounts:**
+    ```bash
+    hornbill accounts list
+    ```
+*   **Create Account:**
+    ```bash
+    hornbill accounts create --name "My Personal Wallet" --default-currency USD --currencies USD,EUR
+    ```
+*   **Export Account Backup:** Exports account metadata, bills, and payments history to a JSON file.
+    ```bash
+    hornbill accounts export <accountId> --output "./hornbill-backup.json"
+    ```
+*   **Import Account Backup:** Recreates account structure from backup. Pass `--regenerate-ids` to avoid duplicate primary key conflicts on import.
+    ```bash
+    hornbill accounts import "./hornbill-backup.json" --regenerate-ids
+    ```
+
+### 10. Inspecting Resource Details
+To view comprehensive metadata for single bills, payments, or accounts:
+
+*   **Inspect Bill:** Shows bill schedule parameters and list of associated payment cycles.
+    ```bash
+    hornbill bills show <billId>
+    ```
+*   **Inspect Payment:** Displays payment details including due dates, paid timestamps, and custom notes.
+    ```bash
+    hornbill payments show <paymentId>
+    ```
+*   **Inspect Account:**
+    ```bash
+    hornbill accounts show <accountId>
+    ```
 
 ### Fallback for Undescribed Tasks
 If you need to perform operations or use options not detailed in this guide:

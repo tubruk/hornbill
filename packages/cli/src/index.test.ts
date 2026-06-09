@@ -16,7 +16,7 @@ afterAll(() => {
 });
 
 import { resolveConfig, loadConfig, saveConfig, getConfigPath, getConfigDir } from "./config";
-import { checkStatus, checkAuth, listBills, listPayments, payPayment, login, createApiKey, listAccounts, createBill, updatePayment, createPayment, updateBill, getAccount, createAccount, updateAccount, deleteAccount, exportAccount, importAccount } from "./api";
+import { checkStatus, checkAuth, listBills, listPayments, payPayment, login, createApiKey, listAccounts, createBill, updatePayment, createPayment, updateBill, getAccount, createAccount, updateAccount, deleteAccount, exportAccount, importAccount, getBill, deleteBill, getPayment, deletePayment } from "./api";
 import type { Bill, Payment, Account, ExportPayload } from "@hornbill/core";
 
 // Helper to set mock fetch without TypeScript typing errors or any keyword
@@ -681,5 +681,106 @@ describe("CLI API Client", () => {
     expect(calledUrl).toContain("/api/v1/accounts/import?regenerate_ids=true");
     expect(calledBody).toContain("exported_at");
   });
+
+  it("should get a bill", async () => {
+    const mockBill: Bill & { payments: Payment[] } = {
+      id: "bill-1",
+      account_id: "acc-1",
+      name: "Netflix",
+      currency: "USD",
+      amount_cents: 1599,
+      active: true,
+      start_date: "2026-06-01",
+      recurrence: { type: "monthly", monthly: { day: 1 } },
+      created_at: 1717142404,
+      updated_at: 1717142404,
+      payments: [],
+    };
+
+    setMockFetch(
+      mock(() => {
+        return Promise.resolve(
+          new Response(JSON.stringify(mockBill), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      })
+    );
+
+    const result = await getBill("http://mock-server", "hb_pat_123", "bill-1");
+    expect(result).toEqual(mockBill);
+  });
+
+  it("should delete a bill", async () => {
+    let calledUrl = "";
+    let calledMethod = "";
+    setMockFetch(
+      mock((url, init) => {
+        calledUrl = url as string;
+        calledMethod = (init as RequestInit)?.method || "GET";
+        return Promise.resolve(
+          new Response(JSON.stringify({ success: true }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      })
+    );
+
+    const result = await deleteBill("http://mock-server", "hb_pat_123", "bill-1");
+    expect(result).toEqual({ success: true });
+    expect(calledUrl).toContain("/api/v1/bills/bill-1");
+    expect(calledMethod).toBe("DELETE");
+  });
+
+  it("should get a payment", async () => {
+    const mockPayment: Payment = {
+      id: "payment-1",
+      bill_id: "bill-1",
+      due_date: "2026-06-01",
+      amount_cents: 1599,
+      paid_at: null,
+      created_at: 1717142404,
+      updated_at: 1717142404,
+    };
+
+    setMockFetch(
+      mock(() => {
+        return Promise.resolve(
+          new Response(JSON.stringify(mockPayment), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      })
+    );
+
+    const result = await getPayment("http://mock-server", "hb_pat_123", "payment-1");
+    expect(result).toEqual(mockPayment);
+  });
+
+  it("should delete a payment", async () => {
+    let calledUrl = "";
+    let calledMethod = "";
+    setMockFetch(
+      mock((url, init) => {
+        calledUrl = url as string;
+        calledMethod = (init as RequestInit)?.method || "GET";
+        return Promise.resolve(
+          new Response(JSON.stringify({ success: true }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      })
+    );
+
+    const result = await deletePayment("http://mock-server", "hb_pat_123", "payment-1");
+    expect(result).toEqual({ success: true });
+    expect(calledUrl).toContain("/api/v1/payments/payment-1");
+    expect(calledMethod).toBe("DELETE");
+  });
 });
+
 
