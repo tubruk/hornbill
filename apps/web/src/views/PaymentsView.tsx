@@ -299,11 +299,12 @@ export function PaymentsView() {
                                 : "text-[#1E40AF] font-bold uppercase tracking-wider text-[10px]"
                             }
                           >
-                            {status === "overdue"
-                              ? "Overdue"
-                              : status === "due_soon"
-                              ? "Due Soon"
-                              : "Upcoming"}
+                            {status === "overdue" ? (() => {
+                              const d1 = Date.parse(p.due_date + "T00:00:00Z");
+                              const d2 = Date.parse(todayStr + "T00:00:00Z");
+                              const diffDays = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+                              return `Overdue (${diffDays}d)`;
+                            })() : status === "due_soon" ? "Due Soon" : "Upcoming"}
                           </span>
                         </>
                       ) : (
