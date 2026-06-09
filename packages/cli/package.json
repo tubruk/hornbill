@@ -1,0 +1,18 @@
+{
+  "name": "@hornbill/cli",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "bin": {
+    "hornbill": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "bun build --compile --minify --sourcemap src/index.ts --outfile bin/hornbill"
+  },
+  "dependencies": {
+    "@hornbill/core": "workspace:*",
+    "commander": "^13.0.0"
+  }
+}

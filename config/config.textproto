@@ -28,4 +28,8 @@ record_apis: [{
   name: "account_users"
   table_name: "account_users"
   acl_world: [READ, CREATE, UPDATE, DELETE]
+}, {
+  name: "api_keys"
+  table_name: "api_keys"
+  acl_world: [READ, CREATE, UPDATE, DELETE]
 }]
