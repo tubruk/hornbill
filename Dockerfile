@@ -1,5 +1,7 @@
 # Stage 1: Build the React frontend
 FROM oven/bun:1.3.14 AS frontend-builder
+ARG COMMIT_SHA
+ENV COMMIT_SHA=$COMMIT_SHA
 WORKDIR /app
 
 # Copy lockfile, configs, and workspace manifests
@@ -19,6 +21,8 @@ RUN bun run --filter hornbill-web build
 
 # Stage 2: Build final runner
 FROM oven/bun:1.3.14
+ARG COMMIT_SHA
+ENV COMMIT_SHA=$COMMIT_SHA
 WORKDIR /app
 
 # Install curl for entrypoint healthchecks

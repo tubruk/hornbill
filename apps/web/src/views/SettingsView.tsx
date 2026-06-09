@@ -105,14 +105,20 @@ export function SettingsView() {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // New state for Trailbase data directory fetched from API status
+  // New state for Trailbase data directory, version, and commit fetched from API status
   const [dataDir, setDataDir] = useState<string>("");
+  const [apiVersion, setApiVersion] = useState<string>("");
+  const [apiCommit, setApiCommit] = useState<string>("");
 
-  // Fetch data directory on component mount
+  // Fetch API status on component mount
   useEffect(() => {
     fetch("/api/v1/status")
       .then((res) => res.json())
-      .then((json) => setDataDir(json.data_dir || "./data/hornbill"))
+      .then((json) => {
+        setDataDir(json.data_dir || "./data/hornbill");
+        setApiVersion(json.version || "");
+        setApiCommit(json.commit || "");
+      })
       .catch(() => setDataDir("./data/hornbill"));
   }, []);
 
@@ -1335,6 +1341,22 @@ export function SettingsView() {
                     ) : (
                       `${accountsQuery.data?.length ?? 0} account(s)`
                     )}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[12px] font-bold text-text-secondary uppercase tracking-wide">
+                    Web Client Version
+                  </span>
+                  <span className="px-3 py-2 rounded-sm bg-surface-raised border border-border-warm text-[14px] text-text-primary font-mono select-all">
+                    v{__APP_VERSION__}{__APP_COMMIT_SHA__ ? ` (${__APP_COMMIT_SHA__})` : ""}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[12px] font-bold text-text-secondary uppercase tracking-wide">
+                    API Server Version
+                  </span>
+                  <span className="px-3 py-2 rounded-sm bg-surface-raised border border-border-warm text-[14px] text-text-primary font-mono select-all">
+                    {apiVersion ? `v${apiVersion}${apiCommit ? ` (${apiCommit})` : ""}` : "Offline / Unknown"}
                   </span>
                 </div>
               </div>

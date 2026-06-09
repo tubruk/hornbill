@@ -3,6 +3,8 @@ import { CONFIG } from "./config";
 import { apiReference } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
+import { execSync } from "node:child_process";
+import packageJson from "../package.json";
 import { requestLogger } from "./middleware/requestLogger";
 import { logger } from "./services/logger";
 import { trimTrailingSlash } from "hono/trailing-slash";
@@ -99,8 +101,18 @@ api.get("/status", (c) => {
   const regEnabled = CONFIG.REGISTRATION_ENABLED;
   const trailbaseUrl = CONFIG.TRAILBASE_URL;
   const trailbaseToken = CONFIG.TRAILBASE_TOKEN;
+
+  let commitSha = "";
+  try {
+    commitSha = execSync("git rev-parse --short HEAD", { stdio: "pipe" }).toString().trim();
+  } catch {
+    commitSha = process.env.GITHUB_SHA?.substring(0, 7) || process.env.COMMIT_SHA || "";
+  }
+
   return c.json({
     status: "ok",
+    version: packageJson.version,
+    commit: commitSha || undefined,
     registration_enabled: regEnabled,
     data_dir: CONFIG.TRAILBASE_DATA_DIR,
     trailbase_url: trailbaseUrl,

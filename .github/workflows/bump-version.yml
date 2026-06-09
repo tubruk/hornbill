@@ -1,0 +1,63 @@
+name: Bump Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Type of version bump (patch, minor, major)'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  bump:
+    name: Bump Version, Commit, and Tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          # Use a Personal Access Token (PAT) to allow tag pushes to trigger other workflows (like the Release workflow)
+          token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run Bump Script
+        run: bun run scripts/bump-version.ts ${{ github.event.inputs.bump_type }}
+
+      - name: Update Lockfile
+        run: bun install
+
+      - name: Commit, Tag, and Push
+        run: |
+          # Read the new version from package.json
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          
+          # Commit the changes
+          git add .
+          git commit -m "chore: bump version to v$NEW_VERSION"
+          
+          # Tag the commit
+          git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION"
+          
+          # Push the commit to main branch
+          git push origin main
+          
+          # Push the tag to trigger the Release workflow
+          git push origin "v$NEW_VERSION"

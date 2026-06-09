@@ -4,13 +4,14 @@ import { resolveConfig, saveConfig, loadConfig, getConfigPath } from "./config";
 import { checkStatus, checkAuth, listBills, listPayments, payPayment, APIError, login, createApiKey } from "./api";
 import { promptText, promptPassword } from "./prompt";
 import { hostname } from "node:os";
+import packageJson from "../package.json";
 
 const program = new Command();
 
 program
   .name("hornbill")
   .description("CLI client for Hornbill bill tracker")
-  .version("0.1.0")
+  .version(packageJson.version)
   .option("-u, --url <url>", "Hornbill server URL")
   .option("-k, --key <key>", "Hornbill personal access token")
   .option("-j, --json", "Format output as JSON");
