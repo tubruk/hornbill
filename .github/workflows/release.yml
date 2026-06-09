@@ -1,0 +1,56 @@
+name: Release CLI
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and Release CLI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run Typecheck
+        run: bun run typecheck
+
+      - name: Run Tests
+        run: bun test
+
+      - name: Build Standalone Binaries
+        run: |
+          mkdir -p dist
+          # Cross-compile stand-alone binaries using Bun compile
+          bun build --compile --target=bun-linux-x64 --minify --sourcemap packages/cli/src/index.ts --outfile dist/hornbill-linux-x64
+          bun build --compile --target=bun-linux-arm64 --minify --sourcemap packages/cli/src/index.ts --outfile dist/hornbill-linux-arm64
+          bun build --compile --target=bun-darwin-x64 --minify --sourcemap packages/cli/src/index.ts --outfile dist/hornbill-darwin-x64
+          bun build --compile --target=bun-darwin-arm64 --minify --sourcemap packages/cli/src/index.ts --outfile dist/hornbill-darwin-arm64
+          bun build --compile --target=bun-windows-x64 --minify --sourcemap packages/cli/src/index.ts --outfile dist/hornbill-windows-x64.exe
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/hornbill-linux-x64
+            dist/hornbill-linux-arm64
+            dist/hornbill-darwin-x64
+            dist/hornbill-darwin-arm64
+            dist/hornbill-windows-x64.exe
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
