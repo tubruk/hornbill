@@ -1293,6 +1293,31 @@ describe("API Routes", () => {
       });
       expect(res.status).toBe(201);
     });
+
+    test("onError handler directly", async () => {
+      const appAny = paymentsApp as any;
+      if (appAny.errorHandler) {
+        const mockContext = {
+          req: {
+            path: "/pay-1/pay",
+            param: (_key: string) => "pay-test-123",
+          },
+          json: (data: any, status: number) => ({ data, status }),
+        } as any;
+        const res = await appAny.errorHandler(new Error("Test error"), mockContext);
+        expect(res).toEqual({ data: { id: "pay-test-123" }, status: 200 });
+
+        const mockContextOther = {
+          req: {
+            path: "/other-path",
+            param: (_key: string) => undefined,
+          },
+          json: (data: any, status: number) => ({ data, status }),
+        } as any;
+        const resOther = await appAny.errorHandler(new Error("Other error"), mockContextOther);
+        expect(resOther).toEqual({ data: { error: "Other error" }, status: 500 });
+      }
+    });
   });
 
   describe("jobs routes", () => {

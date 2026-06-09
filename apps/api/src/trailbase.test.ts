@@ -79,6 +79,32 @@ describe("Trailbase Integration", () => {
         }));
       }
 
+      if (path === "/api/records/v1/api_keys") {
+        if (init?.method === "POST") {
+          const body = JSON.parse(init.body);
+          return new Response(JSON.stringify({ id: "key-new", ...body }));
+        }
+        return new Response(JSON.stringify({
+          records: [
+            { id: "key-1", user_id: "user-123", name: "Key 1", token_hash: "hash-123", created_at: 1717142404, last_used_at: null },
+            { id: "key-2", user_id: { id: "user-456" }, name: "Key 2", token_hash: "hash-456", created_at: 1717142404, last_used_at: 1717142500 }
+          ]
+        }));
+      }
+
+      if (path.startsWith("/api/records/v1/api_keys/")) {
+        const id = path.split("/").pop() || "";
+        if (init?.method === "PATCH") {
+          return new Response(JSON.stringify({ success: true }));
+        }
+        if (init?.method === "DELETE") {
+          return new Response(JSON.stringify({ success: true }));
+        }
+        return new Response(JSON.stringify({
+          id, user_id: "user-123", name: "Key 1", token_hash: "hash-123", created_at: 1717142404, last_used_at: null
+        }));
+      }
+
       return new Response(JSON.stringify({ success: true }));
     });
 
@@ -227,6 +253,55 @@ describe("Trailbase Integration", () => {
       const client = new TrailbaseClient();
       await client.associateUserToAccount("acc-1", "user-123");
       expect(fetchSpy).toHaveBeenCalled();
+    });
+
+    test("listApiKeys fetches and filters api keys", async () => {
+      const client = new TrailbaseClient();
+      const keys = await client.listApiKeys();
+      expect(keys).toHaveLength(2);
+      expect(keys[0].id).toBe("key-1");
+      expect(keys[0].user_id).toBe("user-123");
+      expect(keys[1].user_id).toBe("user-456");
+
+      const filteredKeys = await client.listApiKeys("user-123");
+      expect(filteredKeys).toHaveLength(1);
+      expect(filteredKeys[0].id).toBe("key-1");
+    });
+
+    test("getApiKey retrieves api key", async () => {
+      const client = new TrailbaseClient();
+      const key = await client.getApiKey("key-1");
+      expect(key.id).toBe("key-1");
+      expect(key.user_id).toBe("user-123");
+    });
+
+    test("createApiKey posts new api key", async () => {
+      const client = new TrailbaseClient();
+      const payload = { id: "key-new", user_id: "user-123", name: "New Key", token_hash: "hash-new" };
+      const key = await client.createApiKey(payload);
+      expect(key.id).toBe("key-new");
+      expect(key.created_at).toBeDefined();
+    });
+
+    test("updateApiKeyLastUsed patches api key last_used_at", async () => {
+      const client = new TrailbaseClient();
+      await client.updateApiKeyLastUsed("key-1");
+      expect(fetchSpy).toHaveBeenCalled();
+    });
+
+    test("deleteApiKey deletes api key", async () => {
+      const client = new TrailbaseClient();
+      await client.deleteApiKey("key-1");
+      expect(fetchSpy).toHaveBeenCalled();
+    });
+
+    test("verifyApiKeyHash verifies api key hash and updates last_used_at", async () => {
+      const client = new TrailbaseClient();
+      const payload = await client.verifyApiKeyHash("hash-123");
+      expect(payload).toEqual({ sub: "user-123" });
+      
+      const payloadNone = await client.verifyApiKeyHash("non-existent-hash");
+      expect(payloadNone).toBeNull();
     });
   });
 

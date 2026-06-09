@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
 import { resolveConfig, loadConfig, saveConfig, getConfigPath, getConfigDir } from "./config";
 import { checkStatus, checkAuth, listBills, listPayments, payPayment, APIError, login, createApiKey } from "./api";
-import { existsSync, unlinkSync } from "node:fs";
+import { existsSync, unlinkSync, mkdirSync, writeFileSync } from "node:fs";
 import type { Bill, Payment } from "@hornbill/core";
 
 // Helper to set mock fetch without TypeScript typing errors or any keyword
@@ -34,6 +34,17 @@ describe("CLI Config", () => {
   });
 
   it("should load empty config if file doesn't exist", () => {
+    const config = loadConfig();
+    expect(config).toEqual({});
+  });
+
+  it("should load empty config if file contains invalid JSON", () => {
+    const path = getConfigPath();
+    const configDir = getConfigDir();
+    if (!existsSync(configDir)) {
+      mkdirSync(configDir, { recursive: true });
+    }
+    writeFileSync(path, "invalid-json-content", "utf-8");
     const config = loadConfig();
     expect(config).toEqual({});
   });
