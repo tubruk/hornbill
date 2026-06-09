@@ -1,4 +1,4 @@
-name: Release CLI
+name: release
 
 on:
   push:
@@ -9,8 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    name: Build and Release CLI
+  cli:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
