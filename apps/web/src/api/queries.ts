@@ -53,7 +53,7 @@ export function useAccounts(
   return useQuery<Account[]>({
     queryKey: qk.accounts(),
     queryFn: fetchAccounts,
-    staleTime: 60_000,
+    staleTime: 300_000, // 5 minutes
     retry: 1,
     ...options,
   });
@@ -97,7 +97,7 @@ export function useBills(accountId: string | undefined) {
     queryKey: qk.bills(accountId),
     queryFn: () => fetchBills(accountId),
     enabled: !!accountId,
-    staleTime: 30_000,
+    staleTime: 120_000, // 2 minutes
     retry: 1,
   });
 }
@@ -189,7 +189,7 @@ export function usePayments(
     },
     // Only run when we have both an accountId and loaded bills
     enabled: !!accountId && Array.isArray(bills),
-    staleTime: 30_000,
+    staleTime: 120_000, // 2 minutes
     retry: 1,
   });
 }
@@ -313,7 +313,7 @@ export function useApiKeys(options?: Partial<UseQueryOptions<ApiKey[]>>) {
   return useQuery<ApiKey[]>({
     queryKey: qk.apiKeys(),
     queryFn: fetchApiKeys,
-    staleTime: 30_000,
+    staleTime: 300_000, // 5 minutes
     retry: 1,
     ...options,
   });

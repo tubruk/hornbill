@@ -20,7 +20,7 @@ import { SettingsView } from "./views/SettingsView";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30_000,           // Data fresh for 30 s
+      staleTime: 60_000,           // Data fresh for 60 s
       retry: 1,                    // Fail fast when API is offline
       refetchOnWindowFocus: false,
     },
