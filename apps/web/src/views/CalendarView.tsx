@@ -12,6 +12,8 @@ import {
   addMonths,
   subMonths,
   isToday,
+  differenceInDays,
+  parseISO,
 } from "date-fns";
 import {
   ChevronLeft,
@@ -625,8 +627,8 @@ export function CalendarView() {
                       statusBadgeColor = "text-warning bg-[#FEF3C7]/60 border border-[#FDE68A]/60 font-semibold";
                       prefixIcon = <Clock className="w-2.5 h-2.5 shrink-0" />;
                     } else if (status === "upcoming") {
-                      badgeClass = "text-primary bg-[#FFEDD5]/40 border border-[#FED7AA]/60 font-semibold";
-                      statusBadgeColor = "text-primary bg-[#FFEDD5]/40 border border-[#FED7AA]/60 font-semibold";
+                      badgeClass = "text-text-secondary bg-[#F5F5F4] border border-[#D6D3D1] font-semibold";
+                      statusBadgeColor = "text-text-secondary bg-[#F5F5F4] border border-[#D6D3D1] font-semibold";
                     }
 
                     return (
@@ -761,7 +763,7 @@ export function CalendarView() {
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-primary shrink-0" />
             <h4 className="font-display font-bold text-[18px] text-text-primary">
-              Agenda for {formatDatePretty(selectedDate)}
+              Payments due on {formatDatePretty(selectedDate)}
             </h4>
           </div>
           <Button
@@ -784,7 +786,8 @@ export function CalendarView() {
               const isSettled = !!p.paid_at;
               const isProjected = p.id.startsWith("projected-");
               const threshold = p.bill?.upcoming_threshold_days ?? currentAccount?.upcoming_threshold_days ?? DEFAULT_UPCOMING_THRESHOLD_DAYS;
-              const { status } = getPaymentState(p, todayStr, threshold);
+              const { status, paidLateByDays, unpaidOverdueByDays } = getPaymentState(p, todayStr, threshold);
+              const daysUntilDue = differenceInDays(parseISO(p.due_date), parseISO(todayStr));
               const isPaying = payMut.isPending && payMut.variables?.paymentId === p.id;
 
               return (
@@ -793,24 +796,38 @@ export function CalendarView() {
                   className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 first:pt-0 last:pb-0"
                 >
                   <div>
-                    <div className="text-[15px] font-semibold text-text-primary flex items-center gap-2 flex-wrap">
-                      <span>{p.bill?.name ?? "—"}</span>
+                    <div className="text-[15px] font-semibold flex items-center gap-2 flex-wrap">
+                      <span className={
+                        isProjected
+                          ? "italic text-text-secondary font-medium"
+                          : status === "overdue"
+                          ? "text-error font-bold"
+                          : "text-text-primary"
+                      }>
+                        {p.bill?.name ?? "—"}
+                      </span>
                       {isProjected && (
-                        <span className="text-[9px] font-bold bg-[#E7E5E4] border border-[#D6D3D1] border-dashed text-text-secondary px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        <span className="text-[9px] font-bold bg-[#E7E5E4] border border-[#D6D3D1] border-dashed text-text-secondary px-2 py-0.5 rounded-full uppercase tracking-wider italic">
                           Projected
                         </span>
                       )}
                       {!isProjected && !isSettled && (
                         <span
-                          className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                          className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 ${
                             status === "overdue"
                               ? "bg-[#FEE2E2] text-error border border-[#FCA5A5]"
                               : status === "due_soon"
                               ? "bg-[#FEF3C7] text-warning border border-[#FDE68A]"
-                              : "bg-[#FFEDD5] text-primary border border-[#FED7AA]"
+                              : "bg-[#F5F5F4] text-text-secondary border border-[#D6D3D1]"
                           }`}
                         >
-                          {status === "overdue" ? "Overdue" : status === "due_soon" ? "Due Soon" : "Upcoming"}
+                          {status === "overdue" && <AlertCircle className="w-2.5 h-2.5" />}
+                          {status === "due_soon" && <Clock className="w-2.5 h-2.5" />}
+                          {status === "overdue"
+                            ? `Overdue by ${unpaidOverdueByDays} ${unpaidOverdueByDays === 1 ? "day" : "days"}`
+                            : daysUntilDue === 0
+                            ? "Due today"
+                            : `Due in ${daysUntilDue} ${daysUntilDue === 1 ? "day" : "days"}`}
                         </span>
                       )}
                       {isSettled && (
@@ -819,37 +836,18 @@ export function CalendarView() {
                             ? "bg-[#FEF3C7] text-warning border border-[#FDE68A]"
                             : "bg-[#DCFCE7] text-success border border-[#BBF7D0]"
                         }`}>
-                          <Check className="w-2.5 h-2.5" /> {status === "paid_late" ? "Paid Late" : "Settled"}
+                          <Check className="w-2.5 h-2.5" />
+                          {status === "paid_late"
+                            ? `Late ${paidLateByDays} ${paidLateByDays === 1 ? "day" : "days"}`
+                            : "On Time"}
                         </span>
                       )}
                     </div>
-                    <div className="text-[12px] text-text-secondary font-mono mt-0.5">
-                      {!isSettled ? (
-                        <>
-                          Due Date:{" "}
-                          <span className={
-                            status === "overdue"
-                              ? "text-error font-semibold"
-                              : status === "due_soon"
-                              ? "text-warning font-semibold"
-                              : "text-primary font-semibold"
-                          }>
-                            {p.due_date}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          Due: {p.due_date}
-                          {p.paid_at && (
-                            <span className={`ml-2 font-semibold ${
-                              status === "paid_late" ? "text-warning" : "text-success"
-                            }`}>
-                              · Paid {new Date(p.paid_at * 1000).toISOString().split("T")[0]}
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </div>
+                    {isSettled && (
+                      <div className="text-[12px] text-text-secondary font-mono mt-0.5">
+                        Paid on {formatDateStr(new Date(p.paid_at! * 1000).toISOString().split("T")[0])}
+                      </div>
+                    )}
                     {p.notes && (
                       <div className="text-[13px] text-text-secondary italic mt-1 max-w-lg">
                         Note: {p.notes}
@@ -858,7 +856,13 @@ export function CalendarView() {
                   </div>
 
                   <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-border-warm/40">
-                    <span className="text-[15px] font-mono font-semibold text-text-primary">
+                    <span className={`text-[15px] font-mono font-semibold ${
+                      isProjected
+                        ? "italic text-text-secondary font-medium"
+                        : status === "overdue"
+                        ? "text-error font-bold"
+                        : "text-text-primary"
+                    }`}>
                       {formatCents(p.amount_cents, p.bill?.currency ?? "USD")}
                     </span>
 
