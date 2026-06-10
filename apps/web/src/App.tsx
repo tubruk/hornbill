@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import {
@@ -103,6 +104,17 @@ declare module "@tanstack/react-router" {
 // ── App root ────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const [isMobile, setIsMobile] = useState(() => {
+    return typeof window !== "undefined" ? window.matchMedia("(max-width: 768px)").matches : false;
+  });
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 768px)");
+    const listener = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    media.addEventListener("change", listener);
+    return () => media.removeEventListener("change", listener);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -110,7 +122,12 @@ export default function App() {
           <RouterProvider router={router} />
         </AppProvider>
       </AuthProvider>
-      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+      {import.meta.env.DEV && (
+        <ReactQueryDevtools 
+          initialIsOpen={false} 
+          buttonPosition={isMobile ? "top-right" : "bottom-right"} 
+        />
+      )}
     </QueryClientProvider>
   );
 }

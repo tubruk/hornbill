@@ -160,12 +160,12 @@ export function RootLayout() {
       />
 
       {/* ── Main workspace ────────────────────────────────── */}
-      <main className="flex-1 min-w-0 overflow-y-auto py-10 px-6 md:px-12 flex flex-col">
-        <div className="max-w-[1200px] w-full mx-auto flex flex-col flex-1 gap-8">
+      <main className="flex-1 min-w-0 overflow-y-auto pt-6 pb-24 px-4 md:py-10 md:px-12 flex flex-col">
+        <div className="max-w-[1200px] w-full mx-auto flex flex-col flex-1 gap-6 md:gap-8">
 
           {/* Page header */}
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-border-warm">
-            <div>
+          <div className="flex items-center justify-between pb-4 sm:pb-6 border-b border-border-warm">
+            <div className="hidden sm:block">
               <h2 className="font-display font-bold text-[28px] text-text-primary leading-tight mb-1">
                 {meta.title}
               </h2>
@@ -173,7 +173,7 @@ export function RootLayout() {
                 {meta.subtitle}
               </p>
             </div>
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-3 justify-between sm:justify-end w-full sm:w-auto">
               <span className="text-[12px] font-semibold px-3 py-1.5 rounded-sm bg-surface-warm border border-border-warm text-text-secondary font-mono select-none">
                 {todayStr}
               </span>

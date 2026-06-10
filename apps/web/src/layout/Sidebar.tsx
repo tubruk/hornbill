@@ -25,6 +25,14 @@ const NAV_ITEMS = [
   { to: "/settings",   label: "Settings",  icon: Settings },
 ] as const;
 
+const ROUTE_TITLES: Record<string, string> = {
+  "/": "Dashboard",
+  "/calendar": "Calendar",
+  "/bills": "Bills",
+  "/payments": "Payments",
+  "/settings": "Settings",
+};
+
 interface Props {
   accounts: Account[];
   currentAccount: Account | null;
@@ -82,144 +90,149 @@ export function Sidebar({
     setMenuOpen(false);
   }
 
+  const currentTitle = ROUTE_TITLES[location.pathname] ?? ROUTE_TITLES["/"];
+
   return (
     <aside className="w-full md:w-64 bg-background-warm border-b md:border-b-0 md:border-r border-border-warm flex flex-col z-20 shrink-0 select-none">
 
       {/* ── Brand + Account Switcher ──────────────────────── */}
-      <div className="p-5 border-b border-border-warm">
+      <div className="p-3.5 md:p-5 border-b border-border-warm flex items-center justify-between md:block">
 
         {/* Brand mark */}
-        <div className="flex items-center gap-3 mb-5">
-          <img src={logo} alt="Hornbill Logo" className="w-9 h-9 object-contain rounded-sm shadow-sm shrink-0" />
+        <div className="flex items-center gap-3">
+          <img src={logo} alt="Hornbill Logo" className="w-8 h-8 md:w-9 md:h-9 object-contain rounded-sm shadow-sm shrink-0" />
           <div>
-            <h1 className="font-display font-bold text-[20px] text-text-primary tracking-tight leading-none">
-              Hornbill
+            <h1 className="font-display font-bold text-[18px] md:text-[20px] text-text-primary tracking-tight leading-none">
+              <span className="md:hidden">{currentTitle}</span>
+              <span className="hidden md:inline">Hornbill</span>
             </h1>
-            <span className="text-[11px] font-semibold text-neutral-muted uppercase tracking-wider block mt-0.5">
+            <span className="text-[11px] font-semibold text-neutral-muted uppercase tracking-wider hidden md:block mt-0.5">
               Bill Tracker
             </span>
           </div>
         </div>
 
         {/* Account Switcher */}
-        {accounts.filter((acc) => !acc.archived).length > 1 ? (
-          <div ref={menuRef} className="relative">
-            <button
-              id="account-switcher-btn"
-              onClick={() => setMenuOpen((v) => !v)}
-              className="w-full h-10 px-3 bg-surface-warm border border-border-warm rounded-sm text-left text-[14px] font-semibold text-text-primary flex items-center justify-between hover:bg-surface-raised transition-all cursor-pointer gap-2"
-              aria-expanded={menuOpen}
-              aria-haspopup="listbox"
-            >
-              <span className="flex items-center gap-2 truncate min-w-0">
-                <Layers className="w-4 h-4 text-primary shrink-0" />
-                <span className="truncate">
-                  {isLoadingAccounts
-                    ? "Loading…"
-                    : currentAccount?.name ?? "Select Account"}
-                </span>
-              </span>
-              <ChevronDown
-                className={`w-4 h-4 text-text-secondary shrink-0 transition-transform duration-150 ${menuOpen ? "rotate-180" : ""}`}
-              />
-            </button>
-
-            {menuOpen && (
-              <div
-                className="absolute left-0 right-0 top-full mt-1.5 bg-background-warm border border-border-warm rounded-sm shadow-lg z-30 animate-slideDown overflow-hidden"
-                role="listbox"
-                aria-label="Accounts"
+        <div className="hidden md:block mt-5">
+          {accounts.filter((acc) => !acc.archived).length > 1 ? (
+            <div ref={menuRef} className="relative">
+              <button
+                id="account-switcher-btn"
+                onClick={() => setMenuOpen((v) => !v)}
+                className="w-full h-10 px-3 bg-surface-warm border border-border-warm rounded-sm text-left text-[14px] font-semibold text-text-primary flex items-center justify-between hover:bg-surface-raised transition-all cursor-pointer gap-2"
+                aria-expanded={menuOpen}
+                aria-haspopup="listbox"
               >
-                {/* Account list */}
-                {accounts.filter((acc) => !acc.archived).length > 0 ? (
-                  <div className="p-1">
-                    {accounts
-                      .filter((acc) => !acc.archived)
-                      .map((acc) => (
-                        <button
-                          key={acc.id}
-                          role="option"
-                          aria-selected={currentAccount?.id === acc.id}
-                          onClick={() => {
-                            onSelectAccount(acc);
-                            setMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-sm text-left text-[14px] font-semibold transition-colors cursor-pointer ${
-                            currentAccount?.id === acc.id
-                              ? "bg-surface-raised text-primary"
-                              : "text-text-secondary hover:bg-surface-warm hover:text-text-primary"
-                          }`}
-                        >
-                          <span className="truncate">{acc.name}</span>
-                          {currentAccount?.id === acc.id && (
-                            <Check className="w-4 h-4 text-primary shrink-0" />
-                          )}
-                        </button>
-                      ))}
-                  </div>
-                ) : (
-                  <p className="px-3 py-3 text-[13px] text-text-secondary font-medium">
-                    No accounts yet.
-                  </p>
-                )}
+                <span className="flex items-center gap-2 truncate min-w-0">
+                  <Layers className="w-4 h-4 text-primary shrink-0" />
+                  <span className="truncate">
+                    {isLoadingAccounts
+                      ? "Loading…"
+                      : currentAccount?.name ?? "Select Account"}
+                  </span>
+                </span>
+                <ChevronDown
+                  className={`w-4 h-4 text-text-secondary shrink-0 transition-transform duration-150 ${menuOpen ? "rotate-180" : ""}`}
+                />
+              </button>
 
-                {/* Divider */}
-                <div className="border-t border-border-warm" />
-
-                {/* New account */}
-                <div className="p-2">
-                  {showNewInput ? (
-                    <div className="flex gap-1.5">
-                      <input
-                        ref={inputRef}
-                        type="text"
-                        value={newAccountName}
-                        onChange={(e) => setNewAccountName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleCreateAccount();
-                          if (e.key === "Escape") {
-                            setShowNewInput(false);
-                            setNewAccountName("");
-                          }
-                        }}
-                        placeholder="Account name…"
-                        className="flex-1 min-w-0 bg-surface-warm border border-border-warm rounded-sm px-2.5 py-1.5 text-[13px] font-body text-text-primary outline-none focus:border-primary focus:ring-2 focus:ring-primary/12"
-                      />
-                      <Button
-                        variant="primary"
-                        size="small"
-                        onClick={handleCreateAccount}
-                        disabled={!newAccountName.trim() || isCreatingAccount}
-                        className="shrink-0 !px-2.5"
-                      >
-                        {isCreatingAccount ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Check className="w-3.5 h-3.5" />
-                        )}
-                      </Button>
+              {menuOpen && (
+                <div
+                  className="absolute left-0 right-0 top-full mt-1.5 bg-background-warm border border-border-warm rounded-sm shadow-lg z-30 animate-slideDown overflow-hidden"
+                  role="listbox"
+                  aria-label="Accounts"
+                >
+                  {/* Account list */}
+                  {accounts.filter((acc) => !acc.archived).length > 0 ? (
+                    <div className="p-1">
+                      {accounts
+                        .filter((acc) => !acc.archived)
+                        .map((acc) => (
+                          <button
+                            key={acc.id}
+                            role="option"
+                            aria-selected={currentAccount?.id === acc.id}
+                            onClick={() => {
+                              onSelectAccount(acc);
+                              setMenuOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-sm text-left text-[14px] font-semibold transition-colors cursor-pointer ${
+                              currentAccount?.id === acc.id
+                                ? "bg-surface-raised text-primary"
+                                : "text-text-secondary hover:bg-surface-warm hover:text-text-primary"
+                            }`}
+                          >
+                            <span className="truncate">{acc.name}</span>
+                            {currentAccount?.id === acc.id && (
+                              <Check className="w-4 h-4 text-primary shrink-0" />
+                            )}
+                          </button>
+                        ))}
                     </div>
                   ) : (
-                    <button
-                      onClick={() => setShowNewInput(true)}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-sm text-[13px] font-semibold text-text-secondary hover:text-primary hover:bg-surface-warm transition-colors cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      New account
-                    </button>
+                    <p className="px-3 py-3 text-[13px] text-text-secondary font-medium">
+                      No accounts yet.
+                    </p>
                   )}
+
+                  {/* Divider */}
+                  <div className="border-t border-border-warm" />
+
+                  {/* New account */}
+                  <div className="p-2">
+                    {showNewInput ? (
+                      <div className="flex gap-1.5">
+                        <input
+                          ref={inputRef}
+                          type="text"
+                          value={newAccountName}
+                          onChange={(e) => setNewAccountName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleCreateAccount();
+                            if (e.key === "Escape") {
+                              setShowNewInput(false);
+                              setNewAccountName("");
+                            }
+                          }}
+                          placeholder="Account name…"
+                          className="flex-1 min-w-0 bg-surface-warm border border-border-warm rounded-sm px-2.5 py-1.5 text-[13px] font-body text-text-primary outline-none focus:border-primary focus:ring-2 focus:ring-primary/12"
+                        />
+                        <Button
+                          variant="primary"
+                          size="small"
+                          onClick={handleCreateAccount}
+                          disabled={!newAccountName.trim() || isCreatingAccount}
+                          className="shrink-0 !px-2.5"
+                        >
+                          {isCreatingAccount ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Check className="w-3.5 h-3.5" />
+                          )}
+                        </Button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowNewInput(true)}
+                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-sm text-[13px] font-semibold text-text-secondary hover:text-primary hover:bg-surface-warm transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        New account
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          currentAccount && (
-            <div className="w-full h-10 px-3 bg-surface-warm/40 border border-border-warm/60 rounded-sm text-left text-[14px] font-semibold text-text-secondary flex items-center gap-2 select-none">
-              <Layers className="w-4 h-4 text-neutral-muted shrink-0" />
-              <span className="truncate">{currentAccount.name}</span>
+              )}
             </div>
-          )
-        )}
+          ) : (
+            currentAccount && (
+              <div className="w-full h-10 px-3 bg-surface-warm/40 border border-border-warm/60 rounded-sm text-left text-[14px] font-semibold text-text-secondary flex items-center gap-2 select-none">
+                <Layers className="w-4 h-4 text-neutral-muted shrink-0" />
+                <span className="truncate">{currentAccount.name}</span>
+              </div>
+            )
+          )}
+        </div>
       </div>
 
       {/* ── Desktop nav links ─────────────────────────────── */}
@@ -269,7 +282,7 @@ export function Sidebar({
       </div>
 
       {/* ── Mobile bottom tab bar ─────────────────────────── */}
-      <div className="flex md:hidden items-center justify-around border-t border-border-warm py-2.5 px-4 bg-surface-warm shadow-inner z-20">
+      <div className="flex md:hidden fixed bottom-0 left-0 right-0 items-center justify-around border-t border-border-warm pt-2.5 pb-4 px-4 bg-surface-warm shadow-[0_-4px_12px_rgba(28,25,23,0.05)] z-30">
         {NAV_ITEMS.map(({ to, label, icon: Icon }) => {
           const isActive = to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
           return (
