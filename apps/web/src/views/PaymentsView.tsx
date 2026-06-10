@@ -344,7 +344,7 @@ export function PaymentsView() {
                         dropdownItems={
                           <DropdownItem onClick={() => handleEdit(p)}>
                             <Edit2 className="w-4 h-4 text-text-secondary" />
-                            Edit Payment
+                            Edit
                           </DropdownItem>
                         }
                       />
