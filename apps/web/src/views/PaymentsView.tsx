@@ -309,11 +309,18 @@ export function PaymentsView() {
                       ) : (
                         <>
                           Due: {formatDate(p.due_date)}
-                          {p.paid_at && (
-                            <span className="ml-2 text-success">
-                              · Paid {formatDate(new Date(p.paid_at * 1000).toISOString().split("T")[0])}
-                            </span>
-                          )}
+                          {p.paid_at && (() => {
+                            const paidDateStr = new Date(p.paid_at * 1000).toISOString().split("T")[0];
+                            const d1 = Date.parse(p.due_date + "T00:00:00Z");
+                            const d2 = Date.parse(paidDateStr + "T00:00:00Z");
+                            const diffDays = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+                            const isLate = diffDays > 0;
+                            return (
+                              <span className={`ml-2 font-semibold ${isLate ? "text-warning" : "text-success"}`}>
+                                · Paid {formatDate(paidDateStr)} {isLate && `(${diffDays} ${diffDays === 1 ? "day" : "days"} late)`}
+                              </span>
+                            );
+                          })()}
                         </>
                       )}
                     </span>
