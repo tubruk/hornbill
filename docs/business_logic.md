@@ -28,13 +28,14 @@ An individual execution cycle of a Bill.
 
 Unpaid payments are categorized dynamically relative to a target reference date (today) and the configured warning threshold.
 
-| Status | Condition | Description | UI representation |
+| Status | Condition | Description | UI Representation |
 | :--- | :--- | :--- | :--- |
-| **Paid** | `paid_at` is set and `paid_date <= due_date` | The payment was settled on or before the due date. | Success (Green) |
-| **Paid Late** | `paid_at` is set and `paid_date > due_date` | The payment was settled after its due date. | Success (Green) |
-| **Overdue** | `paid_at` is null and `due_date < today` | The due date has passed but the payment remains unsettled. | Error (Red) |
-| **Due Soon** | `paid_at` is null, `due_date >= today`, and `days_until_due <= threshold` | The payment is due soon and needs near-term attention. | Warning (Yellow) |
-| **Upcoming** | `paid_at` is null, `due_date >= today`, and `days_until_due > threshold` | The payment is due far in the future and does not require immediate action. | Info (Blue) |
+| **Paid** | `paid_at` is set and `paid_date <= due_date` | The payment was settled on or before the due date. | Success (Green) + Strikethrough + Muted Opacity + Check Icon |
+| **Paid Late** | `paid_at` is set and `paid_date > due_date` | The payment was settled after its due date. | Warning (Amber) + Strikethrough + Muted Opacity + Check Icon |
+| **Overdue** | `paid_at` is null and `due_date < today` | The due date has passed but the payment remains unsettled. | Error (Red) + Bold Text + Alert Icon |
+| **Due Soon** | `paid_at` is null, `due_date >= today`, and `days_until_due <= threshold` | The payment is due soon and needs near-term attention. | Warning (Amber) + Bold Text + Clock Icon |
+| **Upcoming** | `paid_at` is null, `due_date >= today`, and `days_until_due > threshold` | The payment is due far in the future and does not require immediate action. | Primary (Terracotta) + Bold Text |
+| **Projected** | Virtual future projection (does not exist in DB yet) | Computed upcoming cycles based on recurrence rules. | Neutral (Stone) + Dashed Border + Italic Text |
 
 ### Warning Threshold Resolution
 To determine the warning window (`threshold`) for classifying a payment as **Due Soon** vs. **Upcoming**:
