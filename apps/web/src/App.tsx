@@ -11,6 +11,7 @@ import { AppProvider } from "./context/AppContext";
 import { AuthProvider } from "./context/AuthContext";
 import { RootLayout } from "./layout/RootLayout";
 import { DashboardView } from "./views/DashboardView";
+import { CalendarView } from "./views/CalendarView";
 import { BillsView } from "./views/BillsView";
 import { PaymentsView } from "./views/PaymentsView";
 import { SettingsView } from "./views/SettingsView";
@@ -35,6 +36,23 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   component: DashboardView,
+});
+
+type CalendarSearch = {
+  year?: number;
+  month?: number;
+};
+
+const calendarRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/calendar",
+  validateSearch: (search: Record<string, unknown>): CalendarSearch => {
+    return {
+      year: typeof search.year === "number" ? search.year : (typeof search.year === "string" && !isNaN(parseInt(search.year, 10)) ? parseInt(search.year, 10) : undefined),
+      month: typeof search.month === "number" ? search.month : (typeof search.month === "string" && !isNaN(parseInt(search.month, 10)) ? parseInt(search.month, 10) : undefined),
+    };
+  },
+  component: CalendarView,
 });
 
 const billsRoute = createRoute({
@@ -69,6 +87,7 @@ const settingsRoute = createRoute({
 const router = createRouter({
   routeTree: rootRoute.addChildren([
     indexRoute,
+    calendarRoute,
     billsRoute,
     paymentsRoute,
     settingsRoute,

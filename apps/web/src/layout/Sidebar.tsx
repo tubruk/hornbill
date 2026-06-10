@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard,
+  Calendar,
   Receipt,
   Wallet,
   Settings,
@@ -18,6 +19,7 @@ import logo from "../assets/logo.png";
 
 const NAV_ITEMS = [
   { to: "/",            label: "Dashboard", icon: LayoutDashboard },
+  { to: "/calendar",    label: "Calendar",  icon: Calendar },
   { to: "/bills",       label: "Bills",     icon: Receipt },
   { to: "/payments",   label: "Payments",  icon: Wallet },
   { to: "/settings",   label: "Settings",  icon: Settings },

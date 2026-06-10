@@ -25,6 +25,10 @@ const ROUTE_META: Record<string, { title: string; subtitle: string }> = {
     title: "Dashboard",
     subtitle: "A unified overview of your recurring bills and active subscriptions.",
   },
+  "/calendar": {
+    title: "Calendar",
+    subtitle: "Visualize recurring bills, deadlines, and history on a monthly schedule.",
+  },
   "/bills": {
     title: "Bills",
     subtitle: "Manage recurring bills, services, and subscription plans.",
