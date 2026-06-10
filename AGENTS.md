@@ -64,4 +64,11 @@ All UI components, colors, typography, spacing, border radii, shadows, and layou
 - **No `any` in Source Files**: Avoid using the `any` type in source code files. This rule is strictly enforced by the ESLint configuration and the Git pre-commit hook.
 - **Codecov Threshold**: Codecov is configured to fail if overall project coverage falls below `90%`, but individual status drops on patches are set to `off` (meaning patch coverage changes are allowed as long as the overall percentage remains at or above 90%).
 
+---
+
+## 6. Documentation Rules
+
+- **Directory Categorization**: User-facing documentation must reside in the `docs/user/` directory. Developer-facing documentation must reside in the `docs/developer/` directory.
+- **Naming Conventions**: Use consistent lowercase underscore naming for all documentation files (e.g., `reverse_proxy.md` instead of `reverse-proxy.md`).
+
 

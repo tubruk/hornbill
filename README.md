@@ -16,14 +16,14 @@
 
 ## 💡 Key Features
 
-- **🔒 Your data stays with you** – stored in a local SQLite database (powered by [Trailbase](https://trailbase.io/)).
+- **🗓️ Calendar View** – track and visualize upcoming due dates in a clean, interactive monthly calendar.
 - **📅 Flexible recurrence** – configure monthly, yearly, or custom intervals.
+- **📱 Responsive PWA** – installable web app optimized for both mobile and desktop screens.
 - **💱 Multi-currency** – supports tracking bills in multiple currencies.
 - **🔔 Reminder notifications** – daily checks and alert notifications via Discord, Slack, Telegram, ntfy, Gotify, or generic Webhooks.
-- **📂 Data Export/Import** – export and import your complete profile, bills, and payment records in JSON format at any time.
-- **🛡️ Free and open source** – released under the AGPL‑v3.
+Hornbill is designed for simple, privacy-focused self-hosting using a Docker-based setup and a clean, minimalist web UI. Your data always stays with you, stored locally in a SQLite database powered by [Trailbase](https://trailbase.io/).
 
-Hornbill is built for simple self-hosting with a Docker-based setup and a clean, minimalist web UI. It also provides a REST API for integrating with your own services and tools.
+As a fully free and open-source project (AGPL-v3), it is built to be highly extensible and portable. Hornbill provides a comprehensive REST API, an official CLI, and native AI agent skills to seamlessly support programmatic JSON-based backup and restore, custom third-party integrations, and autonomous agentic workflows.
 
 
 
@@ -32,33 +32,35 @@ Hornbill is built for simple self-hosting with a Docker-based setup and a clean,
 [<img alt="Hornbill Dashboard" src=".github/assets/ss_hornbill_dashboard.png" height="250px">](.github/assets/ss_hornbill_dashboard.png)
 [<img alt="Hornbill Bills" src=".github/assets/ss_hornbill_bills.png" height="250px">](.github/assets/ss_hornbill_bills.png)
 
-## 🚀 Quick Start (Docker)
+## 🚀 Deployment
 
-To run the pre-built image from GitHub Container Registry (GHCR):
+The recommended way to deploy Hornbill is using **Docker Compose**. For detailed instructions, see the consolidated [Installation Guide](docs/user/install.md).
 
+### Quick Start Previews
+
+**Docker Compose (Recommended):**
 ```bash
-# Run the container (mounts a directory to persist data)
-docker run -d \
-  -p 3000:3000 -p 4000:4000 \
-  -v ./data:/app/data \
-  --name hornbill \
-  ghcr.io/chickenzord/hornbill:latest
-```
-
-### Alternative: Run from Source (Docker Compose)
-
-To build and run the image from the source code, you can use the provided [docker-compose.yml](docker-compose.yml) which builds from the local directory context:
-
-```bash
-# Build and run the container in the background
+# Start Hornbill using Docker Compose
 docker compose up -d
 ```
 
-Open `http://localhost:3000` in your browser to start using Hornbill.
+**Docker Run:**
+```bash
+# Run Hornbill as a single container
+docker run -d -p 3000:3000 -p 4000:4000 -v ./data:/app/data --name hornbill ghcr.io/chickenzord/hornbill:latest
+```
 
-> [!NOTE]
-> Hornbill does not manage or provision SSL certificates directly. To run Hornbill securely over HTTPS, it is highly recommended to deploy it behind a reverse proxy. See the [Reverse Proxy & SSL Setup](docs/reverse-proxy.md) guide for Caddy and Nginx configuration templates.
+### Running from Source
 
+To build and run Hornbill from the local source code using Docker:
+
+```bash
+# Build the image locally using the latest tag
+docker build -t ghcr.io/chickenzord/hornbill:latest .
+
+# Run with Docker Compose
+docker compose up -d
+```
 
 ## 💻 CLI & Agent Integration
 
@@ -143,7 +145,8 @@ However, since Hornbill provides a comprehensive REST API, you are welcome to bu
 
 ## 🤝 Getting Help
 
-- **Documentation** – see the `docs/` folder for a quick user guide.
+- **Documentation** – see the [docs/user/](docs/user/) folder for user guides, or [docs/developer/](docs/developer/) for developer docs.
+- **Development Setup** – see the [Development Guide](docs/developer/development.md) to start your local dev server.
 - **API Reference** – interactive Scalar API documentation is served at `/docs` (or view raw spec at `/api/v1/openapi.json`).
 - **Issues** – open a GitHub issue for bugs or feature requests.
 - **Contributing** – feel free to submit pull requests; follow the guidelines in `CONTRIBUTING.md`.

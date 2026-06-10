@@ -1,11 +1,6 @@
-version: '3.8'
-
 services:
   hornbill:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: hornbill:latest
+    image: ghcr.io/chickenzord/hornbill:latest
     container_name: hornbill-app
     ports:
       - "3000:3000"
