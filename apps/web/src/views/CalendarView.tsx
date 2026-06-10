@@ -54,6 +54,12 @@ function formatDatePretty(date: Date): string {
   });
 }
 
+function formatDateStr(iso: string): string {
+  return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+  });
+}
+
 // ── Projection Merging Algorithm ───────────────────────────────────────────
 
 function getProjectedPaymentsForBill(
@@ -487,7 +493,7 @@ export function CalendarView() {
               {/* Active (Unpaid) */}
               <div className="bg-background-warm border border-border-warm/60 p-3 rounded-sm">
                 <span className="text-[11px] font-semibold text-text-secondary block">ACTIVE (UNPAID)</span>
-                <div className="text-[16px] font-mono font-bold text-primary mt-1">
+                <div className="text-[16px] font-mono font-bold text-text-primary mt-1">
                   {activeCurrencies.map((cur) => (
                     <div key={cur}>{formatCents(monthlySummary.active[cur] || 0, cur)}</div>
                   ))}
@@ -517,7 +523,7 @@ export function CalendarView() {
       </div>
 
       {/* ── Main Calendar Content Grid ───────────────────── */}
-      <div className="bg-surface-warm border border-border-warm rounded-sm shadow-sm overflow-hidden select-none">
+      <div className="bg-surface-warm border border-border-warm rounded-sm shadow-sm overflow-visible select-none">
         
         {/* Grid Day Names Headers */}
         <div className="grid grid-cols-7 border-b border-border-warm bg-surface-raised text-center py-2 text-[11px] font-bold uppercase tracking-wider text-text-secondary">
@@ -587,51 +593,118 @@ export function CalendarView() {
                     let badgeClass = "text-text-secondary bg-surface-raised border border-border-warm";
                     let prefixIcon = null;
 
+                    const statusLabel = isProjected
+                      ? "Projected"
+                      : isSettled
+                      ? "Paid"
+                      : status === "overdue"
+                      ? "Overdue"
+                      : status === "due_soon"
+                      ? "Due Soon"
+                      : "Upcoming";
+
+                    let statusBadgeColor = "text-text-secondary bg-surface-raised border border-border-warm";
+
                     if (isProjected) {
                       badgeClass = "text-text-secondary border border-dashed border-neutral bg-background-warm/30 italic";
+                      statusBadgeColor = "text-text-secondary border border-dashed border-neutral bg-background-warm/30 italic";
                     } else if (isSettled) {
                       badgeClass = "text-success bg-[#DCFCE7]/40 border border-[#BBF7D0]/60 line-through opacity-60";
+                      statusBadgeColor = "text-success bg-[#DCFCE7]/40 border border-[#BBF7D0]/60 opacity-60";
                       prefixIcon = <Check className="w-2.5 h-2.5 shrink-0" />;
                     } else if (status === "overdue") {
                       badgeClass = "text-error bg-[#FEE2E2]/60 border border-[#FCA5A5]/60 font-semibold";
+                      statusBadgeColor = "text-error bg-[#FEE2E2]/60 border border-[#FCA5A5]/60 font-semibold";
                       prefixIcon = <AlertCircle className="w-2.5 h-2.5 shrink-0 animate-pulse" />;
                     } else if (status === "due_soon") {
                       badgeClass = "text-warning bg-[#FEF3C7]/60 border border-[#FDE68A]/60 font-semibold";
+                      statusBadgeColor = "text-warning bg-[#FEF3C7]/60 border border-[#FDE68A]/60 font-semibold";
                       prefixIcon = <Clock className="w-2.5 h-2.5 shrink-0" />;
                     } else if (status === "upcoming") {
                       badgeClass = "text-primary bg-[#FFEDD5]/40 border border-[#FED7AA]/60 font-semibold";
+                      statusBadgeColor = "text-primary bg-[#FFEDD5]/40 border border-[#FED7AA]/60 font-semibold";
                     }
 
                     return (
-                      <button
-                        key={p.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (isProjected) {
-                            handlePay(
-                              p.id,
-                              p.bill?.name ?? "Bill",
-                              p.due_date,
-                              false,
-                              p.bill?.amount_cents ?? p.amount_cents,
-                              p.bill?.currency ?? "USD",
-                              true
-                            );
-                          } else {
-                            handleEdit(p);
-                          }
-                        }}
-                        className={`w-full flex items-center justify-between gap-1 px-1.5 py-0.5 rounded-sm text-[11px] font-medium leading-none truncate cursor-pointer hover:brightness-95 transition-all ${badgeClass}`}
-                        title={`${p.bill?.name}: ${formatCents(p.amount_cents, p.bill?.currency)}`}
-                      >
-                        <span className="flex items-center gap-0.5 truncate">
-                          {prefixIcon}
-                          <span className="truncate">{p.bill?.name}</span>
-                        </span>
-                        <span className="font-mono text-[9px] shrink-0">
-                          {formatCents(p.amount_cents, p.bill?.currency).replace(/\.00$/, "")}
-                        </span>
-                      </button>
+                      <div key={p.id} className="relative group w-full">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isProjected) {
+                              handlePay(
+                                p.id,
+                                p.bill?.name ?? "Bill",
+                                p.due_date,
+                                false,
+                                p.bill?.amount_cents ?? p.amount_cents,
+                                p.bill?.currency ?? "USD",
+                                true
+                              );
+                            } else {
+                              handleEdit(p);
+                            }
+                          }}
+                          className={`w-full flex items-center justify-between gap-1 px-1.5 py-0.5 rounded-sm text-[11px] font-medium leading-none truncate cursor-pointer hover:brightness-95 transition-all ${badgeClass}`}
+                        >
+                          <span className="flex items-center gap-0.5 truncate">
+                            {prefixIcon}
+                            <span className="truncate">{p.bill?.name}</span>
+                          </span>
+                          <span className="font-mono text-[9px] shrink-0">
+                            {formatCents(p.amount_cents, p.bill?.currency).replace(/\.00$/, "")}
+                          </span>
+                        </button>
+
+                        {/* Hover Popup Tooltip */}
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 w-64 bg-surface-warm border border-border-warm rounded-sm shadow-md p-3 text-left pointer-events-none animate-fadeIn select-text">
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-surface-warm" />
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-border-warm -z-10 mt-[1px]" />
+
+                          <div className="space-y-1.5 text-text-primary text-[12px] font-body">
+                            <div className="flex items-center justify-between gap-2 border-b border-border-warm/60 pb-1.5">
+                              <h5 className="font-display font-bold text-[14px] leading-tight truncate">
+                                {p.bill?.name ?? "Bill"}
+                              </h5>
+                              <span className="font-mono font-semibold text-[13px] shrink-0 text-text-primary">
+                                {formatCents(p.amount_cents, p.bill?.currency ?? "USD")}
+                              </span>
+                            </div>
+
+                            <div>
+                              <span className="text-text-secondary font-semibold">Due: </span>
+                              <span className="font-mono font-medium">{formatDateStr(p.due_date)}</span>
+                            </div>
+
+                            {isSettled && p.paid_at && (
+                              <div>
+                                <span className="text-success font-semibold">Paid: </span>
+                                <span className="font-mono font-medium text-success">
+                                  {formatDateStr(new Date(p.paid_at * 1000).toISOString().split("T")[0])}
+                                </span>
+                              </div>
+                            )}
+
+                            <div>
+                              <span className="text-text-secondary font-semibold">Status: </span>
+                              <span className={`inline-block px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-sm ${statusBadgeColor}`}>
+                                {statusLabel}
+                              </span>
+                            </div>
+
+                            {p.bill?.recurrence && (
+                              <div className="text-[11px] text-text-secondary font-medium">
+                                Recurrence: <span className="capitalize">{p.bill.recurrence.type}</span>
+                              </div>
+                            )}
+
+                            {p.notes && (
+                              <div className="text-[11px] text-text-secondary italic border-t border-border-warm/40 pt-1.5 mt-1">
+                                &quot;{p.notes}&quot;
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     );
                   })}
                   {dayPayments.length > 3 && (
