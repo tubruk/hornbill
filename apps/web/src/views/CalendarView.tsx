@@ -551,7 +551,7 @@ export function CalendarView() {
                 onClick={() => {
                   setSelectedDate(day);
                 }}
-                className={`bg-background-warm min-h-[56px] md:min-h-[110px] p-1.5 md:p-2.5 flex flex-col justify-between transition-colors relative cursor-pointer group ${
+                className={`bg-background-warm min-h-[56px] md:min-h-[110px] p-1.5 md:p-2.5 flex flex-col justify-between transition-colors relative cursor-pointer group/cell hover:z-20 ${
                   isCurrentMonth ? "" : "opacity-45 bg-[#FAFAF9]"
                 } ${
                   isSelected ? "ring-2 ring-primary ring-inset z-10" : "hover:bg-surface-raised"
@@ -575,7 +575,7 @@ export function CalendarView() {
                       e.stopPropagation();
                       handleBlankDayClick(day);
                     }}
-                    className="hidden md:group-hover:flex p-0.5 hover:bg-surface-raised text-text-secondary hover:text-primary rounded-sm transition-colors cursor-pointer"
+                    className="hidden md:group-hover/cell:flex p-0.5 hover:bg-surface-raised text-text-secondary hover:text-primary rounded-sm transition-colors cursor-pointer"
                     title="Add Bill starting this day"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -583,7 +583,7 @@ export function CalendarView() {
                 </div>
 
                 {/* Desktop Payments List */}
-                <div className="hidden md:flex flex-col gap-1 mt-1.5 overflow-hidden flex-1 justify-end">
+                <div className="hidden md:flex flex-col gap-1 mt-1.5 overflow-visible flex-1 justify-end">
                   {dayPayments.slice(0, 3).map((p) => {
                     const isSettled = !!p.paid_at;
                     const isProjected = p.id.startsWith("projected-");
@@ -608,7 +608,11 @@ export function CalendarView() {
                     if (isProjected) {
                       badgeClass = "text-text-secondary border border-dashed border-neutral bg-background-warm/30 italic";
                       statusBadgeColor = "text-text-secondary border border-dashed border-neutral bg-background-warm/30 italic";
-                    } else if (isSettled) {
+                    } else if (status === "paid_late") {
+                      badgeClass = "text-warning bg-[#FEF3C7]/40 border border-[#FDE68A]/60 line-through opacity-60";
+                      statusBadgeColor = "text-warning bg-[#FEF3C7]/40 border border-[#FDE68A]/60 opacity-60";
+                      prefixIcon = <Check className="w-2.5 h-2.5 shrink-0" />;
+                    } else if (status === "paid") {
                       badgeClass = "text-success bg-[#DCFCE7]/40 border border-[#BBF7D0]/60 line-through opacity-60";
                       statusBadgeColor = "text-success bg-[#DCFCE7]/40 border border-[#BBF7D0]/60 opacity-60";
                       prefixIcon = <Check className="w-2.5 h-2.5 shrink-0" />;
@@ -717,7 +721,6 @@ export function CalendarView() {
                 {/* Mobile Dot Indicators */}
                 <div className="flex md:hidden items-center justify-center gap-0.5 mt-1">
                   {dayPayments.map((p) => {
-                    const isSettled = !!p.paid_at;
                     const isProjected = p.id.startsWith("projected-");
                     const threshold = p.bill?.upcoming_threshold_days ?? currentAccount?.upcoming_threshold_days ?? DEFAULT_UPCOMING_THRESHOLD_DAYS;
                     const { status } = getPaymentState(p, todayStr, threshold);
@@ -725,7 +728,9 @@ export function CalendarView() {
                     let dotClass = "bg-neutral";
                     if (isProjected) {
                       dotClass = "bg-neutral border border-dashed border-stone-600 bg-transparent";
-                    } else if (isSettled) {
+                    } else if (status === "paid_late") {
+                      dotClass = "bg-warning opacity-70";
+                    } else if (status === "paid") {
                       dotClass = "bg-success";
                     } else if (status === "overdue") {
                       dotClass = "bg-error animate-pulse";
@@ -809,8 +814,12 @@ export function CalendarView() {
                         </span>
                       )}
                       {isSettled && (
-                        <span className="text-[9px] font-bold bg-[#DCFCE7] text-success border border-[#BBF7D0] px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-0.5">
-                          <Check className="w-2.5 h-2.5" /> Settled
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-0.5 ${
+                          status === "paid_late"
+                            ? "bg-[#FEF3C7] text-warning border border-[#FDE68A]"
+                            : "bg-[#DCFCE7] text-success border border-[#BBF7D0]"
+                        }`}>
+                          <Check className="w-2.5 h-2.5" /> {status === "paid_late" ? "Paid Late" : "Settled"}
                         </span>
                       )}
                     </div>
