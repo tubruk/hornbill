@@ -825,12 +825,25 @@ export function CalendarView() {
                     </div>
                     <div className="text-[12px] text-text-secondary font-mono mt-0.5">
                       {!isSettled ? (
-                        <>Due Date: {p.due_date}</>
+                        <>
+                          Due Date:{" "}
+                          <span className={
+                            status === "overdue"
+                              ? "text-error font-semibold"
+                              : status === "due_soon"
+                              ? "text-warning font-semibold"
+                              : "text-primary font-semibold"
+                          }>
+                            {p.due_date}
+                          </span>
+                        </>
                       ) : (
                         <>
                           Due: {p.due_date}
                           {p.paid_at && (
-                            <span className="ml-2 font-semibold text-success">
+                            <span className={`ml-2 font-semibold ${
+                              status === "paid_late" ? "text-warning" : "text-success"
+                            }`}>
                               · Paid {new Date(p.paid_at * 1000).toISOString().split("T")[0]}
                             </span>
                           )}
