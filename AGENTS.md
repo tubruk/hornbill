@@ -62,6 +62,7 @@ All UI components, colors, typography, spacing, border radii, shadows, and layou
 ## 5. CI & Lint Rules
 
 - **No `any` in Source Files**: Avoid using the `any` type in source code files. This rule is strictly enforced by the ESLint configuration and the Git pre-commit hook.
+- **Unused Arguments**: Prepend an underscore `_` to function or method arguments that are intentionally unused to comply with the ESLint configuration (e.g., `_path`, `_sql`).
 - **Codecov Threshold**: Codecov is configured to fail if overall project coverage falls below `90%`, but individual status drops on patches are set to `off` (meaning patch coverage changes are allowed as long as the overall percentage remains at or above 90%).
 
 ---

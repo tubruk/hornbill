@@ -22,7 +22,7 @@ let currentVersion = "0.1.0";
 try {
   const rootPkg = JSON.parse(readFileSync(rootPkgPath, "utf-8"));
   currentVersion = rootPkg.version || "0.1.0";
-} catch (err) {
+} catch {
   console.error("Failed to read root package.json, defaulting to 0.1.0");
 }
 

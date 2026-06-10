@@ -19,8 +19,8 @@ const mockDbClose = mock(() => {});
 mock.module("bun:sqlite", () => {
   return {
     Database: class {
-      constructor(path: string) {}
-      prepare(sql: string) {
+      constructor(_path: string) {}
+      prepare(_sql: string) {
         return {
           run: mockDbRun,
           get: mockDbGet,

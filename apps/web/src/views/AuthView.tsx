@@ -15,6 +15,10 @@ export function AuthView() {
   const [registrationEnabled, setRegistrationEnabled] = useState(true);
 
   useEffect(() => {
+    document.title = isRegister ? "Register | Hornbill" : "Login | Hornbill";
+  }, [isRegister]);
+
+  useEffect(() => {
     fetch("/api/v1/status")
       .then((res) => {
         if (!res.ok) throw new Error();

@@ -84,6 +84,20 @@ export function RootLayout() {
     }
   }, [accounts, currentAccount, setCurrentAccount, token]);
 
+  useEffect(() => {
+    if (token) {
+      if (location.pathname === "/settings") {
+        const search = location.search as Record<string, unknown>;
+        const tab = (search.tab as string) || "general";
+        const tabLabel = tab.charAt(0).toUpperCase() + tab.slice(1);
+        document.title = `Settings - ${tabLabel} | Hornbill`;
+      } else {
+        const meta = ROUTE_META[location.pathname] ?? ROUTE_META["/"];
+        document.title = `${meta.title} | Hornbill`;
+      }
+    }
+  }, [location.pathname, location.search, token]);
+
   const createAccountMut = useCreateAccount();
 
   // ── Handlers ─────────────────────────────────────────────────────────────
