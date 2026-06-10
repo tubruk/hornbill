@@ -238,6 +238,7 @@ export const AccountSchema = z.object({
   archived: z.boolean(),
   notification_provider: NotificationProviderSchema.default({ type: "webhook", config: {} }),
   notification_reminder: NotificationReminderSchema.default({ enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null }),
+  calendar_token: z.string().nullable().optional(),
   created_at: z.number().int(),
   updated_at: z.number().int(),
 }).refine(data => data.currencies.includes(data.default_currency), {
