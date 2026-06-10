@@ -98,7 +98,7 @@ export async function payPayment(
   url: string,
   key: string,
   paymentId: string,
-  options: { paidAt?: string | number; amountCents?: number } = {}
+  options: { paidAt?: string | number; amountCents?: number; notes?: string | null } = {}
 ): Promise<Payment> {
   const body: Record<string, unknown> = {};
   if (options.paidAt !== undefined) {
@@ -106,6 +106,9 @@ export async function payPayment(
   }
   if (options.amountCents !== undefined) {
     body.amount_cents = options.amountCents;
+  }
+  if (options.notes !== undefined) {
+    body.notes = options.notes;
   }
 
   return request<Payment>(url, key, `/api/v1/payments/${paymentId}/pay`, {

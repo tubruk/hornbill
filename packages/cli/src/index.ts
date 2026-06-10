@@ -720,6 +720,7 @@ paymentsCmd
   .description("Settle a payment cycle")
   .option("-d, --date <date>", "ISO date string or Unix timestamp of payment settlement")
   .option("-a, --amount <amount>", "Override amount to pay (in standard format, e.g. 15.99)")
+  .option("-n, --notes <notes>", "Optional notes")
   .action(async (paymentId, cmdOpts) => {
     const opts = program.opts();
     const config = resolveConfig(opts);
@@ -738,6 +739,7 @@ paymentsCmd
       const updated = await payPayment(config.url, config.key, paymentId, {
         paidAt: cmdOpts.date,
         amountCents,
+        notes: cmdOpts.notes,
       });
 
       if (opts.json) {
