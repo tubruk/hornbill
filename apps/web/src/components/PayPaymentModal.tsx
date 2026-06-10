@@ -121,14 +121,15 @@ export function PayPaymentModal({
     if (cents === null) return;
 
     const paidAt = dateOption === "today" ? getTodayStr() : customDate;
-    if (dateOption === "custom" && !customDate) {
+    if (dateOption === "custom" && !customDate && (!isEditing || paidAtDate !== null)) {
       setError("Please select a date.");
       return;
     }
     setError("");
 
     if (isEditing) {
-      onConfirm(cents, paidAt, customDueDate, notes);
+      const editPaidAt = paidAtDate === null ? undefined : paidAt;
+      onConfirm(cents, editPaidAt, customDueDate, notes);
     } else if (isArbitrary) {
       const due = specifyDifferentDueDate ? customDueDate : paidAt;
       onConfirm(cents, paidAt, due);
@@ -180,7 +181,7 @@ export function PayPaymentModal({
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Amount Paid input */}
           <Input
-            label={`Amount Paid (${currency})`}
+            label={isEditing && paidAtDate === null ? `Amount (${currency})` : `Amount Paid (${currency})`}
             type="number"
             step="0.01"
             min="0"
@@ -195,80 +196,82 @@ export function PayPaymentModal({
           />
 
           {/* Date Option Selection & Date Input */}
-          <div className="space-y-3">
-            <label className="font-body text-[14px] font-semibold text-text-primary block">
-              Payment Date
-            </label>
-            <div className="flex bg-surface-raised border border-border-warm p-0.5 rounded-full w-fit">
-              <button
-                type="button"
-                onClick={() => {
-                  setDateOption("today");
-                  setError("");
-                }}
-                className={`text-[12px] font-semibold uppercase tracking-wider px-4 py-1.5 rounded-full transition-all cursor-pointer ${
-                  dateOption === "today"
-                    ? "bg-primary text-white shadow-sm"
-                    : "text-text-secondary hover:bg-stone-300/40 hover:text-text-primary"
-                }`}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                onClick={() => setDateOption("custom")}
-                className={`text-[12px] font-semibold uppercase tracking-wider px-4 py-1.5 rounded-full transition-all cursor-pointer ${
-                  dateOption === "custom"
-                    ? "bg-primary text-white shadow-sm"
-                    : "text-text-secondary hover:bg-stone-300/40 hover:text-text-primary"
-                }`}
-              >
-                Custom Date
-              </button>
-            </div>
-
-            <div
-              className={`w-full rounded-sm p-3 border transition-all duration-150 flex items-center justify-between min-h-[46px] relative ${
-                dateOption === "today"
-                  ? "bg-surface-raised border-border-warm text-text-secondary cursor-default"
-                  : error
-                  ? "bg-surface-warm border-error text-text-primary focus-within:ring-3 focus-within:ring-error/12"
-                  : "bg-surface-warm border-border-warm text-text-primary hover:border-primary cursor-pointer focus-within:border-primary focus-within:ring-3 focus-within:ring-primary/12"
-              }`}
-            >
-              <span className="font-body text-[16px] font-medium pointer-events-none">
-                {(() => {
-                  const selectedDate = dateOption === "today" ? getTodayStr() : customDate;
-                  if (!selectedDate) return "Select Date";
-                  const pretty = formatPrettyDate(selectedDate);
-                  const relative = getRelativeDateString(selectedDate);
-                  return relative ? `${pretty} (${relative})` : pretty;
-                })()}
-              </span>
-
-              <input
-                type="date"
-                value={dateOption === "today" ? getTodayStr() : customDate}
-                onChange={(e) => {
-                  if (dateOption === "custom") {
-                    setCustomDate(e.target.value);
+          {(!isEditing || paidAtDate !== null) && (
+            <div className="space-y-3">
+              <label className="font-body text-[14px] font-semibold text-text-primary block">
+                Payment Date
+              </label>
+              <div className="flex bg-surface-raised border border-border-warm p-0.5 rounded-full w-fit">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateOption("today");
                     setError("");
-                  }
-                }}
-                disabled={dateOption === "today" || isSubmitting}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-default disabled:pointer-events-none"
-                aria-label="Select custom date"
-              />
+                  }}
+                  className={`text-[12px] font-semibold uppercase tracking-wider px-4 py-1.5 rounded-full transition-all cursor-pointer ${
+                    dateOption === "today"
+                      ? "bg-primary text-white shadow-sm"
+                      : "text-text-secondary hover:bg-stone-300/40 hover:text-text-primary"
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDateOption("custom")}
+                  className={`text-[12px] font-semibold uppercase tracking-wider px-4 py-1.5 rounded-full transition-all cursor-pointer ${
+                    dateOption === "custom"
+                      ? "bg-primary text-white shadow-sm"
+                      : "text-text-secondary hover:bg-stone-300/40 hover:text-text-primary"
+                  }`}
+                >
+                  Custom Date
+                </button>
+              </div>
 
-              <Calendar className="w-4 h-4 text-text-secondary pointer-events-none" />
+              <div
+                className={`w-full rounded-sm p-3 border transition-all duration-150 flex items-center justify-between min-h-[46px] relative ${
+                  dateOption === "today"
+                    ? "bg-surface-raised border-border-warm text-text-secondary cursor-default"
+                    : error
+                    ? "bg-surface-warm border-error text-text-primary focus-within:ring-3 focus-within:ring-error/12"
+                    : "bg-surface-warm border-border-warm text-text-primary hover:border-primary cursor-pointer focus-within:border-primary focus-within:ring-3 focus-within:ring-primary/12"
+                }`}
+              >
+                <span className="font-body text-[16px] font-medium pointer-events-none">
+                  {(() => {
+                    const selectedDate = dateOption === "today" ? getTodayStr() : customDate;
+                    if (!selectedDate) return "Select Date";
+                    const pretty = formatPrettyDate(selectedDate);
+                    const relative = getRelativeDateString(selectedDate);
+                    return relative ? `${pretty} (${relative})` : pretty;
+                  })()}
+                </span>
+
+                <input
+                  type="date"
+                  value={dateOption === "today" ? getTodayStr() : customDate}
+                  onChange={(e) => {
+                    if (dateOption === "custom") {
+                      setCustomDate(e.target.value);
+                      setError("");
+                    }
+                  }}
+                  disabled={dateOption === "today" || isSubmitting}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-default disabled:pointer-events-none"
+                  aria-label="Select custom date"
+                />
+
+                <Calendar className="w-4 h-4 text-text-secondary pointer-events-none" />
+              </div>
+
+              {dateOption === "custom" && error && (
+                <span className="font-body text-[12px] text-error mt-1.5 font-medium block">
+                  {error}
+                </span>
+              )}
             </div>
-
-            {dateOption === "custom" && error && (
-              <span className="font-body text-[12px] text-error mt-1.5 font-medium block">
-                {error}
-              </span>
-            )}
-          </div>
+          )}
 
           {isEditing && (
             <>

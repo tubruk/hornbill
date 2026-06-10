@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Edit2 } from "lucide-react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { useAppCtx } from "../context/AppContext";
 import { useBills, usePayments, usePayPayment, useUpdatePayment, useDeletePayment, type EnrichedPayment } from "../api/queries";
 import { PayPaymentModal } from "../components/PayPaymentModal";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
+import { SplitButton } from "../components/SplitButton";
+import { DropdownItem } from "../components/Dropdown";
 import { getPaymentState, DEFAULT_UPCOMING_THRESHOLD_DAYS } from "@hornbill/core";
 
 type Filter = "unpaid" | "settled";
@@ -36,7 +38,7 @@ export function PaymentsView() {
     dueDate: string;
     amountCents: number;
     currency: string;
-    paidAtDate: string;
+    paidAtDate: string | null;
     notes: string;
   } | null>(null);
   const todayStr = new Date().toISOString().split("T")[0];
@@ -108,7 +110,7 @@ export function PaymentsView() {
   function handleEdit(payment: EnrichedPayment) {
     const paidAtDate = payment.paid_at
       ? new Date(payment.paid_at * 1000).toISOString().split("T")[0]
-      : todayStr;
+      : null;
     setEditingPayment({
       id: payment.id,
       billName: payment.bill?.name ?? "Bill",
@@ -325,11 +327,9 @@ export function PaymentsView() {
                       {formatCents(p.amount_cents, p.bill?.currency ?? "USD")}
                     </span>
                     {!isSettled ? (
-                      <Button
-                        variant="secondary"
-                        size="small"
-                        disabled={isPaying}
-                        onClick={() =>
+                      <SplitButton
+                        primaryLabel={isPaying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Mark Paid"}
+                        onPrimaryClick={() =>
                           handlePay(
                             p.id,
                             p.bill?.name ?? "Bill",
@@ -339,9 +339,15 @@ export function PaymentsView() {
                             p.bill?.currency ?? "USD"
                           )
                         }
-                      >
-                        {isPaying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Mark Paid"}
-                      </Button>
+                        disabled={isPaying}
+                        dropdownWidthClass="w-32"
+                        dropdownItems={
+                          <DropdownItem onClick={() => handleEdit(p)}>
+                            <Edit2 className="w-4 h-4 text-text-secondary" />
+                            Edit Payment
+                          </DropdownItem>
+                        }
+                      />
                     ) : (
                       <Button
                         variant="secondary"

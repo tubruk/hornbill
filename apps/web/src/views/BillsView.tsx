@@ -9,6 +9,7 @@ import { Chip } from "../components/Chip";
 import { Tooltip } from "../components/Tooltip";
 import { AddBillModal } from "../components/AddBillModal";
 import { PayPaymentModal } from "../components/PayPaymentModal";
+import { Dropdown, DropdownItem } from "../components/Dropdown";
 import type { Bill } from "@hornbill/core";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -31,7 +32,6 @@ export function BillsView() {
   const { currentAccount, openAddModal, notify } = useAppCtx();
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
   const [recordingPaymentBill, setRecordingPaymentBill] = useState<Bill | null>(null);
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   // ── Queries & mutations ────────────────────────────────────────────────
 
@@ -220,95 +220,66 @@ export function BillsView() {
                     </div>
 
                     {/* More actions dropdown */}
-                    <div className="relative shrink-0">
-                      <button
-                        onClick={() => setActiveDropdown(activeDropdown === bill.id ? null : bill.id)}
-                        disabled={isBusy}
-                        className="p-1.5 rounded-sm text-text-secondary hover:bg-surface-raised hover:text-text-primary transition-colors cursor-pointer"
-                        aria-label="More actions"
+                    <Dropdown
+                      widthClass="w-44"
+                      trigger={
+                        <button
+                          disabled={isBusy}
+                          className="p-1.5 rounded-sm text-text-secondary hover:bg-surface-raised hover:text-text-primary transition-colors cursor-pointer flex items-center justify-center"
+                          aria-label="More actions"
+                        >
+                          <MoreVertical className="w-5 h-5" />
+                        </button>
+                      }
+                    >
+                      <DropdownItem onClick={() => setEditingBill(bill)}>
+                        <Edit2 className="w-4 h-4 text-text-secondary" />
+                        Edit Bill
+                      </DropdownItem>
+
+                      <DropdownItem onClick={() => setRecordingPaymentBill(bill)}>
+                        <CreditCard className="w-4 h-4 text-text-secondary" />
+                        Record Payment
+                      </DropdownItem>
+
+                      <Link
+                        to="/payments"
+                        search={{ billId: bill.id, filter: "settled" }}
+                        className="w-full text-left px-3.5 py-2 text-[13px] font-body font-semibold text-text-primary hover:bg-stone-300/40 flex items-center gap-2.5 cursor-pointer transition-colors"
                       >
-                        <MoreVertical className="w-5 h-5" />
-                      </button>
+                        <History className="w-4 h-4 text-text-secondary" />
+                        View History
+                      </Link>
 
-                      {activeDropdown === bill.id && (
-                        <>
-                          <div
-                            className="fixed inset-0 z-10"
-                            onClick={() => setActiveDropdown(null)}
-                          />
-                          <div className="absolute right-0 mt-1.5 w-44 bg-surface-raised border border-border-warm rounded-sm shadow-md py-1.5 z-20 animate-slideDown">
-                            <button
-                              onClick={() => {
-                                setActiveDropdown(null);
-                                setEditingBill(bill);
-                              }}
-                              className="w-full text-left px-3.5 py-2 text-[13px] font-semibold text-text-primary hover:bg-stone-300/40 flex items-center gap-2.5 cursor-pointer"
-                            >
-                              <Edit2 className="w-4 h-4 text-text-secondary" />
-                              Edit Bill
-                            </button>
+                      <DropdownItem onClick={() => handleToggleActive(bill)}>
+                        {isToggling ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        ) : bill.active ? (
+                          <>
+                            <ToggleRight className="w-4 h-4 text-success" />
+                            Deactivate
+                          </>
+                        ) : (
+                          <>
+                            <ToggleLeft className="w-4 h-4 text-text-secondary" />
+                            Activate
+                          </>
+                        )}
+                      </DropdownItem>
 
-                            <button
-                              onClick={() => {
-                                setActiveDropdown(null);
-                                setRecordingPaymentBill(bill);
-                              }}
-                              className="w-full text-left px-3.5 py-2 text-[13px] font-semibold text-text-primary hover:bg-stone-300/40 flex items-center gap-2.5 cursor-pointer"
-                            >
-                              <CreditCard className="w-4 h-4 text-text-secondary" />
-                              Record Payment
-                            </button>
-
-                            <Link
-                              to="/payments"
-                              search={{ billId: bill.id, filter: "settled" }}
-                              onClick={() => setActiveDropdown(null)}
-                              className="w-full text-left px-3.5 py-2 text-[13px] font-semibold text-text-primary hover:bg-stone-300/40 flex items-center gap-2.5 cursor-pointer"
-                            >
-                              <History className="w-4 h-4 text-text-secondary" />
-                              View History
-                            </Link>
-
-                            <button
-                              onClick={() => {
-                                setActiveDropdown(null);
-                                handleToggleActive(bill);
-                              }}
-                              className="w-full text-left px-3.5 py-2 text-[13px] font-semibold text-text-primary hover:bg-stone-300/40 flex items-center gap-2.5 cursor-pointer"
-                            >
-                              {isToggling ? (
-                                <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                              ) : bill.active ? (
-                                <>
-                                  <ToggleRight className="w-4 h-4 text-success" />
-                                  Deactivate
-                                </>
-                              ) : (
-                                <>
-                                  <ToggleLeft className="w-4 h-4 text-text-secondary" />
-                                  Activate
-                                </>
-                              )}
-                            </button>
-
-                            <button
-                              onClick={() => {
-                                setActiveDropdown(null);
-                                handleDelete(bill.id, bill.name);
-                              }}
-                              className="w-full text-left px-3.5 py-2 text-[13px] font-semibold text-error hover:bg-red-50 flex items-center gap-2.5 cursor-pointer border-t border-border-warm mt-1.5 pt-1.5"
-                            >
-                              {isDeleting ? (
-                                <Loader2 className="w-4 h-4 animate-spin text-error" />
-                              ) : (
-                                <Trash2 className="w-4 h-4 text-error" />
-                              )}
-                              Delete Bill
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
+                      <DropdownItem
+                        variant="danger"
+                        onClick={() => handleDelete(bill.id, bill.name)}
+                        className="border-t border-border-warm mt-1.5 pt-1.5"
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-error" />
+                        ) : (
+                          <Trash2 className="w-4 h-4 text-error" />
+                        )}
+                        Delete Bill
+                      </DropdownItem>
+                    </Dropdown>
                   </div>
                 </div>
               );
