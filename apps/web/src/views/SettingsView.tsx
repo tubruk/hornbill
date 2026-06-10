@@ -15,7 +15,9 @@ import {
   Key,
   Copy,
   Check,
+  Calendar,
 } from "lucide-react";
+import { useSearch, useNavigate } from "@tanstack/react-router";
 import { useAppCtx } from "../context/AppContext";
 import {
   useAccounts,
@@ -27,6 +29,8 @@ import {
   useApiKeys,
   useCreateApiKey,
   useDeleteApiKey,
+  useCalendarToken,
+  useRegenerateCalendarToken,
 } from "../api/queries";
 import { exportAccount, testNotification } from "../api/client";
 import { Card } from "../components/Card";
@@ -74,6 +78,10 @@ export function SettingsView() {
   const apiKeys = apiKeysQuery.data ?? [];
   const createApiKeyMut = useCreateApiKey();
   const deleteApiKeyMut = useDeleteApiKey();
+
+  const calendarTokenQuery = useCalendarToken(currentAccount?.id ?? "");
+  const calendarToken = calendarTokenQuery.data?.token ?? null;
+  const regenerateCalendarTokenMut = useRegenerateCalendarToken();
 
   const [exporting, setExporting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -131,7 +139,13 @@ export function SettingsView() {
   const [newKeyName, setNewKeyName] = useState("");
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<"general" | "reminders" | "api" | "backup" | "system">("general");
+  const [calendarCopied, setCalendarCopied] = useState(false);
+  const search = useSearch({ from: "/settings" });
+  const navigate = useNavigate({ from: "/settings" });
+  const activeTab = search.tab || "general";
+  const setActiveTab = (tab: "general" | "reminders" | "integrations" | "backup" | "system") => {
+    navigate({ search: { tab } });
+  };
 
   // Sync form inputs when current selected account changes during render
   const [prevAccount, setPrevAccount] = useState(currentAccount);
@@ -341,6 +355,29 @@ export function SettingsView() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  function handleRegenerateCalendarToken() {
+    if (!currentAccount) return;
+    const confirmation = confirm(
+      "Are you sure you want to regenerate your calendar feed token? The existing token will stop working immediately, and you will need to update your calendar subscription URL in your calendar app."
+    );
+    if (!confirmation) return;
+
+    regenerateCalendarTokenMut.mutate(currentAccount.id, {
+      onSuccess: () => {
+        notify("Calendar token rotated successfully.", "success");
+      },
+      onError: (err: unknown) => {
+        notify(err instanceof Error ? err.message : "Failed to rotate calendar token.", "error");
+      },
+    });
+  }
+
+  function handleCopyCalendarUrl(url: string) {
+    navigator.clipboard.writeText(url);
+    setCalendarCopied(true);
+    setTimeout(() => setCalendarCopied(false), 2000);
+  }
+
   async function handleExport() {
     if (!currentAccount) return;
     setExporting(true);
@@ -454,7 +491,7 @@ export function SettingsView() {
         {([
           { id: "general", label: "General" },
           { id: "reminders", label: "Reminders" },
-          { id: "api", label: "API Keys" },
+          { id: "integrations", label: "Integrations" },
           { id: "backup", label: "Backup" },
           { id: "system", label: "System" },
         ] as { id: typeof activeTab; label: string }[]).map((tab) => {
@@ -1025,144 +1062,227 @@ export function SettingsView() {
         </div>
       )}
 
-      {activeTab === "api" && (
+      {activeTab === "integrations" && (
         <div className="space-y-6 animate-fadeIn">
           {currentAccount ? (
-            <Card hoverable={false} className="p-6">
-              <h4 className="font-display font-semibold text-[20px] text-text-primary mb-2 flex items-center gap-2 pb-3 border-b border-border-warm">
-                <Key className="w-5 h-5 text-primary" />
-                API Access & Tokens
-              </h4>
-              <p className="text-[14px] text-text-secondary mb-5 leading-relaxed">
-                Generate static tokens to securely authorize external tools (such as Home Assistant, custom scripts, or CLI cron syncs) to query or update your Hornbill account.
-              </p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+              {/* Card 1: Personal API Keys */}
+              <Card hoverable={false} className="p-6">
+                <h4 className="font-display font-semibold text-[20px] text-text-primary mb-2 flex items-center gap-2 pb-3 border-b border-border-warm">
+                  <Key className="w-5 h-5 text-primary" />
+                  Personal API Keys
+                </h4>
+                <p className="text-[14px] text-text-secondary mb-5 leading-relaxed">
+                  Generate static tokens to securely authorize external tools (such as Home Assistant, custom scripts, or CLI cron syncs) to query or update Hornbill under user profile <strong className="text-text-primary">{email}</strong>.
+                </p>
 
-              {/* Raw Token Success Banner */}
-              {generatedToken && (
-                <div className="mb-6 p-4 rounded-sm bg-success/8 border border-success/20 text-success-dark animate-fadeIn">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1.5 flex-1 min-w-0">
-                      <span className="text-[12px] font-bold uppercase tracking-wider block text-success">
-                        Key Generated Successfully
-                      </span>
-                      <p className="text-[13px] text-text-secondary">
-                        Please copy this key now. For security reasons, you will not be able to view it again.
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="px-3 py-1.5 rounded-sm bg-surface border border-border-warm text-[14px] text-text-primary font-mono select-all truncate">
-                          {generatedToken}
+                {/* Raw Token Success Banner */}
+                {generatedToken && (
+                  <div className="mb-6 p-4 rounded-sm bg-success/8 border border-success/20 text-success-dark animate-fadeIn">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-1.5 flex-1 min-w-0">
+                        <span className="text-[12px] font-bold uppercase tracking-wider block text-success">
+                          Key Generated Successfully
                         </span>
-                        <button
-                          type="button"
-                          onClick={handleCopy}
-                          className="p-1.5 rounded-sm border border-border-warm hover:border-primary/40 hover:bg-surface text-text-secondary hover:text-primary transition-ember cursor-pointer"
-                        >
-                          {copied ? (
-                            <Check className="w-4 h-4 text-success" />
-                          ) : (
-                            <Copy className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setGeneratedToken(null)}
-                      className="text-text-secondary hover:text-text-primary p-1 rounded-sm focus:outline-none"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-6">
-                {/* Form to generate new key */}
-                <form onSubmit={handleCreateKey} className="flex flex-col sm:flex-row items-end gap-3 pb-6 border-b border-border-warm/50">
-                  <div className="flex-1 w-full">
-                    <Input
-                      label="New API Key Name"
-                      placeholder="e.g., Home Assistant Dashboard"
-                      value={newKeyName}
-                      onChange={(e) => setNewKeyName(e.target.value)}
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    size="medium"
-                    disabled={createApiKeyMut.isPending || !newKeyName.trim()}
-                    className="w-full sm:w-auto shrink-0 gap-2"
-                  >
-                    {createApiKeyMut.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      "Generate Token"
-                    )}
-                  </Button>
-                </form>
-
-                {/* List of active keys */}
-                <div className="space-y-4">
-                  <h5 className="font-body font-semibold text-[15px] text-text-primary">
-                    Active API Keys
-                  </h5>
-
-                  <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
-                    {apiKeysQuery.isPending ? (
-                      <div className="py-4 text-center">
-                        <Loader2 className="w-5 h-5 animate-spin mx-auto text-text-secondary" />
-                      </div>
-                    ) : apiKeys.length === 0 ? (
-                      <p className="text-[13px] text-text-secondary italic">
-                        No active API keys generated yet.
-                      </p>
-                    ) : (
-                      apiKeys.map((k) => (
-                        <div
-                          key={k.id}
-                          className="flex items-center justify-between gap-4 p-3 rounded-sm border border-border-warm bg-background-warm"
-                        >
-                          <div className="min-w-0">
-                            <span className="text-[14px] font-semibold text-text-primary block truncate">
-                              {k.name}
-                            </span>
-                            <span className="text-[11px] text-text-secondary block mt-0.5">
-                              Created: {new Date(k.created_at * 1000).toLocaleDateString()}
-                              {k.last_used_at ? ` • Last used: ${new Date(k.last_used_at * 1000).toLocaleDateString()}` : " • Never used"}
-                            </span>
-                          </div>
+                        <p className="text-[13px] text-text-secondary">
+                          Please copy this key now. For security reasons, you will not be able to view it again.
+                        </p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="px-3 py-1.5 rounded-sm bg-surface border border-border-warm text-[14px] text-text-primary font-mono select-all truncate">
+                            {generatedToken}
+                          </span>
                           <button
                             type="button"
-                            onClick={() => handleDeleteKey(k.id, k.name)}
-                            className="p-1.5 rounded-sm border border-border-warm hover:border-error hover:bg-red-50 text-text-secondary hover:text-error transition-ember shrink-0 focus:outline-none"
-                            title="Revoke key"
+                            onClick={handleCopy}
+                            className="p-1.5 rounded-sm border border-border-warm hover:border-primary/40 hover:bg-surface text-text-secondary hover:text-primary transition-ember cursor-pointer"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            {copied ? (
+                              <Check className="w-4 h-4 text-success" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
                           </button>
                         </div>
-                      ))
-                    )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setGeneratedToken(null)}
+                        className="text-text-secondary hover:text-text-primary p-1 rounded-sm focus:outline-none"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {/* Docs Link section */}
-                <div className="p-4 rounded-sm bg-surface-raised border border-border-warm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-4">
-                  <div className="text-[13px] text-text-secondary leading-relaxed font-medium">
-                    <span className="block font-semibold text-text-primary mb-0.5">Interactive API Documentation</span>
-                    Ready to start coding? Browse endpoint schemas, request payloads, and test operations directly using our interactive documentation.
+                <div className="space-y-6">
+                  {/* Form to generate new key */}
+                  <form onSubmit={handleCreateKey} className="flex flex-col sm:flex-row items-end gap-3 pb-6 border-b border-border-warm/50">
+                    <div className="flex-1 w-full">
+                      <Input
+                        label="New API Key Name"
+                        placeholder="e.g., Home Assistant Dashboard"
+                        value={newKeyName}
+                        onChange={(e) => setNewKeyName(e.target.value)}
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="medium"
+                      disabled={createApiKeyMut.isPending || !newKeyName.trim()}
+                      className="w-full sm:w-auto shrink-0 gap-2"
+                    >
+                      {createApiKeyMut.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        "Generate Token"
+                      )}
+                    </Button>
+                  </form>
+
+                  {/* List of active keys */}
+                  <div className="space-y-4">
+                    <h5 className="font-body font-semibold text-[15px] text-text-primary">
+                      Active API Keys
+                    </h5>
+
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                      {apiKeysQuery.isPending ? (
+                        <div className="py-4 text-center">
+                          <Loader2 className="w-5 h-5 animate-spin mx-auto text-text-secondary" />
+                        </div>
+                      ) : apiKeys.length === 0 ? (
+                        <p className="text-[13px] text-text-secondary italic">
+                          No active API keys generated yet.
+                        </p>
+                      ) : (
+                        apiKeys.map((k) => (
+                          <div
+                            key={k.id}
+                            className="flex items-center justify-between gap-4 p-3 rounded-sm border border-border-warm bg-background-warm"
+                          >
+                            <div className="min-w-0">
+                              <span className="text-[14px] font-semibold text-text-primary block truncate">
+                                {k.name}
+                              </span>
+                              <span className="text-[11px] text-text-secondary block mt-0.5">
+                                Created: {new Date(k.created_at * 1000).toLocaleDateString()}
+                                {k.last_used_at ? ` • Last used: ${new Date(k.last_used_at * 1000).toLocaleDateString()}` : " • Never used"}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteKey(k.id, k.name)}
+                              className="p-1.5 rounded-sm border border-border-warm hover:border-error hover:bg-red-50 text-text-secondary hover:text-error transition-ember shrink-0 focus:outline-none"
+                              title="Revoke key"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
-                  <a
-                    href="/docs"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 text-[13px] font-bold text-primary hover:underline flex items-center gap-1.5 border border-primary/20 hover:bg-primary/4 px-3 py-1.5 rounded-sm focus:outline-none"
-                  >
-                    Open API Reference &rarr;
-                  </a>
+
+                  {/* Docs Link section */}
+                  <div className="p-4 rounded-sm bg-surface-raised border border-border-warm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-4">
+                    <div className="text-[13px] text-text-secondary leading-relaxed font-medium">
+                      <span className="block font-semibold text-text-primary mb-0.5">Interactive API Documentation</span>
+                      Ready to start coding? Browse endpoint schemas, request payloads, and test operations directly using our interactive documentation.
+                    </div>
+                    <a
+                      href="/docs"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 text-[13px] font-bold text-primary hover:underline flex items-center gap-1.5 border border-primary/20 hover:bg-primary/4 px-3 py-1.5 rounded-sm focus:outline-none"
+                    >
+                      Open API Reference &rarr;
+                    </a>
+                  </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+
+              {/* Card 2: Calendar Feed */}
+              <Card hoverable={false} className="p-6">
+                <h4 className="font-display font-semibold text-[20px] text-text-primary mb-2 flex items-center gap-2 pb-3 border-b border-border-warm">
+                  <Calendar className="w-5 h-5 text-primary" />
+                  Calendar Feed
+                </h4>
+                <p className="text-[14px] text-text-secondary mb-5 leading-relaxed">
+                  Subscribe to a private calendar feed of unpaid payments for the active account <strong className="text-text-primary">{currentAccount.name}</strong>.
+                </p>
+
+                {calendarTokenQuery.isPending ? (
+                  <div className="py-8 text-center">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-text-secondary animate-pulse" />
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {calendarToken ? (
+                      <div className="space-y-2">
+                        <span className="text-[12px] font-bold uppercase tracking-wider block text-text-secondary">
+                          Calendar Feed URL
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="px-3 py-1.5 rounded-sm bg-surface border border-border-warm text-[13px] text-text-primary font-mono select-all truncate flex-1">
+                            {`${window.location.origin}/api/v1/calendar/feed?token=${calendarToken}`}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyCalendarUrl(`${window.location.origin}/api/v1/calendar/feed?token=${calendarToken}`)}
+                            className="px-3 py-1.5 rounded-sm border border-border-warm hover:border-primary/40 hover:bg-surface text-text-secondary hover:text-primary transition-ember cursor-pointer flex items-center gap-1.5 text-[13px] font-semibold shrink-0"
+                          >
+                            {calendarCopied ? (
+                              <>
+                                <Check className="w-4 h-4 text-success" />
+                                Copied
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-4 h-4" />
+                                Copy URL
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        <p className="text-[12px] text-text-secondary leading-relaxed pt-1">
+                          Copy this URL and paste it into your calendar application (Google Calendar, Apple Calendar, Outlook, etc.) to subscribe.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-4 rounded-sm border border-border-warm bg-background-warm text-center py-6">
+                        <p className="text-[13px] text-text-secondary italic">
+                          No calendar subscription feed URL generated yet.
+                        </p>
+                        <p className="text-[12px] text-text-secondary mt-1">
+                          Click the button below to generate a secure, private token for this account.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="pt-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="medium"
+                        onClick={handleRegenerateCalendarToken}
+                        disabled={regenerateCalendarTokenMut.isPending}
+                        className="gap-2"
+                      >
+                        {regenerateCalendarTokenMut.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : calendarToken ? (
+                          "Regenerate Token"
+                        ) : (
+                          "Generate Token"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            </div>
           ) : (
             <Card hoverable={false} className="p-6">
               <p className="text-[14px] text-text-secondary py-10 text-center font-medium">

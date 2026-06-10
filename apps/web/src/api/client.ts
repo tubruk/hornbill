@@ -303,3 +303,15 @@ export function createApiKey(name: string): Promise<ApiKey & { token: string }> 
 export function deleteApiKey(id: string): Promise<void> {
   return apiFetch<void>(`/api-keys/${id}`, { method: "DELETE" });
 }
+
+// ── Calendar Feed Token ─────────────────────────────────────────────────────
+
+export function fetchCalendarToken(accountId: string): Promise<{ token: string | null }> {
+  return apiFetch<{ token: string | null }>(`/accounts/${encodeURIComponent(accountId)}/calendar-token`);
+}
+
+export function regenerateCalendarToken(accountId: string): Promise<{ token: string }> {
+  return apiFetch<{ token: string }>(`/accounts/${encodeURIComponent(accountId)}/calendar-token/regenerate`, {
+    method: "POST",
+  });
+}
