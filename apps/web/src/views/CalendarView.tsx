@@ -430,8 +430,8 @@ export function CalendarView() {
   };
 
   // Trigger add bill pre-filled with selected day
-  const handleBlankDayClick = (_day: Date) => {
-    openAddModal();
+  const handleBlankDayClick = (day: Date) => {
+    openAddModal(format(day, "yyyy-MM-dd"));
   };
 
   if (!currentAccount) {

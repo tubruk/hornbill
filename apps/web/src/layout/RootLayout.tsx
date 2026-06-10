@@ -45,7 +45,7 @@ const ROUTE_META: Record<string, { title: string; subtitle: string }> = {
 
 export function RootLayout() {
   const { token, email, logout } = useAuth();
-  const { currentAccount, setCurrentAccount, toasts, notify, dismissToast, showAddModal, closeAddModal } = useAppCtx();
+  const { currentAccount, setCurrentAccount, toasts, notify, dismissToast, showAddModal, addModalDefaultDate, closeAddModal } = useAppCtx();
   const location = useLocation();
   const qc = useQueryClient();
 
@@ -218,6 +218,7 @@ export function RootLayout() {
         <AddBillModal
           accountId={currentAccount.id}
           accountThreshold={currentAccount.upcoming_threshold_days}
+          initialStartDate={addModalDefaultDate}
           onSubmit={handleCreateBill}
           onClose={closeAddModal}
           isSubmitting={createBillMut.isPending}

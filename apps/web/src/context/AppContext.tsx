@@ -30,7 +30,8 @@ interface AppCtx {
 
   // Add-bill modal
   showAddModal: boolean;
-  openAddModal: () => void;
+  addModalDefaultDate?: string;
+  openAddModal: (defaultDate?: string | unknown) => void;
   closeAddModal: () => void;
 }
 
@@ -48,6 +49,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentAccount, setCurrentAccount] = useState<Account | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [addModalDefaultDate, setAddModalDefaultDate] = useState<string | undefined>(undefined);
 
   const notify = useCallback(
     (text: string, type: Toast["type"] = "success") => {
@@ -65,8 +67,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const openAddModal = useCallback(() => setShowAddModal(true), []);
-  const closeAddModal = useCallback(() => setShowAddModal(false), []);
+  const openAddModal = useCallback((defaultDate?: string | unknown) => {
+    const dateStr = typeof defaultDate === "string" ? defaultDate : undefined;
+    setAddModalDefaultDate(dateStr);
+    setShowAddModal(true);
+  }, []);
+  const closeAddModal = useCallback(() => {
+    setAddModalDefaultDate(undefined);
+    setShowAddModal(false);
+  }, []);
 
   // Close dropdown / modals on Escape
   useEffect(() => {
@@ -94,6 +103,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         notify,
         dismissToast,
         showAddModal,
+        addModalDefaultDate,
         openAddModal,
         closeAddModal,
       }}

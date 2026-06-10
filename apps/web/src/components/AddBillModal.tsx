@@ -12,6 +12,7 @@ import { useAccounts } from "../api/queries";
 interface Props {
   accountId: string;
   accountThreshold?: number;
+  initialStartDate?: string;
   bill?: Bill;
   onSubmit: (payload: BillFormPayload) => Promise<void>;
   onClose: () => void;
@@ -33,7 +34,7 @@ export interface BillFormPayload {
 
 const today = () => new Date().toISOString().split("T")[0];
 
-export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onClose, isSubmitting }: Props) {
+export function AddBillModal({ accountId, accountThreshold, initialStartDate, bill, onSubmit, onClose, isSubmitting }: Props) {
   const { data: accounts = [] } = useAccounts();
   const currentAccount = accounts.find((a) => a.id === accountId);
 
@@ -56,7 +57,7 @@ export function AddBillModal({ accountId, accountThreshold, bill, onSubmit, onCl
     }
   }
 
-  const [startDate, setStartDate] = useState(bill?.start_date ?? today());
+  const [startDate, setStartDate] = useState(bill?.start_date ?? initialStartDate ?? today());
   const [alreadyPaid, setAlreadyPaid] = useState(false);
   const [lastPaymentDate, setLastPaymentDate] = useState(today());
   const [notes, setNotes] = useState(bill?.notes ?? "");
