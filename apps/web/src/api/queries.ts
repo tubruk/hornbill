@@ -171,8 +171,8 @@ export function usePayments(
 export function usePayPayment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ paymentId, paidAt, amountCents }: { paymentId: string; accountId: string; paidAt?: string | number; amountCents?: number }) =>
-      payPayment(paymentId, paidAt, amountCents),
+    mutationFn: ({ paymentId, paidAt, amountCents, notes }: { paymentId: string; accountId: string; paidAt?: string | number; amountCents?: number; notes?: string | null }) =>
+      payPayment(paymentId, paidAt, amountCents, notes),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: qk.payments(vars.accountId) });
     },

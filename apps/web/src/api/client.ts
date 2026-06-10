@@ -214,10 +214,11 @@ export function fetchPayments(billId?: string): Promise<Payment[]> {
   return apiFetch<Payment[]>(`/payments${qs}`);
 }
 
-export function payPayment(id: string, paidAt?: string | number, amountCents?: number): Promise<Payment> {
-  const body: { paid_at?: string | number; amount_cents?: number } = {};
+export function payPayment(id: string, paidAt?: string | number, amountCents?: number, notes?: string | null): Promise<Payment> {
+  const body: { paid_at?: string | number; amount_cents?: number; notes?: string | null } = {};
   if (paidAt !== undefined) body.paid_at = paidAt;
   if (amountCents !== undefined) body.amount_cents = amountCents;
+  if (notes !== undefined) body.notes = notes;
   return apiFetch<Payment>(`/payments/${encodeURIComponent(id)}/pay`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

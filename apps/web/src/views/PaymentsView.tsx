@@ -31,6 +31,7 @@ export function PaymentsView() {
     isUpcoming: boolean;
     amountCents: number;
     currency: string;
+    notes: string | null;
   } | null>(null);
   const [editingPayment, setEditingPayment] = useState<{
     id: string;
@@ -88,15 +89,16 @@ export function PaymentsView() {
     dueDate: string,
     isUpcoming: boolean,
     amountCents: number,
-    currency: string
+    currency: string,
+    notes: string | null
   ) {
-    setPayingPayment({ id: paymentId, name: billName, dueDate, isUpcoming, amountCents, currency });
+    setPayingPayment({ id: paymentId, name: billName, dueDate, isUpcoming, amountCents, currency, notes });
   }
 
-  async function handlePayConfirm(amountCents: number, paidAtDate?: string) {
+  async function handlePayConfirm(amountCents: number, paidAtDate?: string, _dueDate?: string, notes?: string) {
     if (!payingPayment || !currentAccount) return;
     await payMut.mutateAsync(
-      { paymentId: payingPayment.id, accountId: currentAccount.id, paidAt: paidAtDate, amountCents },
+      { paymentId: payingPayment.id, accountId: currentAccount.id, paidAt: paidAtDate, amountCents, notes },
       {
         onSuccess: () => {
           notify(`"${payingPayment.name}" marked as paid.`, "success");
@@ -336,7 +338,8 @@ export function PaymentsView() {
                             p.due_date,
                             status === "upcoming",
                             p.bill?.amount_cents ?? p.amount_cents,
-                            p.bill?.currency ?? "USD"
+                            p.bill?.currency ?? "USD",
+                            p.notes || null
                           )
                         }
                         disabled={isPaying}
@@ -372,6 +375,7 @@ export function PaymentsView() {
           isUpcoming={payingPayment.isUpcoming}
           amountCents={payingPayment.amountCents}
           currency={payingPayment.currency}
+          initialNotes={payingPayment.notes}
           onConfirm={handlePayConfirm}
           onClose={() => setPayingPayment(null)}
           isSubmitting={payMut.isPending}

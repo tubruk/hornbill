@@ -132,9 +132,9 @@ export function PayPaymentModal({
       onConfirm(cents, editPaidAt, customDueDate, notes);
     } else if (isArbitrary) {
       const due = specifyDifferentDueDate ? customDueDate : paidAt;
-      onConfirm(cents, paidAt, due);
+      onConfirm(cents, paidAt, due, notes);
     } else {
-      onConfirm(cents, dateOption === "custom" ? customDate : undefined);
+      onConfirm(cents, dateOption === "custom" ? customDate : undefined, undefined, notes);
     }
   };
 
@@ -274,23 +274,13 @@ export function PayPaymentModal({
           )}
 
           {isEditing && (
-            <>
-              <Input
-                label="Cycle Due Date"
-                type="date"
-                value={customDueDate}
-                onChange={(e) => setCustomDueDate(e.target.value)}
-                disabled={isSubmitting}
-              />
-              <Input
-                label="Notes"
-                type="text"
-                placeholder="Optional notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                disabled={isSubmitting}
-              />
-            </>
+            <Input
+              label="Cycle Due Date"
+              type="date"
+              value={customDueDate}
+              onChange={(e) => setCustomDueDate(e.target.value)}
+              disabled={isSubmitting}
+            />
           )}
 
           {isArbitrary && !isEditing && (
@@ -314,6 +304,15 @@ export function PayPaymentModal({
               )}
             </div>
           )}
+
+          <Input
+            label="Notes"
+            type="text"
+            placeholder="Optional notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            disabled={isSubmitting}
+          />
 
           {/* Submit and Cancel buttons */}
           <div className="pt-4 border-t border-border-warm flex justify-end gap-3 items-center">
