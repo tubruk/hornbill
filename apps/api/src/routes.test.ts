@@ -1220,7 +1220,17 @@ describe("API Routes", () => {
         body: JSON.stringify({ paid_at: "2026-01-16T12:00:00Z", amount_cents: 1500 }),
       });
       expect(res.status).toBe(200);
-      expect(settlePaymentSpy).toHaveBeenCalledWith("pay-1", Math.floor(new Date("2026-01-16T12:00:00Z").getTime() / 1000), 1500);
+      expect(settlePaymentSpy).toHaveBeenCalledWith("pay-1", Math.floor(new Date("2026-01-16T12:00:00Z").getTime() / 1000), 1500, undefined);
+    });
+
+    test("POST /:id/pay - settles payment with notes", async () => {
+      const res = await paymentsApp.request("/pay-1/pay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paid_at: "2026-01-16T12:00:00Z", amount_cents: 1500, notes: "some note" }),
+      });
+      expect(res.status).toBe(200);
+      expect(settlePaymentSpy).toHaveBeenCalledWith("pay-1", Math.floor(new Date("2026-01-16T12:00:00Z").getTime() / 1000), 1500, "some note");
     });
 
     test("POST /:id/pay - returns 400 on settle error", async () => {

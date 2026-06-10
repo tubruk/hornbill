@@ -27,6 +27,7 @@ const CreatePaymentRequestSchema = z.object({
 const PayPaymentRequestSchema = z.object({
   paid_at: z.union([z.string(), z.number()]).optional().openapi({ description: "Date string or Unix timestamp of payment settlement", example: "2026-06-01T10:00:00Z" }),
   amount_cents: z.number().int().optional().openapi({ description: "Optional overrides for variable amounts", example: 1599 }),
+  notes: z.string().nullable().optional().openapi({ description: "Optional notes", example: "Paid via bank transfer" }),
 }).openapi("PayPaymentRequest");
 
 const UpdatePaymentRequestSchema = z.object({
@@ -257,7 +258,7 @@ app.openapi(payPaymentRoute, withPaymentAccess()(async (c) => {
       : body.paid_at;
     const amountCents = body.amount_cents !== undefined ? Number(body.amount_cents) : undefined;
 
-    const settled = await settlePayment(id, paidAt, amountCents);
+    const settled = await settlePayment(id, paidAt, amountCents, body.notes);
     return c.json(settled, 200);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to settle payment";

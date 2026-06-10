@@ -55,7 +55,7 @@ export async function generateNextPaymentForBill(billId: string): Promise<Paymen
  * Settles an outstanding payment, marking it as paid and automatically
  * generating the next payment cycle.
  */
-export async function settlePayment(paymentId: string, paidAtVal?: number, amountCentsVal?: number): Promise<Payment> {
+export async function settlePayment(paymentId: string, paidAtVal?: number, amountCentsVal?: number, notesVal?: string | null): Promise<Payment> {
   const payment = await db.getPayment(paymentId);
   if (payment.paid_at) {
     throw new Error("Payment is already settled");
@@ -91,6 +91,9 @@ export async function settlePayment(paymentId: string, paidAtVal?: number, amoun
   };
   if (amountCentsVal !== undefined) {
     updates.amount_cents = amountCentsVal;
+  }
+  if (notesVal !== undefined) {
+    updates.notes = notesVal;
   }
 
   const updatedPayment = await db.updatePayment(paymentId, updates);
