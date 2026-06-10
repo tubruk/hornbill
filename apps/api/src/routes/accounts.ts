@@ -510,6 +510,86 @@ app.openapi(importAccountRoute, async (c) => {
   }
 });
 
+const CalendarTokenResponseSchema = z.object({
+  token: z.string().nullable().openapi({ description: "Calendar token, or null if not set", example: "3b2f9a7d-3b7d-4bad-9bdd-2b0d7b3dcb6d" }),
+}).openapi("CalendarTokenResponse");
+
+const getCalendarTokenRoute = createRoute({
+  method: "get",
+  path: "/{id}/calendar-token",
+  summary: "Get Calendar Token",
+  description: "Retrieves the current calendar feed token for the specified account",
+  request: {
+    params: z.object({
+      id: uuidSchema().openapi({ description: "UUID of the account", example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: CalendarTokenResponseSchema,
+        },
+      },
+      description: "Successfully retrieved calendar token",
+    },
+    ...coreErrors,
+    ...authErrors,
+    ...validationErrors,
+    ...lookupErrors,
+  },
+});
+
+app.openapi(getCalendarTokenRoute, withAccountAccess()(async (c) => {
+  try {
+    const account = c.get("account");
+    return c.json({ token: account.calendar_token || null }, 200);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to retrieve calendar token";
+    return c.json({ error: message }, 500);
+  }
+}));
+
+const regenerateCalendarTokenRoute = createRoute({
+  method: "post",
+  path: "/{id}/calendar-token/regenerate",
+  summary: "Regenerate Calendar Token",
+  description: "Rotates and generates a new calendar feed token for the specified account",
+  request: {
+    params: z.object({
+      id: uuidSchema().openapi({ description: "UUID of the account", example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: CalendarTokenResponseSchema,
+        },
+      },
+      description: "Successfully regenerated calendar token",
+    },
+    ...coreErrors,
+    ...authErrors,
+    ...validationErrors,
+    ...lookupErrors,
+  },
+});
+
+app.openapi(regenerateCalendarTokenRoute, withAccountAccess()(async (c) => {
+  try {
+    const account = c.get("account");
+    const newToken = crypto.randomUUID();
+    await getDb(c).updateAccount(account.id, {
+      calendar_token: newToken,
+    });
+    return c.json({ token: newToken }, 200);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to regenerate calendar token";
+    return c.json({ error: message }, 500);
+  }
+}));
+
 // POST /api/v1/accounts/test-notification - Test notification settings
 const TestNotificationRequestSchema = z.object({
   notification_provider: z.record(z.string(), z.unknown()).openapi({ description: "Full notification provider configuration to test" }),

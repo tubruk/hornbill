@@ -17,6 +17,7 @@ import payments from "./routes/payments";
 import jobs from "./routes/jobs";
 import auth from "./routes/auth";
 import apiKeys from "./routes/apiKeys";
+import calendar from "./routes/calendar";
 import { verifyToken, getDb, type UserPayload } from "./trailbase";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { defaultValidationHook } from "./utils/openapi-errors";
@@ -60,6 +61,7 @@ app.use("/api/v1/*", async (c, next) => {
 app.use("/api/v1/*", async (c, next) => {
   if (
     c.req.path.startsWith("/api/v1/auth") ||
+    c.req.path === "/api/v1/calendar/feed" ||
     c.req.path === "/api/v1/status" ||
     c.req.path === "/api/v1/ping" ||
     c.req.path === "/api/v1/openapi.json"
@@ -134,6 +136,7 @@ api.route("/payments", payments);
 api.route("/jobs", jobs);
 api.route("/auth", auth);
 api.route("/api-keys", apiKeys);
+api.route("/calendar", calendar);
 
 app.route("/api/v1", api);
 

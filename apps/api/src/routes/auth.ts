@@ -105,7 +105,7 @@ async function verifyAndCreateAccountInDb(email: string) {
         // 4. Create primary account via Trailbase Client
         await client.createAccount({
           id: accountId,
-          name: email,
+          name: "Default Account", // Changed from email
           upcoming_threshold_days: 7,
         });
         

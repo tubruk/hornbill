@@ -79,6 +79,7 @@ interface DbAccount {
   upcoming_threshold_days?: number;
   notification_provider?: string | Record<string, unknown>;
   notification_reminder?: string | Record<string, unknown>;
+  calendar_token?: string | null;
   created_at: number;
   updated_at: number;
 }
@@ -199,6 +200,7 @@ export class TrailbaseClient {
       upcoming_threshold_days: acc.upcoming_threshold_days ?? 7,
       notification_provider,
       notification_reminder,
+      calendar_token: acc.calendar_token ?? null,
     } as Account;
   }
 
@@ -212,6 +214,11 @@ export class TrailbaseClient {
     return this.mapDbAccount(acc);
   }
 
+  async getAccountByCalendarToken(token: string): Promise<Account | null> {
+    const accounts = await this.listAccounts();
+    return accounts.find(acc => acc.calendar_token === token) || null;
+  }
+
   async createAccount(account: Omit<Partial<Account> & { id: string; name: string }, "created_at" | "updated_at">): Promise<Account> {
     const now = Math.floor(Date.now() / 1000);
     const payload = {
@@ -222,6 +229,7 @@ export class TrailbaseClient {
       archived: account.archived ? 1 : 0,
       notification_provider: JSON.stringify(account.notification_provider ?? { type: "webhook", config: {} }),
       notification_reminder: JSON.stringify(account.notification_reminder ?? { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null }),
+      calendar_token: account.calendar_token ?? null,
       created_at: now,
       updated_at: now,
     };
@@ -238,6 +246,7 @@ export class TrailbaseClient {
       archived: account.archived ?? false,
       notification_provider: account.notification_provider ?? { type: "webhook", config: {} },
       notification_reminder: account.notification_reminder ?? { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null },
+      calendar_token: account.calendar_token ?? null,
       created_at: now,
       updated_at: now,
     };
@@ -245,7 +254,7 @@ export class TrailbaseClient {
 
   async updateAccount(id: string, updates: Partial<Omit<Account, "id" | "created_at" | "updated_at">>): Promise<Account> {
     const now = Math.floor(Date.now() / 1000);
-    const payload: Partial<Omit<DbAccount, "id" | "created_at" | "updated_at">> & { currencies?: string; archived?: number; notification_provider?: string; notification_reminder?: string; updated_at: number } = {
+    const payload: Partial<Omit<DbAccount, "id" | "created_at" | "updated_at">> & { currencies?: string; archived?: number; notification_provider?: string; notification_reminder?: string; calendar_token?: string | null; updated_at: number } = {
       updated_at: now,
     };
     if (updates.name !== undefined) payload.name = updates.name;
@@ -262,6 +271,9 @@ export class TrailbaseClient {
     }
     if (updates.notification_reminder !== undefined) {
       payload.notification_reminder = JSON.stringify(updates.notification_reminder);
+    }
+    if (updates.calendar_token !== undefined) {
+      payload.calendar_token = updates.calendar_token;
     }
     await this.request<unknown>(`/api/records/v1/accounts/${id}`, {
       method: "PATCH",

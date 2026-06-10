@@ -723,6 +723,35 @@ describe("API Routes", () => {
       expect(sendNotificationSpy).not.toHaveBeenCalled();
       sendNotificationSpy.mockRestore();
     });
+
+    test("GET /:id/calendar-token - returns token", async () => {
+      spyOn(mockClient, "listAccountUsers").mockResolvedValue([{ id: "1", account_id: "acc-1", user_id: "user-123" }]);
+      const accountWithToken = { ...mockAccounts[0], calendar_token: "token-xyz" };
+      spyOn(mockClient, "getAccount").mockResolvedValue(accountWithToken);
+
+      const res = await accountsApp.request("/acc-1/calendar-token", {
+        headers: { Authorization: "Bearer token" },
+      });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.token).toBe("token-xyz");
+    });
+
+    test("POST /:id/calendar-token/regenerate - updates and returns new token", async () => {
+      spyOn(mockClient, "listAccountUsers").mockResolvedValue([{ id: "1", account_id: "acc-1", user_id: "user-123" }]);
+      spyOn(mockClient, "getAccount").mockResolvedValue(mockAccounts[0]);
+      const updateSpy = spyOn(mockClient, "updateAccount").mockResolvedValue({} as any);
+
+      const res = await accountsApp.request("/acc-1/calendar-token/regenerate", {
+        method: "POST",
+        headers: { Authorization: "Bearer token" },
+      });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(typeof json.token).toBe("string");
+      expect(json.token.length).toBeGreaterThan(0);
+      expect(updateSpy).toHaveBeenCalled();
+    });
   });
 
   describe("bills routes", () => {
