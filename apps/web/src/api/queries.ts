@@ -25,6 +25,8 @@ import {
   fetchApiKeys,
   createApiKey,
   deleteApiKey,
+  fetchCalendarToken,
+  regenerateCalendarToken,
   type CreateBillPayload,
   type UpdateBillPayload,
   type CreatePaymentPayload,
@@ -39,6 +41,7 @@ export const qk = {
   bills: (accountId: string | undefined) => ["bills", accountId] as const,
   payments: (accountId: string | undefined) => ["payments", accountId] as const,
   apiKeys: () => ["apiKeys"] as const,
+  calendarToken: (accountId: string) => ["calendarToken", accountId] as const,
 } as const;
 
 // ── Enriched payment type ──────────────────────────────────────────────────
@@ -335,6 +338,30 @@ export function useDeleteApiKey() {
     mutationFn: (id: string) => deleteApiKey(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.apiKeys() });
+    },
+  });
+}
+
+// ── Calendar Feed Token ─────────────────────────────────────────────────────
+
+export function useCalendarToken(accountId: string, options?: Partial<UseQueryOptions<{ token: string | null }>>) {
+  return useQuery<{ token: string | null }>({
+    queryKey: qk.calendarToken(accountId),
+    queryFn: () => fetchCalendarToken(accountId),
+    enabled: !!accountId,
+    staleTime: 300_000,
+    retry: 1,
+    ...options,
+  });
+}
+
+export function useRegenerateCalendarToken() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (accountId: string) => regenerateCalendarToken(accountId),
+    onSuccess: (_, accountId) => {
+      qc.invalidateQueries({ queryKey: qk.calendarToken(accountId) });
+      qc.invalidateQueries({ queryKey: qk.accounts() });
     },
   });
 }

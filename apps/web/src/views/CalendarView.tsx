@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useSearch, useNavigate } from "@tanstack/react-router";
+import { useSearch, useNavigate, Link } from "@tanstack/react-router";
 import {
   startOfMonth,
   endOfMonth,
@@ -485,8 +485,18 @@ export function CalendarView() {
 
         {/* Totals Summary */}
         <div className="flex-1 bg-surface-warm border border-border-warm p-4 rounded-sm flex flex-col justify-center">
-          <div className="text-[12px] font-bold uppercase tracking-wider text-text-secondary mb-2 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-primary" /> Month Projections & Settle Status
+          <div className="flex items-center justify-between gap-4 mb-2">
+            <div className="text-[12px] font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-primary" /> Month Projections & Settle Status
+            </div>
+            <Link
+              to="/settings"
+              search={{ tab: "integrations" }}
+              className="text-[12px] font-medium text-primary hover:underline flex items-center gap-1 focus:outline-none"
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Calendar Feed Setup</span>
+            </Link>
           </div>
           {activeCurrencies.length === 0 ? (
             <span className="text-[14px] text-text-secondary font-medium">No activity scheduled for this month.</span>

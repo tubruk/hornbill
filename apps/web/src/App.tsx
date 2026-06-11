@@ -79,9 +79,20 @@ const paymentsRoute = createRoute({
   component: PaymentsView,
 });
 
+type SettingsSearch = {
+  tab?: "general" | "reminders" | "integrations" | "backup" | "system";
+};
+
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/settings",
+  validateSearch: (search: Record<string, unknown>): SettingsSearch => {
+    return {
+      tab: (search.tab === "general" || search.tab === "reminders" || search.tab === "integrations" || search.tab === "backup" || search.tab === "system")
+        ? (search.tab as SettingsSearch["tab"])
+        : undefined,
+    };
+  },
   component: SettingsView,
 });
 
