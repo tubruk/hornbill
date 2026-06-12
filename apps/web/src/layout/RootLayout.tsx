@@ -18,6 +18,8 @@ import { fetchBills } from "../api/client";
 import { Sidebar } from "./Sidebar";
 import { AddBillModal } from "../components/AddBillModal";
 import { ToastStack } from "../components/ToastStack";
+import { Button } from "../components/Button";
+import { useRegisterSW } from "virtual:pwa-register/react";
 
 // Page titles by route
 const ROUTE_META: Record<string, { title: string; subtitle: string }> = {
@@ -44,6 +46,25 @@ const ROUTE_META: Record<string, { title: string; subtitle: string }> = {
 };
 
 export function RootLayout() {
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegisteredSW(swUrl, r) {
+      if (swUrl && r) {
+        // Setup a periodic check for service worker updates (every 60 minutes)
+        setInterval(async () => {
+          if (r.installing || !navigator.onLine) return;
+          if (r.waiting && r.active) {
+            setNeedRefresh(true);
+          } else {
+            await r.update().catch((err) => console.error("SW update check failed:", err));
+          }
+        }, 3600000);
+      }
+    },
+  });
+
   const { token, email, logout } = useAuth();
   const { currentAccount, setCurrentAccount, toasts, notify, dismissToast, showAddModal, addModalDefaultDate, closeAddModal } = useAppCtx();
   const location = useLocation();
@@ -244,6 +265,38 @@ export function RootLayout() {
         toasts={toasts}
         onDismiss={dismissToast}
       />
+
+      {/* ── PWA Update Notification ───────────────────────── */}
+      {needRefresh && (
+        <div className="fixed bottom-6 left-6 z-[101] flex max-w-sm w-full pointer-events-auto animate-slideUp">
+          <div className="flex flex-col gap-3 px-5 py-4 rounded-md border border-border-warm border-l-4 border-l-primary bg-surface-warm shadow-lg w-full">
+            <div>
+              <h4 className="font-display font-semibold text-[15px] text-text-primary">
+                Update Available
+              </h4>
+              <p className="text-[13px] text-text-secondary font-medium mt-1">
+                A new version of Hornbill has been deployed. Reload to apply the updates.
+              </p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="ghost"
+                size="small"
+                onClick={() => setNeedRefresh(false)}
+              >
+                Dismiss
+              </Button>
+              <Button
+                variant="primary"
+                size="small"
+                onClick={() => updateServiceWorker(true)}
+              >
+                Reload
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
