@@ -127,6 +127,14 @@ api.get("/status", (c) => {
     data_dir: CONFIG.TRAILBASE_DATA_DIR,
     trailbase_url: trailbaseUrl,
     trailbase_token_exists: !!trailbaseToken,
+    instance_defaults: {
+      discord: !!CONFIG.DISCORD_WEBHOOK_URL,
+      slack: !!CONFIG.SLACK_WEBHOOK_URL,
+      telegram: !!CONFIG.TELEGRAM_BOT_TOKEN && !!CONFIG.TELEGRAM_CHAT_ID,
+      webhook: !!CONFIG.GENERIC_WEBHOOK_URL,
+      gotify: !!CONFIG.GOTIFY_URL && !!CONFIG.GOTIFY_TOKEN,
+      ntfy: !!CONFIG.NTFY_URL,
+    },
   });
 });
 
