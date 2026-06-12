@@ -118,6 +118,7 @@ export function SettingsView() {
   const [dataDir, setDataDir] = useState<string>("");
   const [apiVersion, setApiVersion] = useState<string>("");
   const [apiCommit, setApiCommit] = useState<string>("");
+  const [instanceDefaults, setInstanceDefaults] = useState<Record<string, boolean>>({});
 
   // Fetch API status on component mount
   useEffect(() => {
@@ -127,6 +128,7 @@ export function SettingsView() {
         setDataDir(json.data_dir || "./data/hornbill");
         setApiVersion(json.version || "");
         setApiCommit(json.commit || "");
+        setInstanceDefaults(json.instance_defaults || {});
       })
       .catch(() => setDataDir("./data/hornbill"));
   }, []);
@@ -962,6 +964,7 @@ export function SettingsView() {
                           placeholder="https://..."
                           value={webhookUrl}
                           onChange={(e) => setWebhookUrl(e.target.value)}
+                          helperText={instanceDefaults[providerType] ? "Instance default Webhook URL is configured. Leave empty to use it." : undefined}
                         />
                       ) : providerType === "telegram" ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeIn">
@@ -971,12 +974,14 @@ export function SettingsView() {
                             type="password"
                             value={botToken}
                             onChange={(e) => setBotToken(e.target.value)}
+                            helperText={instanceDefaults.telegram ? "Instance default Bot Token is configured. Leave empty to use it." : undefined}
                           />
                           <Input
                             label="Telegram Chat ID"
                             placeholder="-100123456789 or @channelname"
                             value={chatId}
                             onChange={(e) => setChatId(e.target.value)}
+                            helperText={instanceDefaults.telegram ? "Instance default Chat ID is configured. Leave empty to use it." : undefined}
                           />
                         </div>
                       ) : providerType === "gotify" ? (
@@ -986,6 +991,7 @@ export function SettingsView() {
                             placeholder="https://gotify.example.com"
                             value={gotifyUrl}
                             onChange={(e) => setGotifyUrl(e.target.value)}
+                            helperText={instanceDefaults.gotify ? "Instance default Gotify URL is configured. Leave empty to use it." : undefined}
                           />
                           <Input
                             label="Gotify App Token"
@@ -993,6 +999,7 @@ export function SettingsView() {
                             type="password"
                             value={gotifyToken}
                             onChange={(e) => setGotifyToken(e.target.value)}
+                            helperText={instanceDefaults.gotify ? "Instance default App Token is configured. Leave empty to use it." : undefined}
                           />
                         </div>
                       ) : providerType === "ntfy" ? (
@@ -1002,6 +1009,7 @@ export function SettingsView() {
                             placeholder="https://ntfy.sh/my-topic"
                             value={ntfyUrl}
                             onChange={(e) => setNtfyUrl(e.target.value)}
+                            helperText={instanceDefaults.ntfy ? "Instance default ntfy URL is configured. Leave empty to use it." : undefined}
                           />
                           <Input
                             label="ntfy Access Token (Optional)"
