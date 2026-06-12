@@ -7,4 +7,14 @@ export const CONFIG = {
   WEB_DIST_DIR: process.env.WEB_DIST_DIR || "./apps/web/dist",
   HOST: process.env.HOST || "127.0.0.1",
   PORT: Number(process.env.PORT) || 3000,
+  // Instance-level fallback secrets for notifications
+  DISCORD_WEBHOOK_URL: process.env.DISCORD_WEBHOOK_URL || "",
+  SLACK_WEBHOOK_URL: process.env.SLACK_WEBHOOK_URL || "",
+  TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || "",
+  TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID || "",
+  GENERIC_WEBHOOK_URL: process.env.GENERIC_WEBHOOK_URL || "",
+  GOTIFY_URL: process.env.GOTIFY_URL || "",
+  GOTIFY_TOKEN: process.env.GOTIFY_TOKEN || "",
+  NTFY_URL: process.env.NTFY_URL || "",
+  NTFY_TOKEN: process.env.NTFY_TOKEN || "",
 } as const;
