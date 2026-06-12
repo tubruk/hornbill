@@ -252,6 +252,20 @@ app.onError((err, c) => {
 
 // Serve static files from React build directory if it exists
 if (existsSync(CONFIG.WEB_DIST_DIR)) {
+  // Prevent browser caching on critical files to make sure PWA updates immediately
+  app.use("/sw.js", async (c, next) => {
+    await next();
+    c.header("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  });
+  app.use("/index.html", async (c, next) => {
+    await next();
+    c.header("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  });
+  app.use("/manifest.webmanifest", async (c, next) => {
+    await next();
+    c.header("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  });
+
   app.use("/*", serveStatic({ root: CONFIG.WEB_DIST_DIR }));
 }
 
