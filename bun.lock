@@ -21,7 +21,7 @@
     },
     "apps/api": {
       "name": "hornbill-api",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "dependencies": {
         "@hono/zod-openapi": "^1.4.0",
         "@hornbill/core": "workspace:*",
@@ -38,7 +38,7 @@
     },
     "apps/web": {
       "name": "hornbill-web",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "dependencies": {
         "@hornbill/core": "workspace:*",
         "@tanstack/react-query": "^5.101.0",
@@ -63,7 +63,7 @@
     },
     "packages/cli": {
       "name": "@hornbill/cli",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "bin": {
         "hornbill": "./src/index.ts",
       },
@@ -74,7 +74,7 @@
     },
     "packages/core": {
       "name": "@hornbill/core",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "dependencies": {
         "date-fns": "^4.4.0",
         "zod": "^4.4.3",
@@ -82,7 +82,7 @@
     },
     "packages/db": {
       "name": "@hornbill/db",
-      "version": "0.2.0",
+      "version": "0.2.1",
     },
   },
   "packages": {
