@@ -82,7 +82,12 @@ export function PaymentsView() {
       }
       return true;
     })
-    .sort((a, b) => a.due_date.localeCompare(b.due_date));
+    .sort((a, b) => {
+      if (filter === "settled") {
+        return b.due_date.localeCompare(a.due_date);
+      }
+      return a.due_date.localeCompare(b.due_date);
+    });
 
   function handlePay(
     paymentId: string,
