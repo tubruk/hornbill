@@ -2,10 +2,10 @@
 
 ![Hornbill Logo](.github/assets/hornbill_240.png)
 
-[![CI](https://github.com/chickenzord/hornbill/actions/workflows/ci.yml/badge.svg)](https://github.com/chickenzord/hornbill/actions/workflows/ci.yml)
-[![Docker Build](https://github.com/chickenzord/hornbill/actions/workflows/docker.yml/badge.svg)](https://github.com/chickenzord/hornbill/actions/workflows/docker.yml)
-[![Docker Image](https://img.shields.io/badge/docker%20image-ghcr.io-blue?logo=docker&logoColor=white)](https://github.com/chickenzord/hornbill/pkgs/container/hornbill)
-[![codecov](https://codecov.io/gh/chickenzord/hornbill/graph/badge.svg)](https://codecov.io/gh/chickenzord/hornbill)
+[![CI](https://github.com/tubruk/hornbill/actions/workflows/ci.yml/badge.svg)](https://github.com/tubruk/hornbill/actions/workflows/ci.yml)
+[![Docker Build](https://github.com/tubruk/hornbill/actions/workflows/docker.yml/badge.svg)](https://github.com/tubruk/hornbill/actions/workflows/docker.yml)
+[![Docker Image](https://img.shields.io/badge/docker%20image-ghcr.io-blue?logo=docker&logoColor=white)](https://github.com/tubruk/hornbill/pkgs/container/hornbill)
+[![codecov](https://codecov.io/gh/tubruk/hornbill/graph/badge.svg)](https://codecov.io/gh/tubruk/hornbill)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Bun](https://img.shields.io/badge/Bun-%231A202C.svg?style=flat&logo=bun&logoColor=white)](https://bun.sh)
 
@@ -47,7 +47,7 @@ docker compose up -d
 **Docker Run:**
 ```bash
 # Run Hornbill as a single container
-docker run -d -p 3000:3000 -p 4000:4000 -v ./data:/app/data --name hornbill ghcr.io/chickenzord/hornbill:latest
+docker run -d -p 3000:3000 -p 4000:4000 -v ./data:/app/data --name hornbill ghcr.io/tubruk/hornbill:latest
 ```
 
 ### Running from Source
@@ -56,7 +56,7 @@ To build and run Hornbill from the local source code using Docker:
 
 ```bash
 # Build the image locally using the latest tag
-docker build -t ghcr.io/chickenzord/hornbill:latest .
+docker build -t ghcr.io/tubruk/hornbill:latest .
 
 # Run with Docker Compose
 docker compose up -d
@@ -67,7 +67,7 @@ docker compose up -d
 ### 1. CLI Installation
 Install the Hornbill CLI client ([packages/cli](file:///Users/akhyar.amarullah/Projects/github.com/chickenzord/hornbill/packages/cli)) using Homebrew:
 ```bash
-brew install chickenzord/tap/hornbill-cli
+brew install tubruk/tap/hornbill-cli
 ```
 Or build from source:
 ```bash

@@ -1,6 +1,6 @@
 services:
   hornbill:
-    image: ghcr.io/chickenzord/hornbill:latest
+    image: ghcr.io/tubruk/hornbill:latest
     container_name: hornbill-app
     ports:
       - "3000:3000"

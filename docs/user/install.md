@@ -28,7 +28,7 @@ docker run -d \
   -p 3000:3000 -p 4000:4000 \
   -v ./data:/app/data \
   --name hornbill \
-  ghcr.io/chickenzord/hornbill:latest
+  ghcr.io/tubruk/hornbill:latest
 ```
 
 ### Explanation of flags:

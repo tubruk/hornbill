@@ -68,7 +68,7 @@ jobs:
           SHA_DARWIN_ARM64=$(sha256sum dist/hornbill-darwin-arm64 | awk '{print $1}')
 
           # 3. Clone the tap repository
-          git clone https://x-access-token:${TAP_TOKEN}@github.com/chickenzord/homebrew-tap.git homebrew-tap
+          git clone https://x-access-token:${TAP_TOKEN}@github.com/tubruk/homebrew-tap.git homebrew-tap
           cd homebrew-tap
 
           # 4. Generate the formula file
