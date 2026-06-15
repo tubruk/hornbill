@@ -11,8 +11,8 @@
   "dependencies": {
     "@hono/zod-openapi": "^1.4.0",
     "@hornbill/core": "workspace:*",
-    "@scalar/hono-api-reference": "^0.11.0",
-    "bunqueue": "^2.8.7",
+    "@scalar/hono-api-reference": "^0.11.3",
+    "bunqueue": "^2.8.11",
     "hono": "^4.12.25",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3",
