@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Use a Personal Access Token (PAT) to allow tag pushes to trigger other workflows (like the Release workflow)
           token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
