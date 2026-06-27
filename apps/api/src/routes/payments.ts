@@ -203,7 +203,7 @@ app.openapi(createPaymentRoute, withBillAccess("body", "bill_id")(async (c) => {
 
     // Run side effects on payment creation (e.g. recalculating next due dates)
     try {
-      await handlePaymentCreationSideEffects(newPayment);
+      await handlePaymentCreationSideEffects(newPayment, getDb(c));
     } catch (e) {
       console.error("Failed to run payment creation side effects:", e);
     }
@@ -258,7 +258,7 @@ app.openapi(payPaymentRoute, withPaymentAccess()(async (c) => {
       : body.paid_at;
     const amountCents = body.amount_cents !== undefined ? Number(body.amount_cents) : undefined;
 
-    const settled = await settlePayment(id, paidAt, amountCents, body.notes);
+    const settled = await settlePayment(id, paidAt, amountCents, body.notes, getDb(c));
     return c.json(settled, 200);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to settle payment";
@@ -323,7 +323,7 @@ app.openapi(updatePaymentRoute, withPaymentAccess()(async (c) => {
     
     const updated = await getDb(c).updatePayment(id, updates);
     try {
-      await handlePaymentUpdateOrDeleteSideEffects(updated.bill_id, updated.id);
+      await handlePaymentUpdateOrDeleteSideEffects(updated.bill_id, updated.id, getDb(c));
     } catch (e) {
       console.error("Failed to run payment update side effects:", e);
     }
@@ -367,7 +367,7 @@ app.openapi(deletePaymentRoute, withPaymentAccess()(async (c) => {
     const payment = c.get("payment");
     await getDb(c).deletePayment(id);
     try {
-      await handlePaymentUpdateOrDeleteSideEffects(payment.bill_id);
+      await handlePaymentUpdateOrDeleteSideEffects(payment.bill_id, undefined, getDb(c));
     } catch (e) {
       console.error("Failed to run payment deletion side effects:", e);
     }

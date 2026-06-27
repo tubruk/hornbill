@@ -1,4 +1,4 @@
-import { db } from "./trailbase";
+import { db, TrailbaseClient } from "./trailbase";
 import { calculateNextDueDate } from "@hornbill/core";
 import type { Payment, Bill } from "@hornbill/core";
 
@@ -6,8 +6,8 @@ import type { Payment, Bill } from "@hornbill/core";
  * Handles the generation of the next payment cycle for a specific bill.
  * Ensures idempotency and enforces core business invariants.
  */
-export async function generateNextPaymentForBill(billId: string): Promise<Payment | null> {
-  const bill = await db.getBill(billId);
+export async function generateNextPaymentForBill(billId: string, client: TrailbaseClient = db): Promise<Payment | null> {
+  const bill = await client.getBill(billId);
 
   // Invariant 1: Bill must be active to generate payments
   if (!bill.active) {
@@ -15,7 +15,7 @@ export async function generateNextPaymentForBill(billId: string): Promise<Paymen
   }
 
   // Invariant 2: Idempotency check. Check if an unpaid payment already exists.
-  const payments = await db.listPayments(billId);
+  const payments = await client.listPayments(billId);
   const unpaidPayment = payments.find((p) => p.paid_at === null || p.paid_at === undefined);
   if (unpaidPayment) {
     // If an unpaid payment already exists, we do not create a new one.
@@ -39,7 +39,7 @@ export async function generateNextPaymentForBill(billId: string): Promise<Paymen
   }
 
   // Create the new unpaid payment
-  const newPayment = await db.createPayment({
+  const newPayment = await client.createPayment({
     id: crypto.randomUUID(),
     bill_id: bill.id,
     due_date: newDueDate,
@@ -55,8 +55,14 @@ export async function generateNextPaymentForBill(billId: string): Promise<Paymen
  * Settles an outstanding payment, marking it as paid and automatically
  * generating the next payment cycle.
  */
-export async function settlePayment(paymentId: string, paidAtVal?: number, amountCentsVal?: number, notesVal?: string | null): Promise<Payment> {
-  const payment = await db.getPayment(paymentId);
+export async function settlePayment(
+  paymentId: string,
+  paidAtVal?: number,
+  amountCentsVal?: number,
+  notesVal?: string | null,
+  client: TrailbaseClient = db
+): Promise<Payment> {
+  const payment = await client.getPayment(paymentId);
   if (payment.paid_at) {
     throw new Error("Payment is already settled");
   }
@@ -65,8 +71,8 @@ export async function settlePayment(paymentId: string, paidAtVal?: number, amoun
   
   // Validation: payment date must never be before the latest paid payment of the same bill
   // or before the bill's start date if there are no past payments.
-  const bill = await db.getBill(payment.bill_id);
-  const payments = await db.listPayments(payment.bill_id);
+  const bill = await client.getBill(payment.bill_id);
+  const payments = await client.listPayments(payment.bill_id);
   const paidPayments = payments
     .filter((p) => p.id !== paymentId && p.paid_at !== null && p.paid_at !== undefined)
     .sort((a, b) => b.due_date.localeCompare(a.due_date));
@@ -96,11 +102,11 @@ export async function settlePayment(paymentId: string, paidAtVal?: number, amoun
     updates.notes = notesVal;
   }
 
-  const updatedPayment = await db.updatePayment(paymentId, updates);
+  const updatedPayment = await client.updatePayment(paymentId, updates);
 
   // 2. Generate the next payment cycle automatically
   try {
-    await generateNextPaymentForBill(payment.bill_id);
+    await generateNextPaymentForBill(payment.bill_id, client);
   } catch (err) {
     // Log error but don't fail the settlement of the current payment
     console.error(`Failed to generate next payment cycle for bill ${payment.bill_id}:`, err);
@@ -113,9 +119,9 @@ export async function settlePayment(paymentId: string, paidAtVal?: number, amoun
  * Scanning daemon to check all active bills. If a bill is missing an unpaid payment,
  * it generates the next payment in the cycle.
  */
-export async function syncAllPayments(accountId?: string): Promise<{ processed: number; generated: number }> {
+export async function syncAllPayments(accountId?: string, client: TrailbaseClient = db): Promise<{ processed: number; generated: number }> {
   // Retrieve all bills, then optionally filter by accountId
-  const allBills = await db.listBills();
+  const allBills = await client.listBills();
   const filteredBills = accountId ? allBills.filter((b) => b.account_id === accountId) : allBills;
   const activeBills = filteredBills.filter((b) => b.active);
 
@@ -125,7 +131,7 @@ export async function syncAllPayments(accountId?: string): Promise<{ processed: 
   for (const bill of activeBills) {
     try {
       processed++;
-      const created = await generateNextPaymentForBill(bill.id);
+      const created = await generateNextPaymentForBill(bill.id, client);
       if (created) {
         generated++;
       }
@@ -143,15 +149,16 @@ export async function syncAllPayments(accountId?: string): Promise<{ processed: 
 export async function handleBillUpdateSideEffects(
   billId: string,
   oldBill: Bill,
-  updatedBill: Bill
+  updatedBill: Bill,
+  client: TrailbaseClient = db
 ): Promise<void> {
-  const payments = await db.listPayments(billId);
+  const payments = await client.listPayments(billId);
   const unpaidPayment = payments.find((p) => p.paid_at === null || p.paid_at === undefined);
 
   // 1. If deactivated: delete any outstanding unpaid payment
   if (oldBill.active && !updatedBill.active) {
     if (unpaidPayment) {
-      await db.deletePayment(unpaidPayment.id);
+      await client.deletePayment(unpaidPayment.id);
     }
     return;
   }
@@ -187,13 +194,13 @@ export async function handleBillUpdateSideEffects(
     }
 
     if (needsUpdate) {
-      await db.updatePayment(unpaidPayment.id, updates);
+      await client.updatePayment(unpaidPayment.id, updates);
     }
   }
 
   // 3. If reactivated, check/generate initial/next cycle payment
   if (!oldBill.active && updatedBill.active) {
-    await generateNextPaymentForBill(billId);
+    await generateNextPaymentForBill(billId, client);
   }
 }
 
@@ -203,16 +210,16 @@ export async function handleBillUpdateSideEffects(
  * paid payment, it updates the next upcoming unpaid payment's due date.
  * If no unpaid payment exists, it generates a new unpaid upcoming payment.
  */
-export async function handlePaymentCreationSideEffects(payment: Payment): Promise<void> {
+export async function handlePaymentCreationSideEffects(payment: Payment, client: TrailbaseClient = db): Promise<void> {
   if (payment.paid_at === null || payment.paid_at === undefined) {
     return;
   }
   const billId = payment.bill_id;
-  const bill = await db.getBill(billId);
+  const bill = await client.getBill(billId);
   if (!bill.active) {
     return;
   }
-  const payments = await db.listPayments(billId);
+  const payments = await client.listPayments(billId);
   const unpaidPayment = payments.find((p) => p.paid_at === null || p.paid_at === undefined);
 
   // Sort paid payments descending by due_date to find the latest
@@ -226,11 +233,11 @@ export async function handlePaymentCreationSideEffects(payment: Payment): Promis
     // Recalculate due date of existing unpaid payment based on new latestPaid
     if (latestPaid && latestPaid.id === payment.id) {
       const newDueDate = calculateNextDueDate(bill, latestPaid);
-      await db.updatePayment(unpaidPayment.id, { due_date: newDueDate });
+      await client.updatePayment(unpaidPayment.id, { due_date: newDueDate });
     }
   } else {
     // No unpaid payment exists, generate the next one
-    await generateNextPaymentForBill(billId);
+    await generateNextPaymentForBill(billId, client);
   }
 }
 
@@ -238,12 +245,12 @@ export async function handlePaymentCreationSideEffects(payment: Payment): Promis
  * Recalculates or schedules the next upcoming payment cycle when any payment
  * on a bill is updated or deleted.
  */
-export async function handlePaymentUpdateOrDeleteSideEffects(billId: string, ignoreRecalculationForPaymentId?: string): Promise<void> {
-  const bill = await db.getBill(billId);
+export async function handlePaymentUpdateOrDeleteSideEffects(billId: string, ignoreRecalculationForPaymentId?: string, client: TrailbaseClient = db): Promise<void> {
+  const bill = await client.getBill(billId);
   if (!bill.active) {
     return;
   }
-  const payments = await db.listPayments(billId);
+  const payments = await client.listPayments(billId);
   const unpaidPayment = payments.find((p) => p.paid_at === null || p.paid_at === undefined);
 
   // Sort paid payments descending by due_date to find the latest
@@ -257,16 +264,16 @@ export async function handlePaymentUpdateOrDeleteSideEffects(billId: string, ign
     if (latestPaid) {
       const newDueDate = calculateNextDueDate(bill, latestPaid);
       if (unpaidPayment.due_date !== newDueDate) {
-        await db.updatePayment(unpaidPayment.id, { due_date: newDueDate });
+        await client.updatePayment(unpaidPayment.id, { due_date: newDueDate });
       }
     } else {
       // Fallback to start_date if all paid payments are removed/unmarked
       if (unpaidPayment.due_date !== bill.start_date) {
-        await db.updatePayment(unpaidPayment.id, { due_date: bill.start_date });
+        await client.updatePayment(unpaidPayment.id, { due_date: bill.start_date });
       }
     }
   } else if (!unpaidPayment) {
     // No unpaid payment exists, generate the next one
-    await generateNextPaymentForBill(billId);
+    await generateNextPaymentForBill(billId, client);
   }
 }

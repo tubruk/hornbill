@@ -818,7 +818,7 @@ describe("API Routes", () => {
         }),
       });
       expect(res.status).toBe(201);
-      expect(generateNextPaymentForBillSpy).toHaveBeenCalledWith(mockBillItem.id);
+      expect(generateNextPaymentForBillSpy).toHaveBeenCalledWith(mockBillItem.id, expect.any(Object));
     });
 
     test("POST / - creates bill with last_payment_date, sets start_date, and auto-creates paid payment", async () => {
@@ -856,7 +856,7 @@ describe("API Routes", () => {
       expect(createPaymentCall.paid_at).toBe(Math.floor(new Date("2026-05-01T00:00:00").getTime() / 1000));
       expect(createPaymentCall.notes).toBeNull();
 
-      expect(generateNextPaymentForBillSpy).toHaveBeenCalledWith(mockBillItem.id);
+      expect(generateNextPaymentForBillSpy).toHaveBeenCalledWith(mockBillItem.id, expect.any(Object));
     });
 
     test("POST / - fails with 400 on missing fields", async () => {
@@ -917,7 +917,7 @@ describe("API Routes", () => {
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.name).toBe("New Rent");
-      expect(handleBillUpdateSideEffectsSpy).toHaveBeenCalledWith("bill-1", mockBillItem, updated);
+      expect(handleBillUpdateSideEffectsSpy).toHaveBeenCalledWith("bill-1", mockBillItem, updated, expect.any(Object));
     });
 
     test("PATCH /:id - fails with 400 if modifying immutable currency", async () => {
@@ -1249,7 +1249,7 @@ describe("API Routes", () => {
         body: JSON.stringify({ paid_at: "2026-01-16T12:00:00Z", amount_cents: 1500 }),
       });
       expect(res.status).toBe(200);
-      expect(settlePaymentSpy).toHaveBeenCalledWith("pay-1", Math.floor(new Date("2026-01-16T12:00:00Z").getTime() / 1000), 1500, undefined);
+      expect(settlePaymentSpy).toHaveBeenCalledWith("pay-1", Math.floor(new Date("2026-01-16T12:00:00Z").getTime() / 1000), 1500, undefined, expect.any(Object));
     });
 
     test("POST /:id/pay - settles payment with notes", async () => {
@@ -1259,7 +1259,7 @@ describe("API Routes", () => {
         body: JSON.stringify({ paid_at: "2026-01-16T12:00:00Z", amount_cents: 1500, notes: "some note" }),
       });
       expect(res.status).toBe(200);
-      expect(settlePaymentSpy).toHaveBeenCalledWith("pay-1", Math.floor(new Date("2026-01-16T12:00:00Z").getTime() / 1000), 1500, "some note");
+      expect(settlePaymentSpy).toHaveBeenCalledWith("pay-1", Math.floor(new Date("2026-01-16T12:00:00Z").getTime() / 1000), 1500, "some note", expect.any(Object));
     });
 
     test("POST /:id/pay - returns 400 on settle error", async () => {

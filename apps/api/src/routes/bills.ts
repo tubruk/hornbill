@@ -225,7 +225,7 @@ app.openapi(createBillRoute, withAccountAccess("body", "account_id")(async (c) =
 
     // Automatically trigger generating the initial/next payment cycle
     try {
-      await generateNextPaymentForBill(newBill.id);
+      await generateNextPaymentForBill(newBill.id, getDb(c));
     } catch (e) {
       console.error("Failed to generate payment cycle for new bill:", e);
     }
@@ -314,7 +314,7 @@ app.openapi(updateBillRoute, withBillAccess()(async (c) => {
     
     // Process all payment side-effects cleanly on the API side
     try {
-      await handleBillUpdateSideEffects(id, oldBill, updated);
+      await handleBillUpdateSideEffects(id, oldBill, updated, getDb(c));
     } catch (e) {
       console.error(`Failed handling side effects for bill update ${id}:`, e);
     }
