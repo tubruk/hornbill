@@ -30,7 +30,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Copy Trailbase binary from official image
-COPY --from=trailbase/trailbase:v0.29.0 /app/trail /usr/local/bin/trail
+COPY --from=trailbase/trailbase:0.29.0 /app/trail /usr/local/bin/trail
 
 # Copy workspace configs and lockfiles first for production caching
 COPY package.json bun.lock tsconfig.json ./
