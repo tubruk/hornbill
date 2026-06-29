@@ -22,7 +22,7 @@ MIGRATIONS_SRC="/app/packages/db/migrations"
 if [ ! -d "$MIGRATIONS_SRC" ]; then
   MIGRATIONS_SRC="$(pwd)/packages/db/migrations"
 fi
-cp -r "$MIGRATIONS_SRC" "$DATA_DIR/migrations"
+cp -r "$MIGRATIONS_SRC"/. "$DATA_DIR/migrations/"
 
 # Start Trailbase in the background using the data directory from environment (loopback-only for security)
 echo "Starting Trailbase database..."
