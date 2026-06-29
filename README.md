@@ -16,11 +16,12 @@
 
 ## 💡 Key Features
 
-- **🗓️ Calendar View** – track and visualize upcoming due dates in a clean, interactive monthly calendar.
-- **📅 Flexible recurrence** – configure monthly, yearly, or custom intervals.
-- **📱 Responsive PWA** – installable web app optimized for both mobile and desktop screens.
-- **💱 Multi-currency** – supports tracking bills in multiple currencies.
-- **🔔 Reminder notifications** – daily checks and alert notifications via Discord, Slack, Telegram, ntfy, Gotify, or generic Webhooks.
+- **🗓️ Calendar View & Feed** – Track and visualize upcoming due dates in a clean, interactive monthly calendar, or subscribe via an iCal/ICS feed.
+- **📅 Flexible Recurrence** – Configure monthly, yearly, or custom intervals.
+- **📱 Responsive PWA** – Installable web app optimized for both mobile and desktop screens.
+- **💱 Multi-currency** – Supports tracking bills in multiple currencies.
+- **🔔 Reminder Notifications** – Get daily alerts for upcoming due dates via messaging platforms, push notification services, or custom webhooks.
+
 Hornbill is designed for simple, privacy-focused self-hosting using a Docker-based setup and a clean, minimalist web UI. Your data always stays with you, stored locally in a SQLite database powered by [Trailbase](https://trailbase.io/).
 
 As a fully free and open-source project (AGPL-v3), it is built to be highly extensible and portable. Hornbill provides a comprehensive REST API, an official CLI, and native AI agent skills to seamlessly support programmatic JSON-based backup and restore, custom third-party integrations, and autonomous agentic workflows.
