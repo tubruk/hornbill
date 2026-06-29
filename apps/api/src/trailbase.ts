@@ -210,7 +210,7 @@ export class TrailbaseClient {
   }
 
   async getAccount(id: string): Promise<Account> {
-    const acc = await this.request<DbAccount>(`/api/records/v1/accounts/${id}`);
+    const acc = await this.request<DbAccount>(`/api/records/v1/accounts/${encodeURIComponent(id)}`);
     return this.mapDbAccount(acc);
   }
 
@@ -275,7 +275,7 @@ export class TrailbaseClient {
     if (updates.calendar_token !== undefined) {
       payload.calendar_token = updates.calendar_token;
     }
-    await this.request<unknown>(`/api/records/v1/accounts/${id}`, {
+    await this.request<unknown>(`/api/records/v1/accounts/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
@@ -283,7 +283,7 @@ export class TrailbaseClient {
   }
 
   async deleteAccount(id: string): Promise<void> {
-    await this.request<void>(`/api/records/v1/accounts/${id}`, {
+    await this.request<void>(`/api/records/v1/accounts/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
   }
@@ -315,7 +315,7 @@ export class TrailbaseClient {
   }
 
   async getBill(id: string): Promise<Bill> {
-    const bill = await this.request<DbBill>(`/api/records/v1/bills/${id}`);
+    const bill = await this.request<DbBill>(`/api/records/v1/bills/${encodeURIComponent(id)}`);
     return {
       ...bill,
       account_id: typeof bill.account_id === "object" && bill.account_id !== null ? bill.account_id.id : bill.account_id,
@@ -362,7 +362,7 @@ export class TrailbaseClient {
       payload.recurrence = JSON.stringify(updates.recurrence);
     }
 
-    await this.request<unknown>(`/api/records/v1/bills/${id}`, {
+    await this.request<unknown>(`/api/records/v1/bills/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
@@ -371,7 +371,7 @@ export class TrailbaseClient {
   }
 
   async deleteBill(id: string): Promise<void> {
-    await this.request<void>(`/api/records/v1/bills/${id}`, {
+    await this.request<void>(`/api/records/v1/bills/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
   }
@@ -395,7 +395,7 @@ export class TrailbaseClient {
   }
 
   async getPayment(id: string): Promise<Payment> {
-    const res = await this.request<DbPayment>(`/api/records/v1/payments/${id}`);
+    const res = await this.request<DbPayment>(`/api/records/v1/payments/${encodeURIComponent(id)}`);
     return {
       ...res,
       bill_id: typeof res.bill_id === "object" && res.bill_id !== null ? res.bill_id.id : res.bill_id,
@@ -421,7 +421,7 @@ export class TrailbaseClient {
 
   async updatePayment(id: string, updates: Partial<Omit<Payment, "id" | "created_at" | "updated_at">>): Promise<Payment> {
     const now = Math.floor(Date.now() / 1000);
-    await this.request<unknown>(`/api/records/v1/payments/${id}`, {
+    await this.request<unknown>(`/api/records/v1/payments/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body: JSON.stringify({
         ...updates,
@@ -432,7 +432,7 @@ export class TrailbaseClient {
   }
 
   async deletePayment(id: string): Promise<void> {
-    await this.request<void>(`/api/records/v1/payments/${id}`, {
+    await this.request<void>(`/api/records/v1/payments/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
   }
@@ -474,7 +474,7 @@ export class TrailbaseClient {
   }
 
   async getApiKey(id: string): Promise<ApiKey> {
-    const key = await this.request<DbApiKey>(`/api/records/v1/api_keys/${id}`);
+    const key = await this.request<DbApiKey>(`/api/records/v1/api_keys/${encodeURIComponent(id)}`);
     return this.mapDbApiKey(key);
   }
 
@@ -498,7 +498,7 @@ export class TrailbaseClient {
 
   async updateApiKeyLastUsed(id: string): Promise<void> {
     const now = Math.floor(Date.now() / 1000);
-    await this.request<unknown>(`/api/records/v1/api_keys/${id}`, {
+    await this.request<unknown>(`/api/records/v1/api_keys/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body: JSON.stringify({
         last_used_at: now,
@@ -507,7 +507,7 @@ export class TrailbaseClient {
   }
 
   async deleteApiKey(id: string): Promise<void> {
-    await this.request<void>(`/api/records/v1/api_keys/${id}`, {
+    await this.request<void>(`/api/records/v1/api_keys/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
   }
