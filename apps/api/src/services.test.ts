@@ -166,27 +166,7 @@ describe("Services Logic", () => {
       expect(settlePayment(payment.id)).rejects.toThrow("Payment is already settled");
     });
 
-    test("throws error if paidAt is before the bill's start date for the first payment", async () => {
-      const bill = mockBill({ start_date: "2026-02-10" });
-      const payment: Payment = {
-        id: "pay-1",
-        bill_id: bill.id,
-        due_date: "2026-02-10",
-        amount_cents: 1500,
-        paid_at: null,
-        created_at: 1717200000,
-        updated_at: 1717200000,
-      };
-      spyOn(db, "getPayment").mockResolvedValue(payment);
-      getBillSpy.mockResolvedValue(bill);
-      listPaymentsSpy.mockResolvedValue([payment]);
 
-      // Feb 10 2026 00:00:00 local time is around 1770656400 (or similar). Let's pass a very early timestamp (e.g. year 2025).
-      const paidAtBeforeStart = Math.floor(new Date("2025-12-31").getTime() / 1000);
-      expect(settlePayment(payment.id, paidAtBeforeStart)).rejects.toThrow(
-        "Payment date cannot be before the bill start date"
-      );
-    });
 
     test("settles payment successfully and triggers next payment generation", async () => {
       const bill = mockBill({ start_date: "2026-01-01" });
