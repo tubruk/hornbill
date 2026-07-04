@@ -40,6 +40,7 @@ import {
 import { getPaymentState, calculateNextDueDate, DEFAULT_UPCOMING_THRESHOLD_DAYS, type Payment, type Bill } from "@hornbill/core";
 import { PayPaymentModal } from "../components/PayPaymentModal";
 import { Button } from "../components/Button";
+import { PaymentDetailsModal } from "../components/PaymentDetailsModal";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -185,6 +186,8 @@ export function CalendarView() {
     paidAtDate: string | null;
     notes: string;
   } | null>(null);
+
+  const [viewingPayment, setViewingPayment] = useState<EnrichedPayment | null>(null);
 
   // ── Fetching Data ────────────────────────────────────────────────────────
   const billsQuery = useBills(currentAccount?.id);
@@ -646,19 +649,7 @@ export function CalendarView() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (isProjected) {
-                              handlePay(
-                                p.id,
-                                p.bill?.name ?? "Bill",
-                                p.due_date,
-                                false,
-                                p.bill?.amount_cents ?? p.amount_cents,
-                                p.bill?.currency ?? "USD",
-                                true
-                              );
-                            } else {
-                              handleEdit(p);
-                            }
+                            setViewingPayment(p);
                           }}
                           className={`w-full flex items-center justify-between gap-1 px-1.5 py-0.5 rounded-sm text-[11px] font-medium leading-none truncate cursor-pointer hover:brightness-95 transition-all ${badgeClass}`}
                         >
@@ -805,7 +796,10 @@ export function CalendarView() {
                   key={p.id}
                   className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 first:pt-0 last:pb-0"
                 >
-                  <div>
+                  <div
+                    onClick={() => setViewingPayment(p)}
+                    className="cursor-pointer hover:opacity-80 transition-opacity flex-1"
+                  >
                     <div className="text-[15px] font-semibold flex items-center gap-2 flex-wrap">
                       <span className={
                         isProjected
@@ -961,6 +955,34 @@ export function CalendarView() {
           onClose={() => setEditingPayment(null)}
           onDelete={handleEditDelete}
           isSubmitting={updateMut.isPending || deleteMut.isPending}
+        />
+      )}
+
+      {viewingPayment && (
+        <PaymentDetailsModal
+          payment={viewingPayment}
+          upcomingThreshold={currentAccount?.upcoming_threshold_days}
+          onClose={() => setViewingPayment(null)}
+          onEdit={() => {
+            const p = viewingPayment;
+            setViewingPayment(null);
+            handleEdit(p);
+          }}
+          onPay={() => {
+            const p = viewingPayment;
+            setViewingPayment(null);
+            const threshold = p.bill?.upcoming_threshold_days ?? currentAccount?.upcoming_threshold_days ?? DEFAULT_UPCOMING_THRESHOLD_DAYS;
+            const { status } = getPaymentState(p, todayStr, threshold);
+            handlePay(
+              p.id,
+              p.bill?.name ?? "Bill",
+              p.due_date,
+              status === "upcoming",
+              p.bill?.amount_cents ?? p.amount_cents,
+              p.bill?.currency ?? "USD",
+              p.id.startsWith("projected-")
+            );
+          }}
         />
       )}
 
