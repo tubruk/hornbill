@@ -224,7 +224,7 @@ describe("Services Logic", () => {
       });
     });
 
-    test("throws error if paidAt is before the latest paid payment's paid_at", async () => {
+    test("succeeds if paidAt is before another paid payment's paid_at (supports backfilling/out-of-order payments)", async () => {
       const bill = mockBill({ start_date: "2026-01-01" });
       const payment1: Payment = {
         id: "pay-1",
@@ -250,9 +250,17 @@ describe("Services Logic", () => {
 
       // Jan 10 2026 (before Jan 15 2026)
       const paidAtBeforeLatest = 1768056000;
-      expect(settlePayment(payment2.id, paidAtBeforeLatest)).rejects.toThrow(
-        "Payment date cannot be before the latest payment date"
-      );
+      const updatedPayment: Payment = {
+        ...payment2,
+        paid_at: paidAtBeforeLatest,
+      };
+      updatePaymentSpy.mockResolvedValue(updatedPayment);
+
+      const result = await settlePayment(payment2.id, paidAtBeforeLatest);
+      expect(result).toEqual(updatedPayment);
+      expect(updatePaymentSpy).toHaveBeenCalledWith(payment2.id, {
+        paid_at: paidAtBeforeLatest,
+      });
     });
 
     test("ignores failure when generating next payment cycle and completes settlement successfully", async () => {
@@ -272,14 +280,7 @@ describe("Services Logic", () => {
 
       // Mock listPayments to succeed on first call (inside settlePayment)
       // and fail on subsequent calls (inside generateNextPaymentForBill)
-      let callCount = 0;
-      listPaymentsSpy.mockImplementation(async () => {
-        callCount++;
-        if (callCount > 1) {
-          throw new Error("Simulated db error in generateNextPaymentForBill");
-        }
-        return [payment];
-      });
+      listPaymentsSpy.mockRejectedValue(new Error("Simulated db error in generateNextPaymentForBill"));
 
       const paidAtTime = Math.floor(new Date("2026-01-16T12:00:00Z").getTime() / 1000);
       const updatedPayment: Payment = {

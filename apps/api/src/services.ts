@@ -69,22 +69,6 @@ export async function settlePayment(
 
   const paidAt = paidAtVal !== undefined ? paidAtVal : Math.floor(Date.now() / 1000);
   
-  // Validation: payment date must never be before the latest paid payment of the same bill
-  // or before the bill's start date if there are no past payments.
-  const bill = await client.getBill(payment.bill_id);
-  const payments = await client.listPayments(payment.bill_id);
-  const paidPayments = payments
-    .filter((p) => p.id !== paymentId && p.paid_at !== null && p.paid_at !== undefined)
-    .sort((a, b) => b.due_date.localeCompare(a.due_date));
-
-  const latestPaid = paidPayments[0];
-  if (latestPaid && latestPaid.paid_at) {
-    if (paidAt < latestPaid.paid_at) {
-      const formattedLatestPaid = new Date(latestPaid.paid_at * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-      throw new Error(`Payment date cannot be before the latest payment date (${formattedLatestPaid})`);
-    }
-  }
-  
   // 1. Mark current payment as settled
   const updates: Partial<Omit<Payment, "id" | "created_at" | "updated_at">> = {
     paid_at: paidAt,
