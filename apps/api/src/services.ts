@@ -14,28 +14,24 @@ export async function generateNextPaymentForBill(billId: string, client: Trailba
     throw new Error("Cannot create payment for inactive bill");
   }
 
-  // Invariant 2: Idempotency check. Check if an unpaid payment already exists.
   const payments = await client.listPayments(billId);
-  const unpaidPayment = payments.find((p) => p.paid_at === null || p.paid_at === undefined);
-  if (unpaidPayment) {
-    // If an unpaid payment already exists, we do not create a new one.
+  
+  // Sort payments descending by due_date to find the latest payment overall
+  const sortedPayments = [...payments].sort((a, b) => b.due_date.localeCompare(a.due_date));
+  const latestPayment = sortedPayments[0];
+
+  // Invariant 2: Idempotency check. If the latest payment overall is unpaid, do a no-op.
+  if (latestPayment && (latestPayment.paid_at === null || latestPayment.paid_at === undefined)) {
     return null;
   }
 
-  // Determine latest paid payment
-  const paidPayments = payments
-    .filter((p) => p.paid_at !== null && p.paid_at !== undefined)
-    .sort((a, b) => b.due_date.localeCompare(a.due_date)); // Sort descending to get latest
-
-  const latestPaid = paidPayments[0];
-
   // If there are absolutely NO payments at all (first cycle), the target due date is the bill's start_date.
-  // Otherwise, use the recurrence strategy to calculate it.
+  // Otherwise, use the recurrence strategy to calculate it from the latest payment (which is paid).
   let newDueDate: string;
-  if (payments.length === 0) {
+  if (!latestPayment) {
     newDueDate = bill.start_date;
   } else {
-    newDueDate = calculateNextDueDate(bill, latestPaid);
+    newDueDate = calculateNextDueDate(bill, latestPayment);
   }
 
   // Create the new unpaid payment
