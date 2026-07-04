@@ -1,27 +1,14 @@
 import { useState } from "react";
-import { Loader2, Edit2 } from "lucide-react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { useAppCtx } from "../context/AppContext";
 import { useBills, usePayments, usePayPayment, useUpdatePayment, useDeletePayment, type EnrichedPayment } from "../api/queries";
 import { PayPaymentModal } from "../components/PayPaymentModal";
 import { Card } from "../components/Card";
-import { Button } from "../components/Button";
-import { SplitButton } from "../components/SplitButton";
-import { DropdownItem } from "../components/Dropdown";
+import { PaymentRow } from "../components/PaymentRow";
 import { BillRowSkeleton } from "../components/Skeleton";
-import { getPaymentState, DEFAULT_UPCOMING_THRESHOLD_DAYS } from "@hornbill/core";
+import { DEFAULT_UPCOMING_THRESHOLD_DAYS } from "@hornbill/core";
 
 type Filter = "unpaid" | "settled";
-
-function formatCents(cents: number, currency = "USD"): string {
-  return (cents / 100).toLocaleString("en-US", { style: "currency", currency });
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
-    month: "short", day: "numeric", year: "numeric",
-  });
-}
 
 export function PaymentsView() {
   const { currentAccount, notify } = useAppCtx();
@@ -89,16 +76,16 @@ export function PaymentsView() {
       return a.due_date.localeCompare(b.due_date);
     });
 
-  function handlePay(
-    paymentId: string,
-    billName: string,
-    dueDate: string,
-    isUpcoming: boolean,
-    amountCents: number,
-    currency: string,
-    notes: string | null
-  ) {
-    setPayingPayment({ id: paymentId, name: billName, dueDate, isUpcoming, amountCents, currency, notes });
+  function handlePay(payment: EnrichedPayment, isUpcoming: boolean) {
+    setPayingPayment({
+      id: payment.id,
+      name: payment.bill?.name ?? "Bill",
+      dueDate: payment.due_date,
+      isUpcoming,
+      amountCents: payment.bill?.amount_cents ?? payment.amount_cents,
+      currency: payment.bill?.currency ?? "USD",
+      notes: payment.notes || null,
+    });
   }
 
   async function handlePayConfirm(amountCents: number, paidAtDate?: string, _dueDate?: string, notes?: string) {
@@ -269,115 +256,19 @@ export function PaymentsView() {
         ) : (
           <div className="divide-y divide-border-warm">
             {displayed.map((p) => {
-              const isSettled = !!p.paid_at;
               const threshold = p.bill?.upcoming_threshold_days ?? currentAccount?.upcoming_threshold_days ?? DEFAULT_UPCOMING_THRESHOLD_DAYS;
-              const { status } = getPaymentState(p, todayStr, threshold);
-              const isPaying =
-                payMut.isPending &&
-                payMut.variables?.paymentId === p.id;
+              const isPaying = payMut.isPending && payMut.variables?.paymentId === p.id;
 
               return (
-                <div key={p.id} className="py-3.5 flex items-center justify-between gap-4 first:pt-0 last:pb-0">
-                  <div className="min-w-0">
-                    <div className="text-[15px] font-semibold text-text-primary flex items-center gap-2 flex-wrap">
-                      <span className="truncate">{p.bill?.name ?? "—"}</span>
-                    </div>
-                    <span className="text-[12px] text-text-secondary font-mono mt-0.5 block">
-                      {!isSettled ? (
-                        <>
-                          Due:{" "}
-                          <span
-                            className={
-                              status === "overdue"
-                                ? "text-error font-semibold"
-                                : status === "due_soon"
-                                ? "text-warning font-semibold"
-                                : "text-[#1E40AF] font-semibold"
-                            }
-                          >
-                            {formatDate(p.due_date)}
-                          </span>
-                          {" · "}
-                          <span
-                            className={
-                              status === "overdue"
-                                ? "text-error font-bold uppercase tracking-wider text-[10px]"
-                                : status === "due_soon"
-                                ? "text-warning font-bold uppercase tracking-wider text-[10px]"
-                                : "text-[#1E40AF] font-bold uppercase tracking-wider text-[10px]"
-                            }
-                          >
-                            {status === "overdue" ? (() => {
-                              const d1 = Date.parse(p.due_date + "T00:00:00Z");
-                              const d2 = Date.parse(todayStr + "T00:00:00Z");
-                              const diffDays = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
-                              return `Overdue (${diffDays}d)`;
-                            })() : status === "due_soon" ? "Due Soon" : "Upcoming"}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          Due: {formatDate(p.due_date)}
-                          {p.paid_at && (() => {
-                            const paidDateStr = new Date(p.paid_at * 1000).toISOString().split("T")[0];
-                            const d1 = Date.parse(p.due_date + "T00:00:00Z");
-                            const d2 = Date.parse(paidDateStr + "T00:00:00Z");
-                            const diffDays = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
-                            const isLate = diffDays > 0;
-                            return (
-                              <span className={`ml-2 font-semibold ${isLate ? "text-warning" : "text-success"}`}>
-                                · Paid {formatDate(paidDateStr)} {isLate && `(${diffDays} ${diffDays === 1 ? "day" : "days"} late)`}
-                              </span>
-                            );
-                          })()}
-                        </>
-                      )}
-                    </span>
-                    {isSettled && p.notes && (
-                      <span className="text-[13px] text-text-secondary italic mt-1 block max-w-md truncate">
-                        Note: {p.notes}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-5 shrink-0">
-                    <span className="text-[15px] font-mono font-semibold text-text-primary">
-                      {formatCents(p.amount_cents, p.bill?.currency ?? "USD")}
-                    </span>
-                    {!isSettled ? (
-                      <SplitButton
-                        primaryLabel={isPaying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Mark Paid"}
-                        onPrimaryClick={() =>
-                          handlePay(
-                            p.id,
-                            p.bill?.name ?? "Bill",
-                            p.due_date,
-                            status === "upcoming",
-                            p.bill?.amount_cents ?? p.amount_cents,
-                            p.bill?.currency ?? "USD",
-                            p.notes || null
-                          )
-                        }
-                        disabled={isPaying}
-                        dropdownWidthClass="w-32"
-                        dropdownItems={
-                          <DropdownItem onClick={() => handleEdit(p)}>
-                            <Edit2 className="w-4 h-4 text-text-secondary" />
-                            Edit
-                          </DropdownItem>
-                        }
-                      />
-                    ) : (
-                      <Button
-                        variant="secondary"
-                        size="small"
-                        onClick={() => handleEdit(p)}
-                      >
-                        Edit
-                      </Button>
-                    )}
-                  </div>
-                </div>
+                <PaymentRow
+                  key={p.id}
+                  payment={p}
+                  todayStr={todayStr}
+                  upcomingThreshold={threshold}
+                  isPaying={isPaying}
+                  onPay={handlePay}
+                  onEdit={handleEdit}
+                />
               );
             })}
           </div>

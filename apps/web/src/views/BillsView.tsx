@@ -198,8 +198,12 @@ export function BillsView() {
                   className={`py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 first:pt-0 last:pb-0 transition-opacity ${isBusy ? "opacity-60" : ""}`}
                 >
                   {/* Bill info */}
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[15px] font-semibold text-text-primary flex items-center gap-2.5 flex-wrap">
+                  <Link
+                    to="/bills/$billId"
+                    params={{ billId: bill.id }}
+                    className="min-w-0 flex-1 group block text-left hover:no-underline cursor-pointer"
+                  >
+                    <div className="text-[15px] font-semibold text-text-primary flex items-center gap-2.5 flex-wrap group-hover:text-primary transition-colors">
                       <span className={`truncate ${!bill.active ? "text-text-secondary line-through decoration-neutral-muted" : ""}`}>
                         {bill.name}
                       </span>
@@ -212,7 +216,7 @@ export function BillsView() {
                         {bill.notes}
                       </p>
                     )}
-                  </div>
+                  </Link>
 
                   {/* Amount + actions */}
                   <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pt-2 sm:pt-0 border-t border-border-warm/40 sm:border-0">

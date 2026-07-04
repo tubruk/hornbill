@@ -14,6 +14,7 @@ import { RootLayout } from "./layout/RootLayout";
 import { DashboardView } from "./views/DashboardView";
 import { CalendarView } from "./views/CalendarView";
 import { BillsView } from "./views/BillsView";
+import { BillDetailsView } from "./views/BillDetailsView";
 import { PaymentsView } from "./views/PaymentsView";
 import { SettingsView } from "./views/SettingsView";
 
@@ -62,6 +63,12 @@ const billsRoute = createRoute({
   component: BillsView,
 });
 
+const billDetailsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/bills/$billId",
+  component: BillDetailsView,
+});
+
 type PaymentsSearch = {
   billId?: string;
   filter?: "unpaid" | "settled";
@@ -101,6 +108,7 @@ const router = createRouter({
     indexRoute,
     calendarRoute,
     billsRoute,
+    billDetailsRoute,
     paymentsRoute,
     settingsRoute,
   ]),
