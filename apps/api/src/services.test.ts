@@ -197,6 +197,42 @@ describe("Services Logic", () => {
       const createArgs = createPaymentSpy.mock.calls[0][0];
       expect(createArgs.due_date).toBe("2026-03-15");
     });
+
+    test("returns null if a payment with the calculated next due date already exists", async () => {
+      const bill = mockBill({
+        active: true,
+        recurrence: {
+          type: "monthly",
+          monthly: { day: 15 },
+        },
+      });
+      const payments: Payment[] = [
+        {
+          id: "pay-1",
+          bill_id: bill.id,
+          due_date: "2026-01-15",
+          amount_cents: 1500,
+          paid_at: 1768488000, // Jan 15 2026
+          created_at: 1717200000,
+          updated_at: 1717200000,
+        },
+        {
+          id: "pay-2",
+          bill_id: bill.id,
+          due_date: "2026-02-15", // Already exists!
+          amount_cents: 1500,
+          paid_at: null,
+          created_at: 1717200000,
+          updated_at: 1717200000,
+        },
+      ];
+      getBillSpy.mockResolvedValue(bill);
+      listPaymentsSpy.mockResolvedValue(payments);
+
+      const result = await generateNextPaymentForBill(bill.id);
+      expect(result).toBeNull();
+      expect(createPaymentSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe("settlePayment", () => {

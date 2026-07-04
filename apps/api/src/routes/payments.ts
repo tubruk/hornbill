@@ -190,6 +190,12 @@ app.openapi(createPaymentRoute, withBillAccess("body", "bill_id")(async (c) => {
       return c.json({ error: "Amount must be positive" }, 400);
     }
 
+    const existingPayments = await getDb(c).listPayments(body.bill_id);
+    const hasDuplicate = existingPayments.some((p) => p.due_date === body.due_date);
+    if (hasDuplicate) {
+      return c.json({ error: `Payment for due date ${body.due_date} already exists for this bill` }, 400);
+    }
+
     const newPayment = await getDb(c).createPayment({
       id: crypto.randomUUID(),
       bill_id: body.bill_id,
@@ -305,6 +311,15 @@ app.openapi(updatePaymentRoute, withPaymentAccess()(async (c) => {
     const id = c.req.param("id")!;
     const body = c.req.valid("json");
     
+    if (body.due_date !== undefined) {
+      const payment = c.get("payment");
+      const existing = await getDb(c).listPayments(payment.bill_id);
+      const hasDuplicate = existing.some((p) => p.id !== id && p.due_date === body.due_date);
+      if (hasDuplicate) {
+        return c.json({ error: `Another payment with due date ${body.due_date} already exists` }, 400);
+      }
+    }
+
     let paidAtValue: number | null | undefined = undefined;
     if (body.paid_at !== undefined) {
       if (typeof body.paid_at === "string") {

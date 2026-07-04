@@ -34,6 +34,12 @@ export async function generateNextPaymentForBill(billId: string, client: Trailba
     newDueDate = calculateNextDueDate(bill, latestPayment);
   }
 
+  // Check if a payment for this due date already exists to prevent duplicate generation
+  const duplicatePayment = payments.find((p) => p.due_date === newDueDate);
+  if (duplicatePayment) {
+    return null;
+  }
+
   // Create the new unpaid payment
   const newPayment = await client.createPayment({
     id: crypto.randomUUID(),

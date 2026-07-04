@@ -1227,6 +1227,23 @@ describe("API Routes", () => {
       expect(json.error).toBe("Amount must be positive");
     });
 
+    test("POST / - fails with 400 when a payment with the same due_date already exists for the bill", async () => {
+      mockClient.listPayments = async (): Promise<Payment[]> => [mockPaymentItem];
+
+      const res = await paymentsApp.request("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bill_id: "bill-1",
+          due_date: "2026-01-15",
+          amount_cents: 1500,
+        }),
+      });
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toContain("already exists for this bill");
+    });
+
     test("POST / - returns 500 on db error", async () => {
       spyOn(trailbase.db, "createPayment").mockRejectedValue(new Error("Write error") as never);
 
@@ -1298,6 +1315,28 @@ describe("API Routes", () => {
         body: JSON.stringify({ amount_cents: 1600 }),
       });
       expect(res.status).toBe(500);
+    });
+
+    test("PATCH /:id - fails with 400 when updating due_date to an existing one", async () => {
+      const anotherPayment: Payment = {
+        id: "pay-2",
+        bill_id: "bill-1",
+        due_date: "2026-02-15",
+        amount_cents: 1500,
+        paid_at: null,
+        created_at: 0,
+        updated_at: 0,
+      };
+      mockClient.listPayments = async (): Promise<Payment[]> => [mockPaymentItem, anotherPayment];
+
+      const res = await paymentsApp.request("/pay-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ due_date: "2026-02-15" }),
+      });
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toContain("already exists");
     });
 
     test("DELETE /:id - deletes payment", async () => {
