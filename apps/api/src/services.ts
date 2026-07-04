@@ -133,48 +133,57 @@ export async function handleBillUpdateSideEffects(
   client: TrailbaseClient = db
 ): Promise<void> {
   const payments = await client.listPayments(billId);
-  const unpaidPayment = payments.find((p) => p.paid_at === null || p.paid_at === undefined);
+  const unpaidPayments = payments
+    .filter((p) => p.paid_at === null || p.paid_at === undefined)
+    .sort((a, b) => a.due_date.localeCompare(b.due_date));
 
-  // 1. If deactivated: delete any outstanding unpaid payment
+  // 1. If deactivated: delete all outstanding unpaid payments
   if (oldBill.active && !updatedBill.active) {
-    if (unpaidPayment) {
-      await client.deletePayment(unpaidPayment.id);
+    for (const p of unpaidPayments) {
+      await client.deletePayment(p.id);
     }
     return;
   }
 
-  // 2. If active and there is an outstanding unpaid payment, sync its amount or due date
-  if (updatedBill.active && unpaidPayment) {
-    let needsUpdate = false;
-    const updates: Partial<Omit<Payment, "id" | "created_at" | "updated_at">> = {};
-
-    // Sync amount if changed
-    if (oldBill.amount_cents !== updatedBill.amount_cents) {
-      updates.amount_cents = updatedBill.amount_cents;
-      needsUpdate = true;
-    }
-
-    // Sync due date if recurrence changed
+  // 2. If active and there are outstanding unpaid payments, sync their amount or due date sequentially
+  if (updatedBill.active && unpaidPayments.length > 0) {
     const oldRecurStr = JSON.stringify(oldBill.recurrence);
     const newRecurStr = JSON.stringify(updatedBill.recurrence);
-    if (oldRecurStr !== newRecurStr) {
+    const recurrenceChanged = oldRecurStr !== newRecurStr;
+    const amountChanged = oldBill.amount_cents !== updatedBill.amount_cents;
+
+    if (amountChanged || recurrenceChanged) {
       const paidPayments = payments
         .filter((p) => p.paid_at !== null && p.paid_at !== undefined)
         .sort((a, b) => b.due_date.localeCompare(a.due_date));
-      
-      let newDueDate: string;
-      if (paidPayments.length === 0) {
-        newDueDate = updatedBill.start_date;
-      } else {
-        newDueDate = calculateNextDueDate(updatedBill, paidPayments[0]);
-      }
-      
-      updates.due_date = newDueDate;
-      needsUpdate = true;
-    }
 
-    if (needsUpdate) {
-      await client.updatePayment(unpaidPayment.id, updates);
+      let currentReferencePayment = paidPayments[0];
+
+      for (const unpaid of unpaidPayments) {
+        const updates: Partial<Omit<Payment, "id" | "created_at" | "updated_at">> = {};
+        
+        if (amountChanged) {
+          updates.amount_cents = updatedBill.amount_cents;
+        }
+
+        if (recurrenceChanged) {
+          let newDueDate: string;
+          if (!currentReferencePayment) {
+            newDueDate = updatedBill.start_date;
+          } else {
+            newDueDate = calculateNextDueDate(updatedBill, currentReferencePayment);
+          }
+          updates.due_date = newDueDate;
+          
+          // For the next unpaid payment in the loop, this payment becomes the new reference
+          currentReferencePayment = {
+            ...unpaid,
+            due_date: newDueDate,
+          };
+        }
+
+        await client.updatePayment(unpaid.id, updates);
+      }
     }
   }
 

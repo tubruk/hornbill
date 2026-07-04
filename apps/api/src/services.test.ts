@@ -569,6 +569,89 @@ describe("Services Logic", () => {
         due_date: "2026-02-20",
       });
     });
+
+    test("deletes all unpaid payments if bill is deactivated", async () => {
+      const oldBill = mockBill({ active: true });
+      const updatedBill = mockBill({ active: false });
+      const unpaid1: Payment = {
+        id: "unpaid-1",
+        bill_id: oldBill.id,
+        due_date: "2026-01-15",
+        amount_cents: 1500,
+        paid_at: null,
+        created_at: 0,
+        updated_at: 0,
+      };
+      const unpaid2: Payment = {
+        id: "unpaid-2",
+        bill_id: oldBill.id,
+        due_date: "2026-02-15",
+        amount_cents: 1500,
+        paid_at: null,
+        created_at: 0,
+        updated_at: 0,
+      };
+
+      listPaymentsSpy.mockResolvedValue([unpaid1, unpaid2]);
+
+      await handleBillUpdateSideEffects(oldBill.id, oldBill, updatedBill);
+
+      expect(deletePaymentSpy).toHaveBeenCalledWith("unpaid-1");
+      expect(deletePaymentSpy).toHaveBeenCalledWith("unpaid-2");
+    });
+
+    test("updates all unpaid payments sequentially when recurrence and amount changes", async () => {
+      const oldBill = mockBill({ active: true, amount_cents: 1500, recurrence: { type: "monthly", monthly: { day: 15 } } });
+      const updatedBill = mockBill({
+        active: true,
+        amount_cents: 1800,
+        recurrence: {
+          type: "monthly",
+          monthly: { day: 20 },
+        },
+      });
+
+      const unpaid1: Payment = {
+        id: "unpaid-1",
+        bill_id: oldBill.id,
+        due_date: "2026-02-15",
+        amount_cents: 1500,
+        paid_at: null,
+        created_at: 0,
+        updated_at: 0,
+      };
+      const unpaid2: Payment = {
+        id: "unpaid-2",
+        bill_id: oldBill.id,
+        due_date: "2026-03-15",
+        amount_cents: 1500,
+        paid_at: null,
+        created_at: 0,
+        updated_at: 0,
+      };
+      const paid: Payment = {
+        id: "paid-1",
+        bill_id: oldBill.id,
+        due_date: "2026-01-15",
+        amount_cents: 1500,
+        paid_at: Math.floor(new Date("2026-01-15T10:00:00Z").getTime() / 1000),
+        created_at: 0,
+        updated_at: 0,
+      };
+
+      listPaymentsSpy.mockResolvedValue([unpaid1, unpaid2, paid]);
+
+      await handleBillUpdateSideEffects(oldBill.id, oldBill, updatedBill);
+
+      expect(updatePaymentSpy).toHaveBeenCalledWith("unpaid-1", {
+        amount_cents: 1800,
+        due_date: "2026-02-20",
+      });
+      expect(updatePaymentSpy).toHaveBeenCalledWith("unpaid-2", {
+        amount_cents: 1800,
+        due_date: "2026-03-20",
+      });
+    });
   });
 
   describe("handlePaymentCreationSideEffects", () => {
