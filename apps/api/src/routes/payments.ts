@@ -18,7 +18,7 @@ export const PaymentOpenApiSchema = z.object({
 
 const CreatePaymentRequestSchema = z.object({
   bill_id: uuidSchema().openapi({ example: "d3b07384-d113-4bf6-a5cc-9c60dfd667fb" }),
-  due_date: z.string().openapi({ example: "2026-06-01" }),
+  due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (must be YYYY-MM-DD)").openapi({ example: "2026-06-01" }),
   amount_cents: z.number().int().openapi({ example: 1599 }),
   paid_at: z.union([z.string(), z.number()]).nullable().optional(),
   notes: z.string().nullable().optional(),
@@ -31,7 +31,7 @@ const PayPaymentRequestSchema = z.object({
 }).openapi("PayPaymentRequest");
 
 const UpdatePaymentRequestSchema = z.object({
-  due_date: z.string().optional().openapi({ example: "2026-06-01" }),
+  due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (must be YYYY-MM-DD)").optional().openapi({ example: "2026-06-01" }),
   amount_cents: z.number().int().optional().openapi({ example: 1599 }),
   paid_at: z.union([z.string(), z.number()]).nullable().optional(),
   notes: z.string().nullable().optional(),

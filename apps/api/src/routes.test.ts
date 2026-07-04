@@ -1244,6 +1244,21 @@ describe("API Routes", () => {
       expect(json.error).toContain("already exists for this bill");
     });
 
+    test("POST / - fails with 400 when due_date format is invalid", async () => {
+      const res = await paymentsApp.request("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bill_id: "bill-1",
+          due_date: "2026/01/15",
+          amount_cents: 1500,
+        }),
+      });
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(JSON.stringify(json)).toContain("Invalid date format");
+    });
+
     test("POST / - returns 500 on db error", async () => {
       spyOn(trailbase.db, "createPayment").mockRejectedValue(new Error("Write error") as never);
 
@@ -1337,6 +1352,17 @@ describe("API Routes", () => {
       expect(res.status).toBe(400);
       const json = await res.json();
       expect(json.error).toContain("already exists");
+    });
+
+    test("PATCH /:id - fails with 400 when due_date format is invalid", async () => {
+      const res = await paymentsApp.request("/pay-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ due_date: "invalid-date" }),
+      });
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(JSON.stringify(json)).toContain("Invalid date format");
     });
 
     test("DELETE /:id - deletes payment", async () => {
