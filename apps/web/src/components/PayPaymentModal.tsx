@@ -90,13 +90,25 @@ export function PayPaymentModal({
 
   const getTodayStr = () => new Date().toISOString().split("T")[0];
 
+  const todayStr = getTodayStr();
+  const showOnTimeOption = !!(dueDate && dueDate !== todayStr);
+
   const [amount, setAmount] = useState((amountCents / 100).toString());
   const [amountError, setAmountError] = useState("");
-  const [dateOption, setDateOption] = useState<"today" | "custom">(
-    isEditing && paidAtDate ? "custom" : "today"
-  );
+  const [dateOption, setDateOption] = useState<"today" | "on_time" | "custom">(() => {
+    if (isEditing && paidAtDate) {
+      if (showOnTimeOption && paidAtDate === dueDate) {
+        return "on_time";
+      }
+      if (paidAtDate === todayStr) {
+        return "today";
+      }
+      return "custom";
+    }
+    return "today";
+  });
   const [customDate, setCustomDate] = useState(
-    isEditing && paidAtDate ? paidAtDate : getTodayStr()
+    isEditing && paidAtDate ? paidAtDate : todayStr
   );
   const [notes, setNotes] = useState(initialNotes || "");
   const [error, setError] = useState("");
@@ -120,7 +132,12 @@ export function PayPaymentModal({
     const cents = validateAmount();
     if (cents === null) return;
 
-    const paidAt = dateOption === "today" ? getTodayStr() : customDate;
+    const paidAt =
+      dateOption === "today"
+        ? todayStr
+        : dateOption === "on_time"
+        ? dueDate
+        : customDate;
     if (dateOption === "custom" && !customDate && (!isEditing || paidAtDate !== null)) {
       setError("Please select a date.");
       return;
@@ -134,7 +151,13 @@ export function PayPaymentModal({
       const due = specifyDifferentDueDate ? customDueDate : paidAt;
       onConfirm(cents, paidAt, due, notes);
     } else {
-      onConfirm(cents, dateOption === "custom" ? customDate : undefined, undefined, notes);
+      const paidAtParam =
+        dateOption === "custom"
+          ? customDate
+          : dateOption === "on_time"
+          ? dueDate
+          : undefined;
+      onConfirm(cents, paidAtParam, undefined, notes);
     }
   };
 
@@ -216,9 +239,28 @@ export function PayPaymentModal({
                 >
                   Today
                 </button>
+                {showOnTimeOption && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDateOption("on_time");
+                      setError("");
+                    }}
+                    className={`text-[12px] font-semibold uppercase tracking-wider px-4 py-1.5 rounded-full transition-all cursor-pointer ${
+                      dateOption === "on_time"
+                        ? "bg-primary text-white shadow-sm"
+                        : "text-text-secondary hover:bg-stone-300/40 hover:text-text-primary"
+                    }`}
+                  >
+                    On Time
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => setDateOption("custom")}
+                  onClick={() => {
+                    setDateOption("custom");
+                    setError("");
+                  }}
                   className={`text-[12px] font-semibold uppercase tracking-wider px-4 py-1.5 rounded-full transition-all cursor-pointer ${
                     dateOption === "custom"
                       ? "bg-primary text-white shadow-sm"
@@ -231,7 +273,7 @@ export function PayPaymentModal({
 
               <div
                 className={`w-full rounded-sm p-3 border transition-all duration-150 flex items-center justify-between min-h-[46px] relative ${
-                  dateOption === "today"
+                  dateOption !== "custom"
                     ? "bg-surface-raised border-border-warm text-text-secondary cursor-default"
                     : error
                     ? "bg-surface-warm border-error text-text-primary focus-within:ring-3 focus-within:ring-error/12"
@@ -240,7 +282,12 @@ export function PayPaymentModal({
               >
                 <span className="font-body text-[16px] font-medium pointer-events-none">
                   {(() => {
-                    const selectedDate = dateOption === "today" ? getTodayStr() : customDate;
+                    const selectedDate =
+                      dateOption === "today"
+                        ? todayStr
+                        : dateOption === "on_time"
+                        ? dueDate
+                        : customDate;
                     if (!selectedDate) return "Select Date";
                     const pretty = formatPrettyDate(selectedDate);
                     const relative = getRelativeDateString(selectedDate);
@@ -250,14 +297,20 @@ export function PayPaymentModal({
 
                 <input
                   type="date"
-                  value={dateOption === "today" ? getTodayStr() : customDate}
+                  value={
+                    dateOption === "today"
+                      ? todayStr
+                      : dateOption === "on_time"
+                      ? dueDate
+                      : customDate
+                  }
                   onChange={(e) => {
                     if (dateOption === "custom") {
                       setCustomDate(e.target.value);
                       setError("");
                     }
                   }}
-                  disabled={dateOption === "today" || isSubmitting}
+                  disabled={dateOption !== "custom" || isSubmitting}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-default disabled:pointer-events-none"
                   aria-label="Select custom date"
                 />
