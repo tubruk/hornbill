@@ -105,6 +105,29 @@ describe("Trailbase Integration", () => {
         }));
       }
 
+      if (path === "/api/records/v1/account_holidays") {
+        if (init?.method === "POST") {
+          const body = JSON.parse(init.body);
+          return new Response(JSON.stringify({ id: { id: "hol-new" }, ...body }));
+        }
+        return new Response(JSON.stringify({
+          records: [
+            { id: { id: "hol-1" }, account_id: { id: "acc-1" }, date: "2026-08-17", name: "Independence Day", source: "ics_file" }
+          ]
+        }));
+      }
+
+      if (path.startsWith("/api/records/v1/account_holidays/")) {
+        const id = path.split("/").pop() || "";
+        if (init?.method === "PATCH") {
+          return new Response(JSON.stringify({ success: true }));
+        }
+        if (init?.method === "DELETE") {
+          return new Response(JSON.stringify({ success: true }));
+        }
+        return new Response(JSON.stringify({ id, account_id: "acc-1", date: "2026-08-17", name: "Independence Day", source: "ics_file" }));
+      }
+
       return new Response(JSON.stringify({ success: true }));
     });
 
@@ -441,6 +464,45 @@ describe("Trailbase Integration", () => {
         fetchSpy.mockResolvedValue(new Response("Db Error", { status: 500 }));
         const hasAccess = await verifyPaymentAccess(contextMock as any, "pay-1");
         expect(hasAccess).toBe(false);
+      });
+    });
+
+    describe("Account Holidays CRUD", () => {
+      test("listAccountHolidays unwraps id and account_id objects", async () => {
+        const client = new TrailbaseClient();
+        const holidays = await client.listAccountHolidays("acc-1");
+        expect(holidays).toHaveLength(1);
+        expect(holidays[0].id).toBe("hol-1");
+        expect(holidays[0].account_id).toBe("acc-1");
+      });
+
+      test("upsertAccountHoliday inserts new holiday when not matching existing date", async () => {
+        const client = new TrailbaseClient();
+        const created = await client.upsertAccountHoliday({
+          account_id: "acc-1",
+          date: "2026-12-25",
+          name: "Christmas",
+          source: "manual",
+        });
+        expect(created.id).toBe("hol-new");
+        expect(created.account_id).toBe("acc-1");
+      });
+
+      test("upsertAccountHoliday patches existing holiday when date matches", async () => {
+        const client = new TrailbaseClient();
+        const updated = await client.upsertAccountHoliday({
+          account_id: "acc-1",
+          date: "2026-08-17",
+          name: "Independence Day Updated",
+          source: "manual",
+        });
+        expect(updated.id).toBe("hol-1");
+        expect(updated.name).toBe("Independence Day Updated");
+      });
+
+      test("deleteAccountHoliday completes successfully", async () => {
+        const client = new TrailbaseClient();
+        await expect(client.deleteAccountHoliday("hol-1")).resolves.toBeUndefined();
       });
     });
   });
