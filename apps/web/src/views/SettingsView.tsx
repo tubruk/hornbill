@@ -121,6 +121,7 @@ export function SettingsView() {
 
   const holidaysQuery = useAccountHolidays(currentAccount?.id);
   const holidays = holidaysQuery.data ?? [];
+  const sortedHolidays = [...holidays].sort((a, b) => a.date.localeCompare(b.date));
   const addHolidayMut = useAddHolidayMutation();
   const deleteHolidayMut = useDeleteHolidayMutation();
 
@@ -833,9 +834,9 @@ export function SettingsView() {
                         </div>
 
                         {/* List of current holidays */}
-                        {holidays.length > 0 ? (
+                        {sortedHolidays.length > 0 ? (
                           <div className="max-h-40 overflow-y-auto divide-y divide-border-warm border border-border-warm rounded-sm bg-surface-warm p-2">
-                            {holidays.map((h) => (
+                            {sortedHolidays.map((h) => (
                               <div key={h.id} className="flex items-center justify-between py-1.5 px-2 text-[13px]">
                                 <div className="flex items-center gap-2">
                                   <span className="font-mono font-semibold text-text-primary">{h.date}</span>
@@ -921,6 +922,23 @@ export function SettingsView() {
                       </div>
                     </div>
                   )}
+
+                  <div className="pt-4 border-t border-border-warm flex justify-end">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="medium"
+                      onClick={handleSaveSettings}
+                      disabled={updateAccountMut.isPending || !isApiConnected}
+                      className="gap-2 shrink-0"
+                    >
+                      {updateAccountMut.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        "Save Payday Settings"
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </Card>
             )}
