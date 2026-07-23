@@ -89,7 +89,7 @@ const paymentsRoute = createRoute({
 });
 
 type SettingsSearch = {
-  tab?: "general" | "reminders" | "integrations" | "backup" | "system";
+  tab?: "general" | "payday" | "reminders" | "integrations" | "backup" | "system";
 };
 
 const settingsRoute = createRoute({
@@ -97,7 +97,7 @@ const settingsRoute = createRoute({
   path: "/settings",
   validateSearch: (search: Record<string, unknown>): SettingsSearch => {
     return {
-      tab: (search.tab === "general" || search.tab === "reminders" || search.tab === "integrations" || search.tab === "backup" || search.tab === "system")
+      tab: (search.tab === "general" || search.tab === "payday" || search.tab === "reminders" || search.tab === "integrations" || search.tab === "backup" || search.tab === "system")
         ? (search.tab as SettingsSearch["tab"])
         : undefined,
     };

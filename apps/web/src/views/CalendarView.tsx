@@ -628,7 +628,7 @@ export function CalendarView() {
             ) : (
               <Link
                 to="/settings"
-                search={{ tab: "general" }}
+                search={{ tab: "payday" }}
                 className="px-3 py-1.5 text-[12px] font-medium text-text-secondary hover:text-primary transition-colors flex items-center gap-1 opacity-75 hover:opacity-100"
                 title="Enable Payday Cycle in Settings to activate salary-aligned views"
               >
