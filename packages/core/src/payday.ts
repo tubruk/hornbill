@@ -180,6 +180,7 @@ export function getPayPeriodBounds(
  */
 export function parseIcsHolidays(icsContent: string): Array<{ date: string; name: string }> {
   const holidays: Array<{ date: string; name: string }> = [];
+  const seenDates = new Set<string>();
   const lines = icsContent.split(/\r?\n/);
 
   let inVevent = false;
@@ -202,10 +203,13 @@ export function parseIcsHolidays(icsContent: string): Array<{ date: string; name
         const rawDate = dtStartStr.replace(/[^0-9]/g, "").slice(0, 8);
         if (rawDate.length === 8) {
           const formattedDate = `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`;
-          holidays.push({
-            date: formattedDate,
-            name: summaryStr && summaryStr.length > 0 ? summaryStr : "Public Holiday",
-          });
+          if (!seenDates.has(formattedDate)) {
+            seenDates.add(formattedDate);
+            holidays.push({
+              date: formattedDate,
+              name: summaryStr && summaryStr.length > 0 ? summaryStr : "Public Holiday",
+            });
+          }
         }
       }
       inVevent = false;
