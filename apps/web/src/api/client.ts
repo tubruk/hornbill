@@ -1,4 +1,4 @@
-import type { Account, Bill, Payment, ExportPayload, ApiKey } from "@hornbill/core";
+import type { Account, Bill, Payment, ExportPayload, ApiKey, AccountHoliday } from "@hornbill/core";
 
 const BASE = "/api/v1";
 
@@ -313,5 +313,48 @@ export function fetchCalendarToken(accountId: string): Promise<{ token: string |
 export function regenerateCalendarToken(accountId: string): Promise<{ token: string }> {
   return apiFetch<{ token: string }>(`/accounts/${encodeURIComponent(accountId)}/calendar-token/regenerate`, {
     method: "POST",
+  });
+}
+
+// ── Payday & Holidays ───────────────────────────────────────────────────────
+
+export interface PayPeriodResponse {
+  bounds: {
+    start_date: string;
+    end_date: string;
+    next_payday: string;
+  };
+  summary: {
+    total_due_cents: number;
+    total_overdue_cents: number;
+    unpaid_count: number;
+  };
+  current_cycle_payments: Payment[];
+  overdue_payments: Payment[];
+}
+
+export function fetchPayPeriod(accountId: string, date?: string): Promise<PayPeriodResponse> {
+  const query = date ? `?date=${encodeURIComponent(date)}` : "";
+  return apiFetch<PayPeriodResponse>(`/accounts/${encodeURIComponent(accountId)}/pay-period${query}`);
+}
+
+export function fetchAccountHolidays(accountId: string): Promise<AccountHoliday[]> {
+  return apiFetch<AccountHoliday[]>(`/accounts/${encodeURIComponent(accountId)}/holidays`);
+}
+
+export function postAccountHoliday(
+  accountId: string,
+  payload: { date?: string; name?: string; source?: "ics_file" | "ics_url" | "manual"; ics_content?: string }
+): Promise<AccountHoliday[]> {
+  return apiFetch<AccountHoliday[]>(`/accounts/${encodeURIComponent(accountId)}/holidays`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteAccountHoliday(accountId: string, holidayId: string): Promise<void> {
+  return apiFetch<void>(`/accounts/${encodeURIComponent(accountId)}/holidays/${encodeURIComponent(holidayId)}`, {
+    method: "DELETE",
   });
 }

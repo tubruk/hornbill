@@ -1,4 +1,4 @@
-import type { Account, Bill, Payment, ApiKey } from "@hornbill/core";
+import type { Account, Bill, Payment, ApiKey, AccountHoliday, PaydayConfig } from "@hornbill/core";
 import { verify } from "hono/jwt";
 import { readFileSync, existsSync } from "fs";
 import type { Context } from "hono";
@@ -80,6 +80,17 @@ interface DbAccount {
   notification_provider?: string | Record<string, unknown>;
   notification_reminder?: string | Record<string, unknown>;
   calendar_token?: string | null;
+  payday_config?: string | Record<string, unknown> | null;
+  created_at: number;
+  updated_at: number;
+}
+
+interface DbAccountHoliday {
+  id: string;
+  account_id: string | { id: string };
+  date: string;
+  name: string;
+  source: string;
   created_at: number;
   updated_at: number;
 }
@@ -192,6 +203,16 @@ export class TrailbaseClient {
         // Use default
       }
     }
+    let payday_config = null;
+    if (acc.payday_config) {
+      try {
+        payday_config = typeof acc.payday_config === "string"
+          ? JSON.parse(acc.payday_config)
+          : acc.payday_config;
+      } catch {
+        payday_config = null;
+      }
+    }
     return {
       ...acc,
       currencies,
@@ -201,6 +222,7 @@ export class TrailbaseClient {
       notification_provider,
       notification_reminder,
       calendar_token: acc.calendar_token ?? null,
+      payday_config: payday_config ?? null,
     } as Account;
   }
 
@@ -230,6 +252,7 @@ export class TrailbaseClient {
       notification_provider: JSON.stringify(account.notification_provider ?? { type: "webhook", config: {} }),
       notification_reminder: JSON.stringify(account.notification_reminder ?? { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null }),
       calendar_token: account.calendar_token ?? null,
+      payday_config: account.payday_config ? JSON.stringify(account.payday_config) : null,
       created_at: now,
       updated_at: now,
     };
@@ -247,6 +270,7 @@ export class TrailbaseClient {
       notification_provider: account.notification_provider ?? { type: "webhook", config: {} },
       notification_reminder: account.notification_reminder ?? { enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null },
       calendar_token: account.calendar_token ?? null,
+      payday_config: account.payday_config ?? null,
       created_at: now,
       updated_at: now,
     };
@@ -254,7 +278,7 @@ export class TrailbaseClient {
 
   async updateAccount(id: string, updates: Partial<Omit<Account, "id" | "created_at" | "updated_at">>): Promise<Account> {
     const now = Math.floor(Date.now() / 1000);
-    const payload: Partial<Omit<DbAccount, "id" | "created_at" | "updated_at">> & { currencies?: string; archived?: number; notification_provider?: string; notification_reminder?: string; calendar_token?: string | null; updated_at: number } = {
+    const payload: Partial<Omit<DbAccount, "id" | "created_at" | "updated_at">> & { currencies?: string; archived?: number; notification_provider?: string; notification_reminder?: string; calendar_token?: string | null; payday_config?: string | null; updated_at: number } = {
       updated_at: now,
     };
     if (updates.name !== undefined) payload.name = updates.name;
@@ -275,6 +299,9 @@ export class TrailbaseClient {
     if (updates.calendar_token !== undefined) {
       payload.calendar_token = updates.calendar_token;
     }
+    if (updates.payday_config !== undefined) {
+      payload.payday_config = updates.payday_config ? JSON.stringify(updates.payday_config) : null;
+    }
     await this.request<unknown>(`/api/records/v1/accounts/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
@@ -284,6 +311,66 @@ export class TrailbaseClient {
 
   async deleteAccount(id: string): Promise<void> {
     await this.request<void>(`/api/records/v1/accounts/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+  }
+
+  // --- Account Holidays CRUD ---
+
+  async listAccountHolidays(accountId: string): Promise<AccountHoliday[]> {
+    const path = `/api/records/v1/account_holidays?limit=1000`;
+    const res = await this.request<TrailbaseListResponse<DbAccountHoliday>>(path).catch(() => ({ records: [] }));
+    return (res.records || [])
+      .map((h) => ({
+        ...h,
+        account_id: typeof h.account_id === "object" && h.account_id !== null ? h.account_id.id : h.account_id,
+      }))
+      .filter((h) => h.account_id === accountId) as AccountHoliday[];
+  }
+
+  async upsertAccountHoliday(holiday: { account_id: string; date: string; name: string; source: "ics_file" | "ics_url" | "manual" }): Promise<AccountHoliday> {
+    const existing = await this.listAccountHolidays(holiday.account_id);
+    const match = existing.find((h) => h.date === holiday.date);
+    const now = Math.floor(Date.now() / 1000);
+
+    if (match) {
+      const payload = {
+        name: holiday.name,
+        source: holiday.source,
+        updated_at: now,
+      };
+      await this.request<unknown>(`/api/records/v1/account_holidays/${encodeURIComponent(match.id)}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      return {
+        ...match,
+        name: holiday.name,
+        source: holiday.source,
+        updated_at: now,
+      };
+    }
+
+    const payload = {
+      account_id: holiday.account_id,
+      date: holiday.date,
+      name: holiday.name,
+      source: holiday.source,
+      created_at: now,
+      updated_at: now,
+    };
+    const created = await this.request<DbAccountHoliday>("/api/records/v1/account_holidays", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    return {
+      ...created,
+      account_id: holiday.account_id,
+    } as AccountHoliday;
+  }
+
+  async deleteAccountHoliday(id: string): Promise<void> {
+    await this.request<void>(`/api/records/v1/account_holidays/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
   }
