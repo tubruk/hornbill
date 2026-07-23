@@ -2,7 +2,7 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { getDb, verifyToken, type UserPayload } from "../trailbase";
-import { DEFAULT_UPCOMING_THRESHOLD_DAYS, AccountSchema, NotificationProviderSchema, getPayPeriodBounds, parseIcsHolidays, formatDateStr, type Account, type Bill, type Payment, type AccountHoliday } from "@hornbill/core";
+import { DEFAULT_UPCOMING_THRESHOLD_DAYS, AccountSchema, NotificationProviderSchema, getPayPeriodBounds, parseIcsHolidays, formatDateStr, type Account, type Bill, type Payment } from "@hornbill/core";
 import { sendAggregatedNotification } from "../services/reminders";
 import { withAccountAccess } from "../middleware/auth";
 import { coreErrors, authErrors, validationErrors, lookupErrors, defaultValidationHook, uuidSchema } from "../utils/openapi-errors";
@@ -814,6 +814,7 @@ const postHolidaysRoute = createRoute({
     },
     ...coreErrors,
     ...authErrors,
+    ...validationErrors,
   },
 });
 

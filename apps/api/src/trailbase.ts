@@ -1,4 +1,4 @@
-import type { Account, Bill, Payment, ApiKey, AccountHoliday, PaydayConfig } from "@hornbill/core";
+import type { Account, Bill, Payment, ApiKey, AccountHoliday } from "@hornbill/core";
 import { verify } from "hono/jwt";
 import { readFileSync, existsSync } from "fs";
 import type { Context } from "hono";

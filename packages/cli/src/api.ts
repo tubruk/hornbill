@@ -286,8 +286,42 @@ export async function deletePayment(
   key: string,
   id: string
 ): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(url, key, `/api/v1/payments/${id}`, {
+  return request<{ success: boolean }>(url, key, `/api/v1/payments/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
 }
 
+// ── Payday & Holidays ───────────────────────────────────────────────────────
+
+export interface PayPeriodResponse {
+  bounds: {
+    start_date: string;
+    end_date: string;
+    next_payday: string;
+  };
+  summary: {
+    total_due_cents: number;
+    total_overdue_cents: number;
+    unpaid_count: number;
+  };
+  current_cycle_payments: Payment[];
+  overdue_payments: Payment[];
+}
+
+export async function fetchPayPeriod(
+  url: string,
+  key: string,
+  accountId: string,
+  date?: string
+): Promise<PayPeriodResponse> {
+  const query = date ? `?date=${encodeURIComponent(date)}` : "";
+  return request<PayPeriodResponse>(url, key, `/api/v1/accounts/${encodeURIComponent(accountId)}/pay-period${query}`);
+}
+
+export async function listAccountHolidays(
+  url: string,
+  key: string,
+  accountId: string
+): Promise<Array<{ id: string; date: string; name: string; source: string }>> {
+  return request<Array<{ id: string; date: string; name: string; source: string }>>(url, key, `/api/v1/accounts/${encodeURIComponent(accountId)}/holidays`);
+}
