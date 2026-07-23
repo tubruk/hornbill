@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { useAppCtx } from "../context/AppContext";
-import { useBills, usePayments, usePayPayment, useUpdatePayment, useDeletePayment, type EnrichedPayment } from "../api/queries";
+import { useBills, usePayments, usePayPayment, useUpdatePayment, useDeletePayment, usePayPeriod, type EnrichedPayment } from "../api/queries";
 import { PayPaymentModal } from "../components/PayPaymentModal";
 import { Card } from "../components/Card";
 import { PaymentRow } from "../components/PaymentRow";
@@ -51,6 +51,9 @@ export function PaymentsView() {
   const paymentsQuery = usePayments(currentAccount?.id, billsQuery.data);
   const payments = paymentsQuery.data ?? [];
 
+  const [paydayCycleFilter, setPaydayCycleFilter] = useState<"current_cycle" | "all">("current_cycle");
+  const payPeriodQuery = usePayPeriod(currentAccount?.id, undefined, { enabled: !!currentAccount?.payday_config?.enabled });
+
   const payMut = usePayPayment();
   const updateMut = useUpdatePayment();
   const deleteMut = useDeletePayment();
@@ -58,6 +61,13 @@ export function PaymentsView() {
   const displayed = payments
     .filter((p) => {
       if (billId && p.bill_id !== billId) return false;
+
+      if (currentAccount?.payday_config?.enabled && paydayCycleFilter === "current_cycle" && payPeriodQuery.data) {
+        const { start_date, end_date } = payPeriodQuery.data.bounds;
+        const isCurrentCycle = p.due_date >= start_date && p.due_date <= end_date;
+        const isOverdueUnpaid = p.due_date < start_date && !p.paid_at;
+        if (!isCurrentCycle && !isOverdueUnpaid) return false;
+      }
 
       const isSettled = !!p.paid_at;
 
@@ -196,6 +206,31 @@ export function PaymentsView() {
               );
             })}
           </div>
+
+          {currentAccount?.payday_config?.enabled && (
+            <div className="flex bg-surface-raised border border-border-warm p-0.5 rounded-full shrink-0">
+              <button
+                onClick={() => setPaydayCycleFilter("current_cycle")}
+                className={`text-[12px] font-semibold uppercase tracking-wider px-3.5 py-1.5 rounded-full transition-all cursor-pointer ${
+                  paydayCycleFilter === "current_cycle"
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-text-secondary hover:bg-stone-300/40 hover:text-text-primary"
+                }`}
+              >
+                Payday Cycle
+              </button>
+              <button
+                onClick={() => setPaydayCycleFilter("all")}
+                className={`text-[12px] font-semibold uppercase tracking-wider px-3.5 py-1.5 rounded-full transition-all cursor-pointer ${
+                  paydayCycleFilter === "all"
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-text-secondary hover:bg-stone-300/40 hover:text-text-primary"
+                }`}
+              >
+                All Dates
+              </button>
+            </div>
+          )}
 
           {/* Bill filter selector */}
           {filter === "settled" && (

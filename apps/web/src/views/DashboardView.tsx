@@ -10,9 +10,10 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
+  Calendar,
 } from "lucide-react";
 import { useAppCtx } from "../context/AppContext";
-import { useBills, usePayments, usePayPayment, type EnrichedPayment } from "../api/queries";
+import { useBills, usePayments, usePayPayment, usePayPeriod, type EnrichedPayment } from "../api/queries";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { Chip } from "../components/Chip";
@@ -65,6 +66,9 @@ export function DashboardView() {
   const payments = useMemo(() => paymentsQuery.data ?? [], [paymentsQuery.data]);
 
   const payPaymentMut = usePayPayment();
+  const payPeriodQuery = usePayPeriod(currentAccount?.id, undefined, {
+    enabled: !!currentAccount?.payday_config?.enabled,
+  });
 
   const {
     activeBills,
@@ -224,6 +228,47 @@ export function DashboardView() {
 
   return (
     <div className="space-y-8">
+      {/* ── Payday Cycle Hero Card ───────────────────────────── */}
+      {currentAccount?.payday_config?.enabled && payPeriodQuery.data && (
+        <Card hoverable={false} className="p-6 bg-surface-warm border border-border-warm rounded-md relative overflow-hidden animate-fadeIn">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border-warm">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[12px] font-bold px-2.5 py-0.5 rounded-pill bg-primary/10 text-primary border border-primary/20 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-primary" />
+                  Payday Cycle Active
+                </span>
+                <span className="text-[13px] text-text-secondary font-medium">
+                  Next Payday: <strong className="text-text-primary">{payPeriodQuery.data.bounds.next_payday}</strong>
+                </span>
+              </div>
+              <h3 className="font-display font-bold text-[22px] text-text-primary">
+                Pay Period: {formatDate(payPeriodQuery.data.bounds.start_date)} – {formatDate(payPeriodQuery.data.bounds.end_date)}
+              </h3>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <div className="text-[12px] font-semibold text-text-secondary uppercase tracking-wide">Due This Cycle</div>
+                <div className="font-display font-bold text-[24px] text-primary">
+                  {formatCents(payPeriodQuery.data.summary.total_due_cents, currentAccount.default_currency)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {payPeriodQuery.data.overdue_payments.length > 0 && (
+            <div className="mt-4 p-3.5 rounded-sm bg-error/10 border border-error/20 flex items-center justify-between gap-3 text-error">
+              <div className="flex items-center gap-2 text-[14px] font-semibold">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-error" />
+                <span>
+                  {payPeriodQuery.data.overdue_payments.length} overdue payment(s) carried over from previous cycle ({formatCents(payPeriodQuery.data.summary.total_overdue_cents, currentAccount.default_currency)})
+                </span>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* ── Metric cards ────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
