@@ -321,30 +321,40 @@ export class TrailbaseClient {
     const path = `/api/records/v1/account_holidays?limit=1000`;
     const res = await this.request<TrailbaseListResponse<DbAccountHoliday>>(path).catch(() => ({ records: [] }));
     return (res.records || [])
-      .map((h) => ({
-        ...h,
-        account_id: typeof h.account_id === "object" && h.account_id !== null ? h.account_id.id : h.account_id,
-      }))
+      .map((h) => {
+        const id = typeof h.id === "object" && h.id !== null ? (h.id as { id: string }).id : String(h.id);
+        const account_id = typeof h.account_id === "object" && h.account_id !== null ? h.account_id.id : h.account_id;
+        return {
+          ...h,
+          id,
+          account_id,
+        };
+      })
       .filter((h) => h.account_id === accountId) as AccountHoliday[];
   }
 
-  async upsertAccountHoliday(holiday: { account_id: string; date: string; name: string; source: "ics_file" | "ics_url" | "manual" }): Promise<AccountHoliday> {
-    const existing = await this.listAccountHolidays(holiday.account_id);
+  async upsertAccountHoliday(
+    holiday: { account_id: string; date: string; name: string; source: "ics_file" | "ics_url" | "manual" },
+    existingList?: AccountHoliday[]
+  ): Promise<AccountHoliday> {
+    const existing = existingList ?? (await this.listAccountHolidays(holiday.account_id));
     const match = existing.find((h) => h.date === holiday.date);
     const now = Math.floor(Date.now() / 1000);
 
     if (match) {
+      const matchId = typeof match.id === "object" && match.id !== null ? (match.id as { id: string }).id : String(match.id);
       const payload = {
         name: holiday.name,
         source: holiday.source,
         updated_at: now,
       };
-      await this.request<unknown>(`/api/records/v1/account_holidays/${encodeURIComponent(match.id)}`, {
+      await this.request<unknown>(`/api/records/v1/account_holidays/${encodeURIComponent(matchId)}`, {
         method: "PATCH",
         body: JSON.stringify(payload),
       });
       return {
         ...match,
+        id: matchId,
         name: holiday.name,
         source: holiday.source,
         updated_at: now,
@@ -363,14 +373,17 @@ export class TrailbaseClient {
       method: "POST",
       body: JSON.stringify(payload),
     });
+    const createdId = typeof created.id === "object" && created.id !== null ? (created.id as { id: string }).id : String(created.id);
     return {
       ...created,
+      id: createdId,
       account_id: holiday.account_id,
     } as AccountHoliday;
   }
 
   async deleteAccountHoliday(id: string): Promise<void> {
-    await this.request<void>(`/api/records/v1/account_holidays/${encodeURIComponent(id)}`, {
+    const targetId = typeof id === "object" && id !== null ? (id as { id: string }).id : String(id);
+    await this.request<void>(`/api/records/v1/account_holidays/${encodeURIComponent(targetId)}`, {
       method: "DELETE",
     });
   }

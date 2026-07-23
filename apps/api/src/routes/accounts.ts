@@ -826,13 +826,17 @@ app.openapi(postHolidaysRoute, withAccountAccess()(async (c) => {
 
     if (body.ics_content) {
       const parsedHolidays = parseIcsHolidays(body.ics_content);
+      const existingHolidays = await db.listAccountHolidays(account.id);
       for (const h of parsedHolidays) {
-        await db.upsertAccountHoliday({
-          account_id: account.id,
-          date: h.date,
-          name: h.name,
-          source: body.source || "ics_file",
-        });
+        await db.upsertAccountHoliday(
+          {
+            account_id: account.id,
+            date: h.date,
+            name: h.name,
+            source: body.source || "ics_file",
+          },
+          existingHolidays
+        );
       }
     } else if (body.date && body.name) {
       await db.upsertAccountHoliday({
