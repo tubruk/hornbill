@@ -35,6 +35,7 @@ import {
   useUpdatePayment,
   useDeletePayment,
   useCreatePayment,
+  useAccountHolidays,
   type EnrichedPayment,
 } from "../api/queries";
 import { getPaymentState, calculateNextDueDate, DEFAULT_UPCOMING_THRESHOLD_DAYS, type Payment, type Bill } from "@hornbill/core";
@@ -195,6 +196,12 @@ export function CalendarView() {
 
   const paymentsQuery = usePayments(currentAccount?.id, billsQuery.data);
   const dbPayments = useMemo(() => paymentsQuery.data ?? [], [paymentsQuery.data]);
+
+  const holidaysQuery = useAccountHolidays(currentAccount?.id);
+  const holidaysMap = useMemo(() => {
+    const list = holidaysQuery.data ?? [];
+    return new Map(list.map((h) => [h.date, h]));
+  }, [holidaysQuery.data]);
 
   // Mutations
   const payMut = usePayPayment();
@@ -560,6 +567,8 @@ export function CalendarView() {
             const isSelected = isSameDay(day, selectedDate);
             const isDayToday = isToday(day);
 
+            const holiday = holidaysMap.get(dateStr);
+
             return (
               <div
                 key={day.toString()}
@@ -572,17 +581,27 @@ export function CalendarView() {
                   isSelected ? "ring-2 ring-primary ring-inset z-10" : "hover:bg-surface-raised"
                 }`}
               >
-                {/* Cell header: Day number + Today indicator */}
+                {/* Cell header: Day number + Today indicator + Holiday badge */}
                 <div className="flex items-center justify-between">
-                  <span
-                    className={`text-[12px] md:text-[14px] font-mono font-bold ${
-                      isDayToday
-                        ? "bg-primary text-white w-6 h-6 flex items-center justify-center rounded-full shadow-sm"
-                        : "text-text-primary"
-                    }`}
-                  >
-                    {format(day, "d")}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span
+                      className={`text-[12px] md:text-[14px] font-mono font-bold ${
+                        isDayToday
+                          ? "bg-primary text-white w-6 h-6 flex items-center justify-center rounded-full shadow-sm"
+                          : "text-text-primary"
+                      }`}
+                    >
+                      {format(day, "d")}
+                    </span>
+                    {holiday && (
+                      <span
+                        title={`Holiday: ${holiday.name}`}
+                        className="inline-flex items-center justify-center text-[10px] text-amber-700 bg-amber-500/15 border border-amber-500/30 px-1 py-0.5 rounded-sm cursor-help shrink-0 leading-none select-none"
+                      >
+                        🌴
+                      </span>
+                    )}
+                  </div>
                   
                   {/* Plus button on hover (Desktop only) */}
                   <button
@@ -776,6 +795,15 @@ export function CalendarView() {
             <Plus className="w-4 h-4 mr-1.5" /> Add Bill
           </Button>
         </div>
+
+        {holidaysMap.get(selectedDateStr) && (
+          <div className="p-3 rounded-sm bg-[#FEF3C7]/50 border border-[#FDE68A] text-[#92400E] text-[13px] font-body flex items-center gap-2 animate-fadeIn">
+            <span className="text-[16px] select-none shrink-0">🌴</span>
+            <span>
+              Holiday: <strong className="font-semibold text-[#78350F]">{holidaysMap.get(selectedDateStr)!.name}</strong>
+            </span>
+          </div>
+        )}
 
         {selectedDayPayments.length === 0 ? (
           <p className="text-[14px] text-text-secondary font-medium py-4 text-center">

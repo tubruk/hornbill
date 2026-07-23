@@ -829,7 +829,7 @@ export function SettingsView() {
                         <div className="flex items-center justify-between">
                           <h5 className="font-body font-semibold text-[15px] text-text-primary flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-primary" />
-                            Account Holidays ({holidays.length} loaded)
+                            Holidays ({holidays.length} loaded)
                           </h5>
                         </div>
 
