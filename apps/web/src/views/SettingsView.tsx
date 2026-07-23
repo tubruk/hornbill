@@ -65,6 +65,12 @@ function getCurrencyFlag(code: string): string {
   return flags[code.toUpperCase()] || "";
 }
 
+function getOrdinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
 export function SettingsView() {
   const { currentAccount, setCurrentAccount, notify } = useAppCtx();
   const { email, logout } = useAuth();
@@ -938,17 +944,34 @@ export function SettingsView() {
                       </div>
 
                       <div>
-                        <label className="font-body text-[14px] font-semibold text-text-primary block mb-2">
-                          Base Payday Day of Month
-                        </label>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="font-body text-[14px] font-semibold text-text-primary block">
+                            {paydayFrequency === "monthly"
+                              ? "Payday Day of Month"
+                              : paydayFrequency === "semi_monthly"
+                              ? "Primary Payday Day of Month"
+                              : paydayFrequency === "bi_weekly"
+                              ? "Anchor Day of Month (Bi-Weekly)"
+                              : "Anchor Day of Month (Weekly)"}
+                          </label>
+                          <span className="text-[12px] font-mono font-bold px-2 py-0.5 rounded-sm bg-surface-raised border border-border-warm text-primary">
+                            {getOrdinal(paydayDayOfMonth)}
+                          </span>
+                        </div>
                         <input
                           type="number"
                           min="1"
                           max="31"
                           value={paydayDayOfMonth}
-                          onChange={(e) => setPaydayDayOfMonth(Number(e.target.value))}
+                          onChange={(e) => setPaydayDayOfMonth(Math.max(1, Math.min(31, Number(e.target.value))))}
                           className="w-full rounded-sm p-3 text-[15px] font-body border border-border-warm h-[46px] bg-surface-warm text-text-primary outline-none focus:border-primary focus:ring-3 focus:ring-primary/12"
                         />
+                        <p className="text-[12px] text-text-secondary mt-1.5 italic">
+                          {paydayFrequency === "monthly" && `Payday occurs once every month on the ${getOrdinal(paydayDayOfMonth)}.`}
+                          {paydayFrequency === "semi_monthly" && `First payday occurs on the ${getOrdinal(paydayDayOfMonth)}. The second payday occurs mid-month.`}
+                          {paydayFrequency === "bi_weekly" && `14-day recurring pay period anchored on the ${getOrdinal(paydayDayOfMonth)}.`}
+                          {paydayFrequency === "weekly" && `7-day recurring pay period anchored on the ${getOrdinal(paydayDayOfMonth)}.`}
+                        </p>
                       </div>
                     </div>
 
