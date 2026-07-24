@@ -122,7 +122,34 @@ export function getPayPeriodBounds(
     };
   }
 
-  // Fallback / default monthly behavior for other frequencies if not specialized
+  if (config.frequency === "weekly" || config.frequency === "bi_weekly") {
+    const intervalDays = config.frequency === "weekly" ? 7 : 14;
+    const nominalCurrent = getNominalMonthlyDate(refYear, refMonth, dayOfMonth);
+    const actualCurrent = getActualPayday(nominalCurrent, adjustment, holidayDates);
+
+    let startP: string;
+    let nextP: string;
+
+    if (referenceDateStr >= actualCurrent) {
+      startP = actualCurrent;
+      const nextDate = parseDateStr(actualCurrent);
+      nextDate.setDate(nextDate.getDate() + intervalDays);
+      nextP = getActualPayday(formatDateStr(nextDate), adjustment, holidayDates);
+    } else {
+      nextP = actualCurrent;
+      const prevDate = parseDateStr(actualCurrent);
+      prevDate.setDate(prevDate.getDate() - intervalDays);
+      startP = getActualPayday(formatDateStr(prevDate), adjustment, holidayDates);
+    }
+
+    return {
+      start_date: startP,
+      end_date: getPreviousDayStr(nextP),
+      next_payday: nextP,
+    };
+  }
+
+  // Default monthly calculation
   const nominalCurrent = getNominalMonthlyDate(refYear, refMonth, dayOfMonth);
   const actualCurrent = getActualPayday(nominalCurrent, adjustment, holidayDates);
 

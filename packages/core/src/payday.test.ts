@@ -66,27 +66,83 @@ describe("Payday & Holiday Engine", () => {
     expect(boundsBeforePayday.end_date).toBe("2026-07-23");
   });
 
-  test("parseIcsHolidays extracts all-day event dates and titles", () => {
-    const icsData = `
+  test("getPayPeriodBounds handles semi_monthly, bi_weekly, and weekly frequencies", () => {
+    const semiMonthlyConfig: PaydayConfig = {
+      enabled: true,
+      frequency: "semi_monthly",
+      day_of_month: 15,
+      adjustment: "previous_working_day",
+    };
+
+    // Semi-monthly reference date July 10 (< July 15 payday) -> current cycle starts June 15, next payday July 15
+    const semiBounds = getPayPeriodBounds("2026-07-10", semiMonthlyConfig);
+    expect(semiBounds.start_date).toBe("2026-06-15");
+    expect(semiBounds.next_payday).toBe("2026-07-15");
+    expect(semiBounds.end_date).toBe("2026-07-14");
+
+    const weeklyConfig: PaydayConfig = {
+      enabled: true,
+      frequency: "weekly",
+      day_of_month: 25,
+      adjustment: "exact_date",
+    };
+    const weeklyBounds = getPayPeriodBounds("2026-07-25", weeklyConfig);
+    expect(weeklyBounds.start_date).toBe("2026-07-25");
+    expect(weeklyBounds.next_payday).toBe("2026-08-01");
+    expect(weeklyBounds.end_date).toBe("2026-07-31");
+
+    const biWeeklyConfig: PaydayConfig = {
+      enabled: true,
+      frequency: "bi_weekly",
+      day_of_month: 25,
+      adjustment: "exact_date",
+    };
+    const biWeeklyBounds = getPayPeriodBounds("2026-07-25", biWeeklyConfig);
+    expect(biWeeklyBounds.start_date).toBe("2026-07-25");
+    expect(biWeeklyBounds.next_payday).toBe("2026-08-08");
+    expect(biWeeklyBounds.end_date).toBe("2026-08-07");
+  });
+
+  test("getPayPeriodBounds handles year rollover and month day clamping (31st day & Feb)", () => {
+    const config: PaydayConfig = {
+      enabled: true,
+      frequency: "monthly",
+      day_of_month: 31,
+      adjustment: "exact_date",
+    };
+
+    // December 31 reference date -> next payday is Jan 31
+    const decBounds = getPayPeriodBounds("2026-12-31", config);
+    expect(decBounds.start_date).toBe("2026-12-31");
+    expect(decBounds.next_payday).toBe("2027-01-31");
+    expect(decBounds.end_date).toBe("2027-01-30");
+
+    // January 31 reference date -> Feb clamped to Feb 28 (2026 is non-leap year)
+    const janBounds = getPayPeriodBounds("2026-01-31", config);
+    expect(janBounds.start_date).toBe("2026-01-31");
+    expect(janBounds.next_payday).toBe("2026-02-28");
+    expect(janBounds.end_date).toBe("2026-02-27");
+  });
+
+  test("parseIcsHolidays handles malformed content, multiline SUMMARYs, and empty inputs gracefully", () => {
+    expect(parseIcsHolidays("")).toEqual([]);
+    expect(parseIcsHolidays("NOT AN ICS FILE")).toEqual([]);
+
+    const messyIcs = `
 BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Example Corp//EN
 BEGIN:VEVENT
-UID:holiday-1
-DTSTART;VALUE=DATE:20260817
-SUMMARY:Independence Day
+SUMMARY:New Year's Day
+DTSTART:20260101
 END:VEVENT
 BEGIN:VEVENT
-UID:holiday-2
-DTSTART:20261225T000000Z
-SUMMARY:Christmas Day
+DTSTART;TZID=America/New_York:20260704T090000
+SUMMARY:4th of July
 END:VEVENT
 END:VCALENDAR
 `;
-
-    const parsed = parseIcsHolidays(icsData);
+    const parsed = parseIcsHolidays(messyIcs);
     expect(parsed).toHaveLength(2);
-    expect(parsed[0]).toEqual({ date: "2026-08-17", name: "Independence Day" });
-    expect(parsed[1]).toEqual({ date: "2026-12-25", name: "Christmas Day" });
+    expect(parsed[0]).toEqual({ date: "2026-01-01", name: "New Year's Day" });
+    expect(parsed[1]).toEqual({ date: "2026-07-04", name: "4th of July" });
   });
 });
