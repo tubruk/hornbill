@@ -2,7 +2,7 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { getDb, verifyToken, type UserPayload } from "../trailbase";
-import { DEFAULT_UPCOMING_THRESHOLD_DAYS, AccountSchema, NotificationProviderSchema, type Account, type Bill, type Payment } from "@hornbill/core";
+import { DEFAULT_UPCOMING_THRESHOLD_DAYS, AccountSchema, NotificationProviderSchema, getPayPeriodBounds, parseIcsHolidays, formatDateStr, type Account, type Bill, type Payment } from "@hornbill/core";
 import { sendAggregatedNotification } from "../services/reminders";
 import { withAccountAccess } from "../middleware/auth";
 import { coreErrors, authErrors, validationErrors, lookupErrors, defaultValidationHook, uuidSchema } from "../utils/openapi-errors";
@@ -17,6 +17,8 @@ export const AccountOpenApiSchema = z.object({
   archived: z.boolean().openapi({ description: "Archived status", example: false }),
   notification_provider: z.record(z.string(), z.unknown()).openapi({ description: "Notification provider configuration" }),
   notification_reminder: z.record(z.string(), z.unknown()).openapi({ description: "Reminder configuration" }),
+  calendar_token: z.string().nullable().optional().openapi({ description: "Calendar feed token" }),
+  payday_config: z.record(z.string(), z.unknown()).nullable().optional().openapi({ description: "Payday cycle configuration" }),
   created_at: z.number().int().optional().openapi({ description: "Creation epoch timestamp", example: 1717142404 }),
   updated_at: z.number().int().optional().openapi({ description: "Last update epoch timestamp", example: 1717142404 }),
 }).openapi("Account");
@@ -30,6 +32,7 @@ const CreateAccountRequestSchema = z.object({
   archived: z.boolean().optional().openapi({ example: false }),
   notification_provider: z.record(z.string(), z.unknown()).optional(),
   notification_reminder: z.record(z.string(), z.unknown()).optional(),
+  payday_config: z.record(z.string(), z.unknown()).nullable().optional(),
 }).openapi("CreateAccountRequest");
 
 const UpdateAccountRequestSchema = CreateAccountRequestSchema.partial().openapi("UpdateAccountRequest");
@@ -656,5 +659,240 @@ app.openapi(testNotificationRoute, async (c) => {
     return c.json({ error: message }, status);
   }
 });
+
+// GET /api/v1/accounts/:id/pay-period - Compute pay period bounds & summary
+const getPayPeriodRoute = createRoute({
+  method: "get",
+  path: "/{id}/pay-period",
+  summary: "Get Pay Period Summary",
+  description: "Computes active pay period bounds and returns payments falling within the current cycle and overdue payments",
+  request: {
+    params: z.object({ id: uuidSchema() }),
+    query: z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().openapi({ description: "Target reference date (YYYY-MM-DD), defaults to today" }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            bounds: z.object({
+              start_date: z.string(),
+              end_date: z.string(),
+              next_payday: z.string(),
+            }),
+            summary: z.object({
+              total_due_cents: z.number(),
+              total_overdue_cents: z.number(),
+              unpaid_count: z.number(),
+            }),
+            current_cycle_payments: z.array(z.record(z.string(), z.unknown())),
+            overdue_payments: z.array(z.record(z.string(), z.unknown())),
+          }),
+        },
+      },
+      description: "Successfully calculated pay period bounds",
+    },
+    ...coreErrors,
+    ...authErrors,
+  },
+});
+
+app.openapi(getPayPeriodRoute, withAccountAccess()(async (c) => {
+  try {
+    const db = getDb(c);
+    const account = c.get("account");
+    const { date } = c.req.valid("query");
+    const targetDate = date || formatDateStr(new Date());
+
+    const holidays = await db.listAccountHolidays(account.id);
+    const holidayDates = new Set(holidays.map((h) => h.date));
+
+    const paydayConfig = account.payday_config || { enabled: false, frequency: "monthly", day_of_month: 25, adjustment: "previous_working_day" };
+    const bounds = getPayPeriodBounds(targetDate, paydayConfig, holidayDates);
+
+    const allPayments = await db.listPayments(account.id);
+
+    const currentCyclePayments = allPayments.filter(
+      (p) => p.due_date >= bounds.start_date && p.due_date <= bounds.end_date
+    );
+
+    const overduePayments = allPayments.filter(
+      (p) => p.due_date < bounds.start_date && !p.paid_at
+    );
+
+    const totalDueCents = currentCyclePayments.reduce((acc, p) => acc + p.amount_cents, 0);
+    const totalOverdueCents = overduePayments.reduce((acc, p) => acc + p.amount_cents, 0);
+    const unpaidCount = currentCyclePayments.filter((p) => !p.paid_at).length + overduePayments.length;
+
+    return c.json(
+      {
+        bounds,
+        summary: {
+          total_due_cents: totalDueCents,
+          total_overdue_cents: totalOverdueCents,
+          unpaid_count: unpaidCount,
+        },
+        current_cycle_payments: currentCyclePayments,
+        overdue_payments: overduePayments,
+      },
+      200
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to compute pay period";
+    return c.json({ error: message }, 500);
+  }
+}));
+
+// GET /api/v1/accounts/:id/holidays - List account holidays
+const listHolidaysRoute = createRoute({
+  method: "get",
+  path: "/{id}/holidays",
+  summary: "List Account Holidays",
+  description: "Lists all configured and imported holiday dates for the specified account",
+  request: {
+    params: z.object({ id: uuidSchema() }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.array(z.record(z.string(), z.unknown())),
+        },
+      },
+      description: "List of holidays",
+    },
+    ...coreErrors,
+    ...authErrors,
+  },
+});
+
+app.openapi(listHolidaysRoute, withAccountAccess()(async (c) => {
+  try {
+    const db = getDb(c);
+    const account = c.get("account");
+    const holidays = await db.listAccountHolidays(account.id);
+    return c.json(holidays, 200);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to list holidays";
+    return c.json({ error: message }, 500);
+  }
+}));
+
+// POST /api/v1/accounts/:id/holidays - Add or Import holidays
+const PostHolidaysRequestSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  name: z.string().optional(),
+  source: z.enum(["ics_file", "ics_url", "manual"]).optional().default("manual"),
+  ics_content: z.string().optional(),
+});
+
+const postHolidaysRoute = createRoute({
+  method: "post",
+  path: "/{id}/holidays",
+  summary: "Add or Import Holidays",
+  description: "Adds a single holiday date or parses and merges an uploaded iCal (.ics) feed",
+  request: {
+    params: z.object({ id: uuidSchema() }),
+    body: {
+      content: {
+        "application/json": {
+          schema: PostHolidaysRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.array(z.record(z.string(), z.unknown())),
+        },
+      },
+      description: "Updated list of holidays",
+    },
+    ...coreErrors,
+    ...authErrors,
+    ...validationErrors,
+  },
+});
+
+app.openapi(postHolidaysRoute, withAccountAccess()(async (c) => {
+  try {
+    const db = getDb(c);
+    const account = c.get("account");
+    const body = c.req.valid("json");
+
+    if (body.ics_content) {
+      const parsedHolidays = parseIcsHolidays(body.ics_content);
+      const existingHolidays = await db.listAccountHolidays(account.id);
+      for (const h of parsedHolidays) {
+        await db.upsertAccountHoliday(
+          {
+            account_id: account.id,
+            date: h.date,
+            name: h.name,
+            source: body.source || "ics_file",
+          },
+          existingHolidays
+        );
+      }
+    } else if (body.date && body.name) {
+      await db.upsertAccountHoliday({
+        account_id: account.id,
+        date: body.date,
+        name: body.name,
+        source: body.source || "manual",
+      });
+    } else {
+      return c.json({ error: "Provide either date & name or ics_content" }, 400);
+    }
+
+    const updatedHolidays = await db.listAccountHolidays(account.id);
+    return c.json(updatedHolidays, 200);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to import holidays";
+    return c.json({ error: message }, 500);
+  }
+}));
+
+// DELETE /api/v1/accounts/:id/holidays/:holidayId - Delete holiday
+const deleteHolidayRoute = createRoute({
+  method: "delete",
+  path: "/{id}/holidays/{holidayId}",
+  summary: "Delete Holiday",
+  description: "Removes a specific holiday date from the account",
+  request: {
+    params: z.object({
+      id: uuidSchema(),
+      holidayId: uuidSchema(),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean() }),
+        },
+      },
+      description: "Holiday deleted successfully",
+    },
+    ...coreErrors,
+    ...authErrors,
+  },
+});
+
+app.openapi(deleteHolidayRoute, withAccountAccess()(async (c) => {
+  try {
+    const db = getDb(c);
+    const { holidayId } = c.req.valid("param");
+    await db.deleteAccountHoliday(holidayId);
+    return c.json({ success: true }, 200);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to delete holiday";
+    return c.json({ error: message }, 500);
+  }
+}));
 
 export default app;

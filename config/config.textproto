@@ -32,4 +32,9 @@ record_apis: [{
   name: "api_keys"
   table_name: "api_keys"
   acl_world: [READ, CREATE, UPDATE, DELETE]
+}, {
+  name: "account_holidays"
+  table_name: "account_holidays"
+  acl_world: [READ, CREATE, UPDATE, DELETE]
+  expand: ["account_id"]
 }]

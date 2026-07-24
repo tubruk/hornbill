@@ -4,7 +4,7 @@ import {
   useQueryClient,
   type UseQueryOptions,
 } from "@tanstack/react-query";
-import type { Account, Bill, Payment, ExportPayload, ApiKey } from "@hornbill/core";
+import type { Account, Bill, Payment, ExportPayload, ApiKey, AccountHoliday } from "@hornbill/core";
 import {
   fetchAccounts,
   createAccount,
@@ -19,7 +19,6 @@ import {
   createPayment,
   updatePayment,
   deletePayment,
-
   triggerAccountSync,
   importAccount,
   fetchApiKeys,
@@ -27,6 +26,11 @@ import {
   deleteApiKey,
   fetchCalendarToken,
   regenerateCalendarToken,
+  fetchPayPeriod,
+  fetchAccountHolidays,
+  postAccountHoliday,
+  deleteAccountHoliday,
+  type PayPeriodResponse,
   type CreateBillPayload,
   type UpdateBillPayload,
   type CreatePaymentPayload,
@@ -42,6 +46,8 @@ export const qk = {
   payments: (accountId: string | undefined) => ["payments", accountId] as const,
   apiKeys: () => ["apiKeys"] as const,
   calendarToken: (accountId: string) => ["calendarToken", accountId] as const,
+  payPeriod: (accountId: string | undefined, date?: string) => ["payPeriod", accountId, date] as const,
+  holidays: (accountId: string | undefined) => ["holidays", accountId] as const,
 } as const;
 
 // ── Enriched payment type ──────────────────────────────────────────────────
@@ -362,6 +368,66 @@ export function useRegenerateCalendarToken() {
     onSuccess: (_, accountId) => {
       qc.invalidateQueries({ queryKey: qk.calendarToken(accountId) });
       qc.invalidateQueries({ queryKey: qk.accounts() });
+    },
+  });
+}
+
+// ── Payday & Holidays ───────────────────────────────────────────────────────
+
+export function usePayPeriod(
+  accountId: string | undefined,
+  date?: string,
+  options?: Partial<UseQueryOptions<PayPeriodResponse>>
+) {
+  return useQuery<PayPeriodResponse>({
+    queryKey: qk.payPeriod(accountId, date),
+    queryFn: () => fetchPayPeriod(accountId!, date),
+    enabled: !!accountId,
+    staleTime: 60_000,
+    retry: 1,
+    ...options,
+  });
+}
+
+export function useAccountHolidays(
+  accountId: string | undefined,
+  options?: Partial<UseQueryOptions<AccountHoliday[]>>
+) {
+  return useQuery<AccountHoliday[]>({
+    queryKey: qk.holidays(accountId),
+    queryFn: () => fetchAccountHolidays(accountId!),
+    enabled: !!accountId,
+    staleTime: 300_000,
+    retry: 1,
+    ...options,
+  });
+}
+
+export function useAddHolidayMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      accountId,
+      payload,
+    }: {
+      accountId: string;
+      payload: { date?: string; name?: string; source?: "ics_file" | "ics_url" | "manual"; ics_content?: string };
+    }) => postAccountHoliday(accountId, payload),
+    onSuccess: (_, { accountId }) => {
+      qc.invalidateQueries({ queryKey: qk.holidays(accountId) });
+      qc.invalidateQueries({ queryKey: ["payPeriod", accountId] });
+    },
+  });
+}
+
+export function useDeleteHolidayMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, holidayId }: { accountId: string; holidayId: string }) =>
+      deleteAccountHoliday(accountId, holidayId),
+    onSuccess: (_, { accountId }) => {
+      qc.invalidateQueries({ queryKey: qk.holidays(accountId) });
+      qc.invalidateQueries({ queryKey: ["payPeriod", accountId] });
     },
   });
 }

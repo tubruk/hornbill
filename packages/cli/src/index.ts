@@ -25,6 +25,7 @@ import {
   deleteBill,
   getPayment,
   deletePayment,
+  fetchPayPeriod,
   type ExportPayload,
 } from "./api";
 import { promptText, promptPassword, promptSelect } from "./prompt";
@@ -1459,6 +1460,74 @@ skillCmd
             2
           )
         );
+        process.exit(1);
+      } else {
+        handleError(err);
+      }
+    }
+  });
+
+// Command: payday
+program
+  .command("payday")
+  .description("View payday cycle bounds and due payments for an account")
+  .option("-a, --account <accountId>", "Account ID")
+  .option("-d, --date <YYYY-MM-DD>", "Target reference date")
+  .action(async (cmdOpts) => {
+    const opts = program.opts();
+    const { url, key } = resolveConfig({ url: opts.url, key: opts.key });
+    if (!url || !key) {
+      console.error("Error: Not logged in or server URL/key missing. Run `hornbill login` first.");
+      process.exit(1);
+    }
+
+    try {
+      let accountId = cmdOpts.account;
+      if (!accountId) {
+        const accounts = await listAccounts(url, key);
+        if (accounts.length === 0) {
+          console.error("Error: No accounts found.");
+          process.exit(1);
+        }
+        if (accounts.length === 1) {
+          accountId = accounts[0].id;
+        } else {
+          accountId = await promptSelect(
+            "Select Account",
+            accounts.map((a) => ({ name: `${a.name} (${a.id})`, value: a.id }))
+          );
+        }
+      }
+
+      const res = await fetchPayPeriod(url, key, accountId, cmdOpts.date);
+
+      if (opts.json) {
+        console.log(JSON.stringify(res, null, 2));
+      } else {
+        console.log(`\n=== Pay Period (${res.bounds.start_date} to ${res.bounds.end_date}) ===`);
+        console.log(`Next Payday: ${res.bounds.next_payday}`);
+        console.log(`Unpaid Count: ${res.summary.unpaid_count}`);
+        console.log(`Total Due: $${formatAmount(res.summary.total_due_cents)}`);
+        if (res.summary.total_overdue_cents > 0) {
+          console.log(`Overdue Carried Over: $${formatAmount(res.summary.total_overdue_cents)}`);
+        }
+
+        if (res.current_cycle_payments.length > 0) {
+          console.log("\n--- Payments Due In Cycle ---");
+          const rows = res.current_cycle_payments.map((p) => [
+            p.id,
+            p.due_date,
+            `$${formatAmount(p.amount_cents)}`,
+            p.paid_at ? "PAID" : "UNPAID",
+          ]);
+          printTable(["ID", "Due Date", "Amount", "Status"], rows);
+        } else {
+          console.log("\nNo payments due in this cycle.");
+        }
+      }
+    } catch (err) {
+      if (opts.json) {
+        console.log(JSON.stringify({ status: "error", error: err instanceof Error ? err.message : String(err) }, null, 2));
         process.exit(1);
       } else {
         handleError(err);

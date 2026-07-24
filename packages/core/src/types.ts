@@ -229,6 +229,45 @@ export const NotificationReminderSchema = z.object({
 
 export type NotificationReminder = z.infer<typeof NotificationReminderSchema>;
 
+export const PaydayFrequencySchema = z.enum(["monthly", "semi_monthly", "bi_weekly", "weekly"]);
+export type PaydayFrequency = z.infer<typeof PaydayFrequencySchema>;
+
+export const PaydayAdjustmentSchema = z.enum(["previous_working_day", "next_working_day", "exact_date"]);
+export type PaydayAdjustment = z.infer<typeof PaydayAdjustmentSchema>;
+
+export const PaydayConfigSchema = z.object({
+  enabled: z.boolean(),
+  frequency: PaydayFrequencySchema.default("monthly"),
+  day_of_month: z.number().int().min(1).max(31).optional().default(25),
+  days_of_month: z.array(z.number().int().min(1).max(31)).optional(),
+  weekday: z.number().int().min(0).max(6).optional(),
+  adjustment: PaydayAdjustmentSchema.default("previous_working_day"),
+  ics_url: z.string().url().nullable().optional(),
+  last_synced_at: z.number().int().nullable().optional(),
+});
+
+export type PaydayConfig = z.infer<typeof PaydayConfigSchema>;
+
+export const AccountHolidaySchema = z.object({
+  id: z.string().min(1),
+  account_id: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be in YYYY-MM-DD format"),
+  name: z.string().min(1),
+  source: z.enum(["ics_file", "ics_url", "manual"]),
+  created_at: z.number().int(),
+  updated_at: z.number().int(),
+});
+
+export type AccountHoliday = z.infer<typeof AccountHolidaySchema>;
+
+export const PayPeriodBoundsSchema = z.object({
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  next_payday: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+export type PayPeriodBounds = z.infer<typeof PayPeriodBoundsSchema>;
+
 export const AccountSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -239,6 +278,7 @@ export const AccountSchema = z.object({
   notification_provider: NotificationProviderSchema.default({ type: "webhook", config: {} }),
   notification_reminder: NotificationReminderSchema.default({ enabled: false, days_before_due: 3, time: "09:00", timezone: "UTC", last_reminded_date: null }),
   calendar_token: z.string().nullable().optional(),
+  payday_config: PaydayConfigSchema.nullable().optional(),
   created_at: z.number().int(),
   updated_at: z.number().int(),
 }).refine(data => data.currencies.includes(data.default_currency), {

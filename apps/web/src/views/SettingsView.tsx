@@ -17,6 +17,7 @@ import {
   Check,
   Calendar,
 } from "lucide-react";
+import type { PaydayFrequency, PaydayAdjustment } from "@hornbill/core";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { useAppCtx } from "../context/AppContext";
 import {
@@ -31,6 +32,9 @@ import {
   useDeleteApiKey,
   useCalendarToken,
   useRegenerateCalendarToken,
+  useAccountHolidays,
+  useAddHolidayMutation,
+  useDeleteHolidayMutation,
 } from "../api/queries";
 import { exportAccount, testNotification } from "../api/client";
 import { Card } from "../components/Card";
@@ -59,6 +63,12 @@ function getCurrencyFlag(code: string): string {
     VUV: "🇻🇺", WST: "🇼🇸", XAF: "🇨🇲", XCD: "🇦🇬", XOF: "🇸🇳", XPF: "🇵🇫", YER: "🇾🇪", ZAR: "🇿🇦", ZMW: "🇿🇲", ZWL: "🇿🇼"
   };
   return flags[code.toUpperCase()] || "";
+}
+
+function getOrdinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
 export function SettingsView() {
@@ -109,6 +119,21 @@ export function SettingsView() {
   const [ntfyToken, setNtfyToken] = useState(currentAccount?.notification_provider?.config?.ntfyToken ?? "");
   const [isTestingNotification, setIsTestingNotification] = useState(false);
 
+  // --- Payday & Holiday States ---
+  const [paydayEnabled, setPaydayEnabled] = useState(currentAccount?.payday_config?.enabled ?? false);
+  const [paydayFrequency, setPaydayFrequency] = useState<PaydayFrequency>(currentAccount?.payday_config?.frequency ?? "monthly");
+  const [paydayDayOfMonth, setPaydayDayOfMonth] = useState(currentAccount?.payday_config?.day_of_month ?? 25);
+  const [paydayAdjustment, setPaydayAdjustment] = useState<PaydayAdjustment>(currentAccount?.payday_config?.adjustment ?? "previous_working_day");
+
+  const holidaysQuery = useAccountHolidays(currentAccount?.id);
+  const holidays = holidaysQuery.data ?? [];
+  const sortedHolidays = [...holidays].sort((a, b) => a.date.localeCompare(b.date));
+  const addHolidayMut = useAddHolidayMutation();
+  const deleteHolidayMut = useDeleteHolidayMutation();
+
+  const [newHolidayDate, setNewHolidayDate] = useState("");
+  const [newHolidayName, setNewHolidayName] = useState("");
+
   // Autocomplete search states
   const [currencySearch, setCurrencySearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
@@ -145,7 +170,7 @@ export function SettingsView() {
   const search = useSearch({ from: "/settings" });
   const navigate = useNavigate({ from: "/settings" });
   const activeTab = search.tab || "general";
-  const setActiveTab = (tab: "general" | "reminders" | "integrations" | "backup" | "system") => {
+  const setActiveTab = (tab: "general" | "payday" | "reminders" | "integrations" | "backup" | "system") => {
     navigate({ search: { tab } });
   };
 
@@ -169,6 +194,10 @@ export function SettingsView() {
     setGotifyToken(currentAccount?.notification_provider?.config?.gotifyToken ?? "");
     setNtfyUrl(currentAccount?.notification_provider?.config?.ntfyUrl ?? "");
     setNtfyToken(currentAccount?.notification_provider?.config?.ntfyToken ?? "");
+    setPaydayEnabled(currentAccount?.payday_config?.enabled ?? false);
+    setPaydayFrequency(currentAccount?.payday_config?.frequency ?? "monthly");
+    setPaydayDayOfMonth(currentAccount?.payday_config?.day_of_month ?? 25);
+    setPaydayAdjustment(currentAccount?.payday_config?.adjustment ?? "previous_working_day");
   }
 
   // Click outside listener to close search dropdown
@@ -263,6 +292,12 @@ export function SettingsView() {
             ntfyUrl: providerType === "ntfy" ? ntfyUrl : undefined,
             ntfyToken: providerType === "ntfy" ? ntfyToken : undefined,
           },
+        },
+        payday_config: {
+          enabled: paydayEnabled,
+          frequency: paydayFrequency,
+          day_of_month: Number(paydayDayOfMonth),
+          adjustment: paydayAdjustment,
         },
       },
       {
@@ -492,6 +527,7 @@ export function SettingsView() {
       <div className="flex border-b border-border-warm gap-2 mb-6 overflow-x-auto scrollbar-none">
         {([
           { id: "general", label: "General" },
+          { id: "payday", label: "Payday & Holidays" },
           { id: "reminders", label: "Reminders" },
           { id: "integrations", label: "Integrations" },
           { id: "backup", label: "Backup" },
@@ -851,6 +887,243 @@ export function SettingsView() {
               </div>
             </Card>
           </div>
+        </div>
+      )}
+
+      {activeTab === "payday" && (
+        <div className="space-y-6 animate-fadeIn">
+          {currentAccount ? (
+            <Card hoverable={false} className="p-6 relative">
+              <h4 className="font-display font-semibold text-[20px] text-text-primary mb-5 flex items-center justify-between pb-3 border-b border-border-warm">
+                <span className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-primary" />
+                  Payday & Budget Cycle
+                </span>
+                {paydayEnabled && (
+                  <span className="text-[12px] font-bold px-2.5 py-0.5 rounded-pill bg-primary/10 text-primary border border-primary/20">
+                    Active
+                  </span>
+                )}
+              </h4>
+
+              <div className="space-y-6">
+                <div className="flex items-center justify-between gap-4 p-4 rounded-sm bg-surface-warm border border-border-warm">
+                  <div>
+                    <label className="font-body text-[15px] font-semibold text-text-primary block cursor-pointer">
+                      Enable Payday Cycle View
+                    </label>
+                    <p className="text-[13px] text-text-secondary">
+                      Align dashboard and payment filters to your salary pay period bounds.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={paydayEnabled}
+                    onChange={(e) => setPaydayEnabled(e.target.checked)}
+                    className="w-5 h-5 accent-primary cursor-pointer"
+                  />
+                </div>
+
+                {paydayEnabled && (
+                  <div className="space-y-6 pt-2 animate-fadeIn">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div>
+                        <label className="font-body text-[14px] font-semibold text-text-primary block mb-2">
+                          Payday Frequency
+                        </label>
+                        <select
+                          value={paydayFrequency}
+                          onChange={(e) => setPaydayFrequency(e.target.value as PaydayFrequency)}
+                          className="w-full rounded-sm p-3 text-[15px] font-body border border-border-warm h-[46px] bg-surface-warm text-text-primary outline-none focus:border-primary focus:ring-3 focus:ring-primary/12"
+                        >
+                          <option value="monthly">Monthly (e.g. 25th)</option>
+                          <option value="semi_monthly">Semi-Monthly (Twice per month)</option>
+                          <option value="bi_weekly">Bi-Weekly (Every 2 weeks)</option>
+                          <option value="weekly">Weekly</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="font-body text-[14px] font-semibold text-text-primary block">
+                            {paydayFrequency === "monthly"
+                              ? "Payday Day of Month"
+                              : paydayFrequency === "semi_monthly"
+                              ? "Primary Payday Day of Month"
+                              : paydayFrequency === "bi_weekly"
+                              ? "Anchor Day of Month (Bi-Weekly)"
+                              : "Anchor Day of Month (Weekly)"}
+                          </label>
+                          <span className="text-[12px] font-mono font-bold px-2 py-0.5 rounded-sm bg-surface-raised border border-border-warm text-primary">
+                            {getOrdinal(paydayDayOfMonth)}
+                          </span>
+                        </div>
+                        <input
+                          type="number"
+                          min="1"
+                          max="31"
+                          value={paydayDayOfMonth}
+                          onChange={(e) => setPaydayDayOfMonth(Math.max(1, Math.min(31, Number(e.target.value))))}
+                          className="w-full rounded-sm p-3 text-[15px] font-body border border-border-warm h-[46px] bg-surface-warm text-text-primary outline-none focus:border-primary focus:ring-3 focus:ring-primary/12"
+                        />
+                        <p className="text-[12px] text-text-secondary mt-1.5 italic">
+                          {paydayFrequency === "monthly" && `Payday occurs once every month on the ${getOrdinal(paydayDayOfMonth)}.`}
+                          {paydayFrequency === "semi_monthly" && `First payday occurs on the ${getOrdinal(paydayDayOfMonth)}. The second payday occurs mid-month.`}
+                          {paydayFrequency === "bi_weekly" && `14-day recurring pay period anchored on the ${getOrdinal(paydayDayOfMonth)}.`}
+                          {paydayFrequency === "weekly" && `7-day recurring pay period anchored on the ${getOrdinal(paydayDayOfMonth)}.`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="font-body text-[14px] font-semibold text-text-primary block mb-2">
+                        Non-Working Day / Weekend Adjustment Rule
+                      </label>
+                      <div className="space-y-2">
+                        {[
+                          { id: "previous_working_day", label: "Shift earlier to nearest working day (e.g. Friday)" },
+                          { id: "next_working_day", label: "Shift later to nearest working day (e.g. Monday)" },
+                          { id: "exact_date", label: "Exact date (No weekend shift)" },
+                        ].map((rule) => (
+                          <label key={rule.id} className="flex items-center gap-3 p-3 rounded-sm border border-border-warm bg-surface-warm cursor-pointer hover:border-primary/50 transition-colors">
+                            <input
+                              type="radio"
+                              name="paydayAdjustment"
+                              value={rule.id}
+                              checked={paydayAdjustment === rule.id}
+                              onChange={(e) => setPaydayAdjustment(e.target.value as PaydayAdjustment)}
+                              className="accent-primary"
+                            />
+                            <span className="text-[14px] font-medium text-text-primary">{rule.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* --- Holiday Calendar Management --- */}
+                    <div className="pt-4 border-t border-border-warm space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h5 className="font-body font-semibold text-[15px] text-text-primary flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-primary" />
+                          Holidays ({holidays.length} loaded)
+                        </h5>
+                      </div>
+
+                      {/* List of current holidays */}
+                      {sortedHolidays.length > 0 ? (
+                        <div className="max-h-40 overflow-y-auto divide-y divide-border-warm border border-border-warm rounded-sm bg-surface-warm p-2">
+                          {sortedHolidays.map((h) => (
+                            <div key={h.id} className="flex items-center justify-between py-1.5 px-2 text-[13px]">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-semibold text-text-primary">{h.date}</span>
+                                <span className="text-text-secondary">{h.name}</span>
+                                <span className="text-[11px] px-1.5 py-0.5 rounded-sm bg-surface-raised border border-border-warm text-neutral-muted uppercase">
+                                  {h.source}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => deleteHolidayMut.mutate({ accountId: currentAccount.id, holidayId: h.id })}
+                                className="text-text-secondary hover:text-error transition-colors"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[13px] text-text-secondary italic">No custom holidays added yet. Standard weekends (Sat/Sun) apply.</p>
+                      )}
+
+                      {/* Add Holiday / Import iCal Form */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+                        <input
+                          type="date"
+                          value={newHolidayDate}
+                          onChange={(e) => setNewHolidayDate(e.target.value)}
+                          className="rounded-sm p-2 text-[13px] border border-border-warm bg-surface-warm text-text-primary"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Holiday name (e.g. Company Day)"
+                          value={newHolidayName}
+                          onChange={(e) => setNewHolidayName(e.target.value)}
+                          className="rounded-sm p-2 text-[13px] border border-border-warm bg-surface-warm text-text-primary"
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="small"
+                          onClick={() => {
+                            if (!newHolidayDate || !newHolidayName) return;
+                            addHolidayMut.mutate(
+                              { accountId: currentAccount.id, payload: { date: newHolidayDate, name: newHolidayName, source: "manual" } },
+                              {
+                                onSuccess: () => {
+                                  setNewHolidayDate("");
+                                  setNewHolidayName("");
+                                  notify("Holiday added.", "success");
+                                },
+                              }
+                            );
+                          }}
+                        >
+                          + Add Holiday Date
+                        </Button>
+                      </div>
+
+                      {/* iCal File Upload */}
+                      <div className="pt-2">
+                        <label className="text-[13px] font-semibold text-text-secondary block mb-1">
+                          Import iCal (.ics) Calendar File
+                        </label>
+                        <input
+                          type="file"
+                          accept=".ics,text/calendar"
+                          onChange={async (e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              const content = await e.target.files[0].text();
+                              addHolidayMut.mutate(
+                                { accountId: currentAccount.id, payload: { ics_content: content, source: "ics_file" } },
+                                {
+                                  onSuccess: (updated) => notify(`Imported holidays from .ics file! (${updated.length} total)`, "success"),
+                                  onError: (err) => notify(err instanceof Error ? err.message : "Failed to import .ics file", "error"),
+                                }
+                              );
+                            }
+                          }}
+                          className="text-[13px] text-text-secondary file:mr-3 file:py-1.5 file:px-3 file:rounded-sm file:border-0 file:text-[13px] file:font-semibold file:bg-surface-raised file:text-text-primary hover:file:bg-border-warm cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-4 border-t border-border-warm flex justify-end">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="medium"
+                    onClick={handleSaveSettings}
+                    disabled={updateAccountMut.isPending || !isApiConnected}
+                    className="gap-2 shrink-0"
+                  >
+                    {updateAccountMut.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "Save Payday Settings"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ) : (
+            <Card hoverable={false} className="p-6">
+              <p className="text-[14px] text-text-secondary py-10 text-center font-medium">
+                Please select or create an account to configure payday cycle settings.
+              </p>
+            </Card>
+          )}
         </div>
       )}
 
