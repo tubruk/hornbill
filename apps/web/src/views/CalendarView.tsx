@@ -25,7 +25,7 @@ import {
   Clock,
   Loader2,
   Calendar,
-  Sparkles,
+  Banknote,
   Palmtree,
   MoreVertical,
   Eye,
@@ -622,7 +622,7 @@ export function CalendarView() {
                     : "text-text-secondary hover:text-text-primary"
                 }`}
               >
-                <Sparkles className="w-4 h-4 text-primary" />
+                <Banknote className="w-4 h-4 text-primary" />
                 <span>Payday Cycle</span>
               </button>
             ) : (
@@ -684,7 +684,7 @@ export function CalendarView() {
             <div className="flex-1 bg-surface-warm border border-border-warm p-4 rounded-sm flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between gap-4">
                 <div className="text-[12px] font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-primary" /> Cycle Budget Progress & Status
+                  <Banknote className="w-3.5 h-3.5 text-primary" /> Cycle Budget Progress & Status
                 </div>
                 <button
                   type="button"
@@ -991,7 +991,7 @@ export function CalendarView() {
             <div className="flex-1 bg-surface-warm border border-border-warm p-4 rounded-sm flex flex-col justify-center">
               <div className="flex items-center justify-between gap-4 mb-2">
                 <div className="text-[12px] font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-primary" /> Month Projections & Settle Status
+                  <Banknote className="w-3.5 h-3.5 text-primary" /> Month Projections & Settle Status
                 </div>
               </div>
               {activeCurrencies.length === 0 ? (
