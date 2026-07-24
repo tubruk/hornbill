@@ -412,6 +412,15 @@ export function CalendarView() {
     if (todayStr > endStr) daysElapsed = totalDays;
     const progressPct = Math.min(100, Math.max(0, Math.round((daysElapsed / totalDays) * 100)));
 
+    const totalSettledCents = Object.values(summary.settled).reduce((a, b) => a + b, 0);
+    const totalActiveCents = Object.values(summary.active).reduce((a, b) => a + b, 0);
+    const totalProjectedCents = Object.values(summary.projected).reduce((a, b) => a + b, 0);
+    const totalCycleCents = totalSettledCents + totalActiveCents + totalProjectedCents;
+
+    const paidProgressPct = totalCycleCents > 0
+      ? Math.min(100, Math.max(0, Math.round((totalSettledCents / totalCycleCents) * 100)))
+      : 0;
+
     return {
       startStr,
       endStr,
@@ -422,6 +431,7 @@ export function CalendarView() {
       totalDays,
       daysElapsed,
       progressPct,
+      paidProgressPct,
     };
   }, [paydayBounds, bills, dbPayments, todayStr]);
 
@@ -695,17 +705,22 @@ export function CalendarView() {
                 </button>
               </div>
 
-              <div className="space-y-1">
-                <div className="flex justify-between text-[12px] font-medium">
-                  <span className="text-text-primary">
-                    Day {paydayData.daysElapsed} of {paydayData.totalDays}
-                  </span>
-                  <span className="text-text-secondary font-mono">{paydayData.progressPct}% elapsed</span>
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center justify-between text-[12px] font-medium gap-2">
+                  <div className="flex items-center gap-1.5 font-mono">
+                    <span className="text-success font-bold text-[13px]">
+                      {activeCurrencies.map((cur) => formatCents(paydayData.summary.settled[cur] || 0, cur)).join(" + ") || "$0"}
+                    </span>
+                    <span className="text-text-secondary">
+                      paid of {activeCurrencies.map((cur) => formatCents((paydayData.summary.settled[cur] || 0) + (paydayData.summary.active[cur] || 0) + (paydayData.summary.projected[cur] || 0), cur)).join(" + ") || "$0"} total
+                    </span>
+                  </div>
+                  <span className="text-success font-mono font-bold text-[13px]">{paydayData.paidProgressPct}% paid</span>
                 </div>
-                <div className="w-full bg-surface-raised h-2 rounded-full overflow-hidden border border-border-warm/60">
+                <div className="w-full bg-surface-raised h-2.5 rounded-full overflow-hidden border border-border-warm/60">
                   <div
-                    className="bg-primary h-full transition-all duration-300"
-                    style={{ width: `${paydayData.progressPct}%` }}
+                    className="bg-success h-full transition-all duration-500 rounded-full"
+                    style={{ width: `${paydayData.paidProgressPct}%` }}
                   />
                 </div>
               </div>
@@ -800,7 +815,11 @@ export function CalendarView() {
                       return (
                         <div
                           key={p.id}
-                          className="px-4 py-3 bg-background-warm flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-surface-raised/40 transition-colors"
+                          className={`px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
+                            isSettled
+                              ? "bg-surface-raised/20 opacity-60 hover:opacity-100"
+                              : "bg-background-warm hover:bg-surface-raised/40"
+                          }`}
                         >
                           <div
                             onClick={() => setViewingPayment(p)}
@@ -810,6 +829,8 @@ export function CalendarView() {
                               <span className={
                                 isProjected
                                   ? "italic text-text-secondary font-medium"
+                                  : isSettled
+                                  ? "text-text-secondary font-normal"
                                   : status === "overdue"
                                   ? "text-error font-bold"
                                   : "text-text-primary"
@@ -861,12 +882,14 @@ export function CalendarView() {
                           </div>
 
                           <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-border-warm/40">
-                            <span className={`text-[15px] font-mono font-semibold mr-1 ${
+                            <span className={`text-[15px] font-mono mr-1 ${
                               isProjected
                                 ? "italic text-text-secondary font-medium"
+                                : isSettled
+                                ? "text-text-secondary line-through decoration-border-warm/80 font-normal"
                                 : status === "overdue"
                                 ? "text-error font-bold"
-                                : "text-text-primary"
+                                : "text-text-primary font-semibold"
                             }`}>
                               {formatCents(p.amount_cents, p.bill?.currency ?? "USD")}
                             </span>
